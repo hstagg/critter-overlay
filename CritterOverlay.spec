@@ -15,13 +15,14 @@ from pathlib import Path
 # Source layout
 # ---------------------------------------------------------------------------
 
-src = str(Path('src').resolve())
+_here = os.path.dirname(os.path.abspath(SPEC))
+src = str(Path(os.path.join(_here, 'src')).resolve())
 
 # Pre-generated WAV files (produced by build_sounds.py before this runs).
 # If sounds/ doesn't exist yet, datas is empty and the app falls back to
-# numpy synthesis (which won't work in the bundle — run build_sounds.py first).
-_wav_files = glob.glob('sounds/*.wav')
-_wav_datas = [(f.replace('\\', '/'), 'sounds') for f in _wav_files]
+# numpy synthesis (which won't work in the bundle -- run build_sounds.py first).
+_wav_files = glob.glob(os.path.join(_here, 'sounds', '*.wav'))
+_wav_datas = [(f, 'sounds') for f in _wav_files]
 
 if not _wav_files:
     print(
@@ -35,7 +36,7 @@ if not _wav_files:
 # ---------------------------------------------------------------------------
 
 a = Analysis(
-    [str(Path('src/main.py').resolve())],
+    [str(Path(os.path.join(_here, 'src', 'main.py')).resolve())],
     pathex=[src],
     binaries=[],
     datas=_wav_datas,
