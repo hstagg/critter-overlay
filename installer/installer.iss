@@ -98,7 +98,7 @@ var
   ShouldDeleteAppData: Boolean;
 
 // Ask the user whether to delete settings and custom critters during uninstall.
-// Default is NO — losing data by default is unacceptable.
+// Default is NO - losing data by default is unacceptable.
 function InitializeUninstall(): Boolean;
 var
   MsgResult: Integer;
@@ -107,10 +107,8 @@ begin
 
   MsgResult := MsgBox(
     'Do you also want to delete your settings and custom critters?' + #13#10 +
-    #13#10 +
-    'YES  — remove everything (settings, custom critters).' + #13#10 +
-    'NO   — keep your data so you can reinstall and pick up where you left off.' + #13#10 +
-    #13#10 +
+    'YES - remove everything (settings, custom critters).' + #13#10 +
+    'NO  - keep your data so you can reinstall and pick up where you left off.' + #13#10 +
     'The default is NO.',
     mbConfirmation,
     MB_YESNO or MB_DEFBUTTON2
