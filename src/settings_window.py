@@ -19,13 +19,14 @@ from PIL import Image, ImageTk
 
 from config import save_config, reset_to_defaults
 try:
-    from animal_previews import PREVIEWS as _ANIMAL_PREVIEWS
+    from animal_previews import FRAMES as _ANIMAL_FRAMES
 except ImportError:
-    _ANIMAL_PREVIEWS = {}
+    _ANIMAL_FRAMES = {}
 
 # Card background as RGB tuple for PIL compositing
-_CARD_RGB = (30, 30, 53)   # matches CARD_BG "#1e1e35"
-_PREVIEW_SIZE = 96         # display px in the card
+_CARD_RGB     = (30, 30, 53)   # matches CARD_BG "#1e1e35"
+_PREVIEW_SIZE = 96             # preview canvas size (px)
+_ANIM_FPS     = 10             # settings-window animation speed
 
 # ── Palette ─────────────────────────────────────────────────────────────────
 
@@ -82,9 +83,12 @@ class SettingsWindow:
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
 
-        # Pre-load animal preview images (PIL → ImageTk, kept alive here)
-        self._animal_photos: dict[str, ImageTk.PhotoImage] = {}
-        self._load_animal_previews()
+        # Animated preview frames: species -> list[ImageTk.PhotoImage]
+        self._animal_frames: dict[str, list[ImageTk.PhotoImage]] = {}
+        self._load_animal_frames()
+
+        # Active animation callbacks: label widget -> (frames, current_index)
+        self._anim_jobs: list[str] = []   # after() job ids, cancelled on page change
 
         self._current_page = "home"
         self._content_frame: tk.Frame | None = None
@@ -304,6 +308,7 @@ class SettingsWindow:
 
     def _show_page(self, page_id: str) -> None:
         self._current_page = page_id
+        self._cancel_anims()
 
         for pid, btn in self._nav_btns.items():
             if pid == page_id:
@@ -435,21 +440,52 @@ class SettingsWindow:
                  bg=CARD_BG, fg=FG).pack(anchor="w", pady=(3, 0))
         tk.Label(card, text=label, font=(FF, 8), bg=CARD_BG, fg=FG3).pack(anchor="w")
 
-    # ── Animal preview image loader ───────────────────────────────────────────
+    # ── Animal preview frame loader ───────────────────────────────────────────
 
-    def _load_animal_previews(self) -> None:
-        """Decode base64 PNGs, composite on card background, cache as PhotoImage."""
-        bg_img = Image.new("RGBA", (_PREVIEW_SIZE, _PREVIEW_SIZE),
-                           (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
-        for species, b64 in _ANIMAL_PREVIEWS.items():
+    def _load_animal_frames(self) -> None:
+        """Decode base64 PNGs for each species and cache as lists of PhotoImage."""
+        for species, b64_list in _ANIMAL_FRAMES.items():
+            photos = []
+            for b64 in b64_list:
+                try:
+                    img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
+                    photos.append(ImageTk.PhotoImage(img))
+                except Exception as e:
+                    print(f"[settings] Frame load failed for {species}: {e}")
+            if photos:
+                self._animal_frames[species] = photos
+
+    def _start_anim(self, label: tk.Label, species: str) -> None:
+        """Start cycling frames on a Label widget."""
+        frames = self._animal_frames.get(species)
+        if not frames or len(frames) < 2:
+            return
+        delay = 1000 // _ANIM_FPS
+        state = [0]
+
+        def tick():
+            if not self._root:
+                return
             try:
-                raw = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGBA")
-                raw = raw.resize((_PREVIEW_SIZE, _PREVIEW_SIZE), Image.LANCZOS)
-                comp = bg_img.copy()
-                comp.paste(raw, mask=raw.split()[3])
-                self._animal_photos[species] = ImageTk.PhotoImage(comp.convert("RGB"))
-            except Exception as e:
-                print(f"[settings] Preview load failed for {species}: {e}")
+                state[0] = (state[0] + 1) % len(frames)
+                label.configure(image=frames[state[0]])
+                job = self._root.after(delay, tick)
+                self._anim_jobs.append(job)
+            except tk.TclError:
+                pass  # widget destroyed
+
+        job = self._root.after(delay, tick)
+        self._anim_jobs.append(job)
+
+    def _cancel_anims(self) -> None:
+        """Cancel all pending animation callbacks."""
+        if self._root:
+            for job in self._anim_jobs:
+                try:
+                    self._root.after_cancel(job)
+                except Exception:
+                    pass
+        self._anim_jobs.clear()
 
     # ── Page: Animals ─────────────────────────────────────────────────────────
 
@@ -458,17 +494,9 @@ class SettingsWindow:
                           "Choose which species appear and how frequently they're picked.")
         _, inner = self._scrollable(parent)
 
-        grid = tk.Frame(inner, bg=CONTENT_BG)
-        grid.pack(fill="x")
-        grid.grid_columnconfigure(0, weight=1)
-        grid.grid_columnconfigure(1, weight=1)
-
-        for i, (species, emoji, name) in enumerate(ANIMALS):
-            row_i, col_i = divmod(i, 2)
-            pad_r = 8 if col_i == 0 else 0
-            cell = tk.Frame(grid, bg=CARD_BG, padx=18, pady=16)
-            cell.grid(row=row_i, column=col_i, sticky="nsew",
-                      padx=(0, pad_r), pady=(0, 8))
+        for species, emoji, name in ANIMALS:
+            cell = tk.Frame(inner, bg=CARD_BG, padx=18, pady=16)
+            cell.pack(fill="x", pady=(0, 8))
             self._animal_card(cell, species, emoji, name)
 
         # Reset weights link
@@ -483,29 +511,36 @@ class SettingsWindow:
         enabled_var = tk.BooleanVar(value=cfg.get("enabled", True))
         weight_var  = tk.DoubleVar(value=cfg.get("weight", 1.0))
 
-        # ── Preview image ──
-        photo = self._animal_photos.get(species)
-        if photo:
-            img_lbl = tk.Label(parent, image=photo, bg=CARD_BG, cursor="hand2")
-            img_lbl.image = photo  # keep reference
-            img_lbl.pack(pady=(0, 8))
+        # ── Horizontal layout: animated preview | controls ──
+        left = tk.Frame(parent, bg=CARD_BG)
+        left.pack(side="left", padx=(0, 14))
 
-        # ── Header row ──
-        head = tk.Frame(parent, bg=CARD_BG)
+        right = tk.Frame(parent, bg=CARD_BG)
+        right.pack(side="left", fill="both", expand=True)
+
+        # ── Animated preview ──
+        frames = self._animal_frames.get(species)
+        first  = frames[0] if frames else None
+        img_lbl = tk.Label(left, image=first, bg=CARD_BG,
+                           width=_PREVIEW_SIZE, height=_PREVIEW_SIZE)
+        img_lbl.image = first
+        img_lbl.pack()
+        if frames:
+            self._start_anim(img_lbl, species)
+
+        # ── Name + enabled toggle ──
+        head = tk.Frame(right, bg=CARD_BG)
         head.pack(fill="x")
 
-        tk.Label(head, text=name, font=(FF, 11, "bold"),
+        tk.Label(head, text=name, font=(FF, 12, "bold"),
                  bg=CARD_BG, fg=FG).pack(side="left")
 
-        is_on = cfg.get("enabled", True)
-        pill_fg  = GREEN if is_on else FG3
-        pill_txt = "ON" if is_on else "OFF"
-
-        pill = tk.Label(head, text=pill_txt,
+        is_on   = cfg.get("enabled", True)
+        pill = tk.Label(head, text="ON" if is_on else "OFF",
                         font=(FF, 8, "bold"),
                         bg=("#0f2015" if is_on else CARD_BG),
-                        fg=pill_fg, padx=7, pady=2,
-                        cursor="hand2")
+                        fg=(GREEN if is_on else FG3),
+                        padx=7, pady=2, cursor="hand2")
         pill.pack(side="right", padx=(0, 2))
 
         chk = tk.Checkbutton(head, variable=enabled_var,
@@ -525,12 +560,11 @@ class SettingsWindow:
         pill.bind("<Button-1>", lambda e, v=enabled_var: (v.set(not v.get()), on_toggle()))
 
         # ── Weight ──
-        sep = tk.Frame(parent, bg=BORDER, height=1)
-        sep.pack(fill="x", pady=(10, 8))
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
 
-        w_head = tk.Frame(parent, bg=CARD_BG)
+        w_head = tk.Frame(right, bg=CARD_BG)
         w_head.pack(fill="x")
-        tk.Label(w_head, text="Frequency weight",
+        tk.Label(w_head, text="Spawn frequency",
                  font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
 
         w_lbl = tk.Label(w_head, text=f"{weight_var.get():.1f}×",
@@ -542,7 +576,7 @@ class SettingsWindow:
             lbl.configure(text=f"{fv:.1f}×")
             self._set("animals", s, "weight", fv)
 
-        sl = tk.Scale(parent, from_=0.1, to=5.0, resolution=0.1,
+        sl = tk.Scale(right, from_=0.1, to=5.0, resolution=0.1,
                       orient="horizontal", variable=weight_var,
                       bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
                       highlightthickness=0, bd=0, showvalue=False,
@@ -732,8 +766,8 @@ class SettingsWindow:
 
         inner.bind("<Configure>", _on_frame_configure)
         canvas.bind("<Configure>", _on_canvas_configure)
-        canvas.bind("<MouseWheel>",
-                    lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
+        canvas.bind_all("<MouseWheel>",
+                        lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
 
         return canvas, inner
 
