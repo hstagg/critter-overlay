@@ -1,0 +1,11 @@
+# requirements-build.txt — build-time dependencies only
+# Not needed to run the app; needed to produce the installer.
+#
+# Install with:  pip install -r requirements-build.txt
+# (Also install requirements.txt for the runtime deps used by PyInstaller analysis)
+
+pyinstaller>=6.0.0
+
+# Pillow is also a runtime dep (requirements.txt) but listed here because
+# make_icon.py and build_sounds.py need it.
+Pillow>=10.0.0
