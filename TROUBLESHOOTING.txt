@@ -1,0 +1,86 @@
+=============================================
+  CRITTER OVERLAY - Troubleshooting
+=============================================
+
+
+PROBLEM: Animals are not appearing
+------------------------------------
+- The default spawn interval is 15 minutes. Wait a bit, or open settings
+  (Ctrl+Shift+A) and click "Spawn now" to test immediately.
+- Check the app is actually running: open Task Manager and look for
+  "python" or "pythonw" in the list.
+- Make sure spawning isn't paused (Ctrl+Shift+P toggles pause).
+
+
+PROBLEM: Keyboard shortcuts don't work (Ctrl+Shift+A / Ctrl+Shift+P)
+----------------------------------------------------------------------
+- Some security software blocks global keyboard hooks.
+- Try right-clicking run.bat and selecting "Run as administrator".
+- On some setups, the keyboard library needs elevated permissions.
+
+
+PROBLEM: setup.bat or run.bat says "Python not found"
+------------------------------------------------------
+- Double-click  pythoninstall.bat  (it is in this folder).
+  It downloads and installs Python automatically.
+- When it finishes, close that window, then run setup.bat again.
+- If you already ran pythoninstall.bat and it still fails, try
+  restarting your computer, then run setup.bat.
+
+
+PROBLEM: setup.bat says packages failed to install
+----------------------------------------------------
+This usually has nothing to do with admin rights. The two real
+causes are almost always one of these:
+
+A) You are running Python 3.14 or newer.
+   - Pygame does not publish prebuilt wheels for 3.14+ yet, so pip
+     tries to compile pygame from source and fails.
+   - Fix: uninstall Python 3.14 from "Add or remove programs",
+     then run  pythoninstall.bat  to install Python 3.12.
+
+B) An SSL / certificate error like:
+       "CERTIFICATE_VERIFY_FAILED ... unable to get local issuer certificate"
+   - This means pip cannot verify the connection to pypi.org. Common
+     on corporate laptops, behind VPNs, or with old Python installs.
+   - setup.bat will now retry automatically with a trusted-host
+     workaround. If that still fails, open Command Prompt and run:
+         python -m pip install --upgrade certifi
+         python -m pip install pygame numpy keyboard pystray Pillow ^
+             --trusted-host pypi.org ^
+             --trusted-host files.pythonhosted.org ^
+             --trusted-host pypi.python.org
+     Then double-click run.bat.
+
+If neither of those is the issue, try right-clicking setup.bat and
+choosing "Run as administrator" as a last resort.
+
+
+PROBLEM: I can see a coloured/magenta flash on screen sometimes
+----------------------------------------------------------------
+- This is a graphics glitch with the transparency layer. It should be rare.
+- If it happens often, try closing and restarting the app via run.bat.
+
+
+PROBLEM: The app is using too much CPU
+----------------------------------------
+- Open settings (Ctrl+Shift+A) → Visuals → set Animation to "Simple".
+- Reduce the number of animals per spawn (Spawning tab → Max animals).
+
+
+PROBLEM: Sounds are too loud / annoying
+-----------------------------------------
+- Open settings (Ctrl+Shift+A) → Audio → adjust volume or disable sounds.
+- You can mute individual animal types in the Audio tab.
+
+
+PROBLEM: I want to completely uninstall it
+-------------------------------------------
+1. Open settings (Ctrl+Shift+A) → System → turn off "Launch on startup".
+2. Close the app: settings → "Quit app".
+3. Delete the CritterOverlay folder you received.
+4. Optionally: delete %APPDATA%\CritterOverlay\ (settings cache).
+
+
+Still stuck? Contact Harrison.
+=============================================

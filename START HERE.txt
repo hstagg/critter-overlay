@@ -1,0 +1,24 @@
+=============================================
+  CRITTER OVERLAY
+=============================================
+
+You only need ONE file:
+
+   Critter Overlay v*.pyzw
+
+Double-click it. That's the whole install.
+
+First launch shows a small dark window for ~30s while it sets itself up.
+After that, double-clicking is silent and instant.
+
+Requirements: Python 3.8+ (https://www.python.org/downloads/).
+              Tick "Add Python to PATH" if installing fresh.
+
+Tray paw icon (bottom-right of taskbar) -> Settings, Spawn Now, Pause, Quit.
+Hotkey: Ctrl+Shift+P pauses / resumes from any window.
+
+Full docs: README.md
+
+(The old setup.bat / pythoninstall.bat / run.bat / TROUBLESHOOTING.txt are
+superseded by the .pyzw bootstrapper. They can be deleted.)
+=============================================

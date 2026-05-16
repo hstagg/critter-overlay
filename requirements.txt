@@ -1,0 +1,9 @@
+# Critter Overlay — Python dependencies
+# Install with: pip install -r requirements.txt
+
+pygame>=2.3.0
+numpy>=1.24.0
+keyboard>=0.13.5
+pystray>=0.19.0
+Pillow>=10.0.0
+pyinstaller>=6.0.0   # build only — not needed at runtime
