@@ -9,7 +9,11 @@ import base64
 import io
 import threading
 import tkinter as tk
+import webbrowser
 from typing import Callable
+
+APP_VERSION  = "1.7"
+RELEASES_URL = "https://github.com/hstagg/critter-overlay/releases"
 
 from PIL import Image, ImageTk
 
@@ -175,7 +179,7 @@ class SettingsWindow:
         tk.Label(brand, text="🐾", font=(FF, 30), bg=SIDEBAR_BG).pack(anchor="w")
         tk.Label(brand, text="Critter Overlay", font=(FF, 13, "bold"),
                  bg=SIDEBAR_BG, fg=FG).pack(anchor="w", pady=(4, 0))
-        tk.Label(brand, text="v1.0", font=(FF, 8),
+        tk.Label(brand, text=f"v{APP_VERSION}", font=(FF, 8),
                  bg=SIDEBAR_BG, fg=FG3).pack(anchor="w")
 
         # ── Status pill ──
@@ -683,9 +687,20 @@ class SettingsWindow:
             cursor="hand2", pady=11, padx=16, anchor="w")
         quit_btn.pack(fill="x", pady=(0, 0))
 
+        # ── Updates ──
+        self._section_label(inner, "Updates")
+        updates_btn = tk.Button(inner,
+            text="↗   Check for updates on GitHub",
+            command=lambda: webbrowser.open(RELEASES_URL),
+            bg=CARD_BG, fg=FG2,
+            activebackground=CARD_HOV, activeforeground=FG,
+            relief="flat", font=(FF, 9),
+            cursor="hand2", pady=11, padx=16, anchor="w")
+        updates_btn.pack(fill="x", pady=(0, 0))
+
         # ── About ──
         self._section_label(inner, "About")
-        tk.Label(inner, text="Critter Overlay  ·  v1.0",
+        tk.Label(inner, text=f"Critter Overlay  ·  v{APP_VERSION}",
                  font=(FF, 10, "bold"), bg=CONTENT_BG, fg=FG).pack(anchor="w")
         tk.Label(inner, text="Adorable desktop companions. Made with love.",
                  font=(FF, 9), bg=CONTENT_BG, fg=FG3).pack(anchor="w", pady=(3, 0))
