@@ -1,0 +1,7 @@
+﻿__pycache__/
+*.pyc
+*.pyzw
+CritterOverlay_v*.zip
+build/
+dist/
+installer/output/
