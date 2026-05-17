@@ -1,10 +1,10 @@
-"""
+r"""
 storage.py — Disk layout and metadata I/O for custom critters.
 
 Each critter lives in a self-contained folder:
   %APPDATA%\CritterOverlay\custom\<slug>-<hash6>\
-    frames\         frame_0.png … frame_N.png
-    masks\          mask_0.npy  … mask_N.npy
+    frames\         frame_0.png ... frame_N.png
+    masks\          mask_0.npy  ... mask_N.npy
     meta.json
     thumb.png
     source.png / source.gif
