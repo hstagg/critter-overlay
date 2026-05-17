@@ -27,6 +27,7 @@ from animals import Animal, Particle, TrailParticle, create_animal
 from spawn_manager import SpawnManager
 from sounds import SoundManager
 from config import save_config
+from custom_critters.registry import CustomCritterRegistry
 
 # How far the mouse must move during a press-hold for the gesture to count
 # as a "drag → throw" rather than a "click → pop".
@@ -114,12 +115,14 @@ class Notification:
 class Overlay:
 
     def __init__(self, config: dict, sound_manager: SoundManager,
-                 open_settings_fn, quit_event, on_pause_changed=None):
+                 open_settings_fn, quit_event, on_pause_changed=None,
+                 registry: CustomCritterRegistry | None = None):
         self.config = config
         self.sound_manager = sound_manager
         self.open_settings_fn = open_settings_fn
         self.quit_event = quit_event
         self._on_pause_changed = on_pause_changed  # callback → updates tray icon
+        self._registry = registry or CustomCritterRegistry()
 
         self.paused: bool = False  # always start unpaused
 
@@ -170,7 +173,8 @@ class Overlay:
         # Spawn manager
         self._spawn_manager = SpawnManager(
             self.screen_w, self.screen_h, config,
-            on_spawn=self._on_spawn
+            on_spawn=self._on_spawn,
+            registry=self._registry,
         )
 
         self._clock = pygame.time.Clock()
@@ -188,9 +192,19 @@ class Overlay:
         """Called when settings window saves a change."""
         self.config = new_config
         self.paused = new_config["system"].get("paused", False)
-        self._spawn_manager.apply_config(new_config)
+        self._spawn_manager.apply_config(new_config, registry=self._registry)
         self.sound_manager.apply_config(new_config)
         self._config_dirty = True
+
+    def spawn_custom(self, critter_id: str) -> None:
+        """Spawn a specific custom critter for UI test button."""
+        x, y, direction = self._spawn_manager._edge_pos()
+        a = self._spawn_manager._make_animal(
+            f"custom:{critter_id}", x, y,
+            direction=direction, perimeter_walker=True,
+        )
+        if a is not None:
+            self._on_spawn([a])
 
     def request_quit(self) -> None:
         self.quit_event.set()

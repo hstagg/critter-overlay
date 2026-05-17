@@ -9,19 +9,29 @@ import base64
 import io
 import threading
 import tkinter as tk
+import tkinter.filedialog as filedialog
+import tkinter.messagebox as messagebox
 import webbrowser
+from pathlib import Path
 from typing import Callable
 
-APP_VERSION  = "1.7"
+APP_VERSION  = "1.8"
 RELEASES_URL = "https://github.com/hstagg/critter-overlay/releases"
 
 from PIL import Image, ImageTk
 
 from config import save_config, reset_to_defaults
+from custom_critters.registry import CustomCritterRegistry
+from custom_critters.storage import delete_critter_folder, get_custom_dir, write_meta
+from custom_critters.import_pipeline import run_import
+
 try:
     from animal_previews import FRAMES as _ANIMAL_FRAMES
 except ImportError:
     _ANIMAL_FRAMES = {}
+
+SOUND_PRESETS = ["kitten", "turtle", "duck", "rabbit",
+                 "hedgehog", "squirrel", "otter", "panda"]
 
 # Card background as RGB tuple for PIL compositing
 _CARD_RGB     = (30, 30, 53)   # matches CARD_BG "#1e1e35"
@@ -71,12 +81,16 @@ class SettingsWindow:
                  on_save: Callable[[dict], None],
                  on_force_spawn: Callable[[], None],
                  on_quit: Callable[[], None],
-                 get_paused: Callable[[], bool] = None):
-        self._config         = config
-        self._on_save        = on_save
-        self._on_force_spawn = on_force_spawn
-        self._on_quit        = on_quit
-        self._get_paused     = get_paused or (lambda: False)
+                 get_paused: Callable[[], bool] = None,
+                 registry: CustomCritterRegistry | None = None,
+                 on_test_custom_spawn: Callable[[str], None] | None = None):
+        self._config               = config
+        self._on_save              = on_save
+        self._on_force_spawn       = on_force_spawn
+        self._on_quit              = on_quit
+        self._get_paused           = get_paused or (lambda: False)
+        self._registry             = registry or CustomCritterRegistry()
+        self._on_test_custom_spawn = on_test_custom_spawn
         self._on_toggle_pause: Callable | None = None
 
         self._root: tk.Tk | None = None
@@ -204,6 +218,7 @@ class SettingsWindow:
         nav = [
             ("home",     "⌂",  "Home"),
             ("animals",  "🐾", "Animals"),
+            ("custom",   "✨", "Custom"),
             ("spawning", "⏱",  "Spawning"),
             ("audio",    "🔊", "Audio"),
             ("system",   "⚙",  "System"),
@@ -326,6 +341,7 @@ class SettingsWindow:
         {
             "home":     self._page_home,
             "animals":  self._page_animals,
+            "custom":   self._page_custom,
             "spawning": self._page_spawning,
             "audio":    self._page_audio,
             "system":   self._page_system,
@@ -582,6 +598,300 @@ class SettingsWindow:
                       highlightthickness=0, bd=0, showvalue=False,
                       command=on_weight)
         sl.pack(fill="x", pady=(4, 0))
+
+    # ── Page: Custom critters ────────────────────────────────────────────────
+
+    def _page_custom(self, parent: tk.Frame) -> None:
+        self._page_header(parent, "Custom",
+                          "Import your own critters from PNG, JPG, or animated GIF.")
+        _, inner = self._scrollable(parent)
+
+        # Import button
+        import_btn = tk.Button(inner,
+            text="＋  Import new critter",
+            command=lambda: self._import_dialog(inner),
+            bg="#1a0f35", fg=ACCENT,
+            activebackground="#23154a", activeforeground=ACCENT,
+            relief="flat", font=(FF, 10, "bold"),
+            cursor="hand2", pady=12, padx=16, anchor="w")
+        import_btn.pack(fill="x", pady=(0, 16))
+
+        records = self._registry.all()
+        if not records:
+            tk.Label(inner,
+                     text="No custom critters yet. Click 'Import new critter' above to add one.",
+                     font=(FF, 9), bg=CONTENT_BG, fg=FG3,
+                     wraplength=460, justify="left").pack(anchor="w", pady=20)
+            return
+
+        for record in records:
+            self._custom_critter_row(inner, record)
+
+    def _custom_critter_row(self, parent: tk.Frame, record) -> None:
+        cid  = record.id
+        meta = record.meta
+        custom_cfg = self._config.get("custom_animals", {}).get(cid, {})
+
+        card = tk.Frame(parent, bg=CARD_BG, padx=16, pady=14)
+        card.pack(fill="x", pady=(0, 8))
+
+        # ── Thumbnail ──
+        left = tk.Frame(card, bg=CARD_BG)
+        left.pack(side="left", padx=(0, 14))
+
+        thumb_path = get_custom_dir() / cid / "thumb.png"
+        thumb_photo = None
+        if thumb_path.exists():
+            try:
+                img = Image.open(str(thumb_path)).convert("RGBA")
+                bg  = Image.new("RGBA", img.size, (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
+                bg.paste(img, mask=img.split()[3])
+                thumb_photo = ImageTk.PhotoImage(bg.convert("RGB"))
+            except Exception:
+                pass
+
+        if thumb_photo:
+            lbl = tk.Label(left, image=thumb_photo, bg=CARD_BG)
+            lbl.image = thumb_photo
+            lbl.pack()
+        else:
+            tk.Label(left, text="🐾", font=(FF, 22), bg=CARD_BG, fg=FG3,
+                     width=4, height=2).pack()
+
+        # ── Right controls ──
+        right = tk.Frame(card, bg=CARD_BG)
+        right.pack(side="left", fill="both", expand=True)
+
+        # Name row
+        head = tk.Frame(right, bg=CARD_BG)
+        head.pack(fill="x")
+
+        name_var = tk.StringVar(value=meta.get("name", cid))
+        name_entry = tk.Entry(head, textvariable=name_var,
+                              font=(FF, 11, "bold"),
+                              bg=CARD_BG, fg=FG, insertbackground=FG,
+                              relief="flat", bd=0)
+        name_entry.pack(side="left", fill="x", expand=True)
+
+        def on_name_change(e, _cid=cid, var=name_var):
+            new_name = var.get().strip()
+            if not new_name:
+                return
+            meta["name"] = new_name
+            write_meta(get_custom_dir() / _cid, meta)
+
+        name_entry.bind("<FocusOut>", on_name_change)
+        name_entry.bind("<Return>",   on_name_change)
+
+        # Enabled pill
+        is_on       = custom_cfg.get("enabled", True)
+        enabled_var = tk.BooleanVar(value=is_on)
+        pill = tk.Label(head,
+                        text="ON" if is_on else "OFF",
+                        font=(FF, 8, "bold"),
+                        bg=("#0f2015" if is_on else CARD_BG),
+                        fg=(GREEN if is_on else FG3),
+                        padx=7, pady=2, cursor="hand2")
+        pill.pack(side="right", padx=(0, 2))
+
+        chk = tk.Checkbutton(head, variable=enabled_var,
+                             bg=CARD_BG, activebackground=CARD_BG,
+                             selectcolor=CARD_BG, fg=ACCENT,
+                             relief="flat", cursor="hand2")
+        chk.pack(side="right")
+
+        def on_toggle(_cid=cid, v=enabled_var, p=pill):
+            val = v.get()
+            p.configure(text="ON" if val else "OFF",
+                        fg=(GREEN if val else FG3),
+                        bg=("#0f2015" if val else CARD_BG))
+            self._set_custom(_cid, "enabled", val)
+
+        chk.configure(command=on_toggle)
+        pill.bind("<Button-1>", lambda e, v=enabled_var: (v.set(not v.get()), on_toggle()))
+
+        # Weight slider
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(8, 6))
+
+        w_row = tk.Frame(right, bg=CARD_BG)
+        w_row.pack(fill="x")
+        tk.Label(w_row, text="Spawn frequency", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
+
+        weight_var = tk.DoubleVar(value=custom_cfg.get("weight", 1.0))
+        w_lbl = tk.Label(w_row, text=f"{weight_var.get():.1f}×",
+                         font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT)
+        w_lbl.pack(side="right")
+
+        def on_weight(v, _cid=cid, lbl=w_lbl):
+            fv = round(float(v), 1)
+            lbl.configure(text=f"{fv:.1f}×")
+            self._set_custom(_cid, "weight", fv)
+
+        tk.Scale(right, from_=0.5, to=5.0, resolution=0.1,
+                 orient="horizontal", variable=weight_var,
+                 bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
+                 highlightthickness=0, bd=0, showvalue=False,
+                 command=on_weight).pack(fill="x", pady=(4, 6))
+
+        # Sound preset dropdown + action buttons
+        btn_row = tk.Frame(right, bg=CARD_BG)
+        btn_row.pack(fill="x")
+
+        tk.Label(btn_row, text="Sound:", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
+
+        current_preset = custom_cfg.get("sound_override") or meta.get("sound_profile", "kitten")
+        sound_var = tk.StringVar(value=current_preset)
+        preset_menu = tk.OptionMenu(btn_row, sound_var, *SOUND_PRESETS)
+        preset_menu.configure(bg=CARD_BG, fg=FG2, activebackground=SEL_BG,
+                              activeforeground=FG, relief="flat",
+                              font=(FF, 8), highlightthickness=0)
+        preset_menu["menu"].configure(bg=CARD_BG, fg=FG2, font=(FF, 8))
+        preset_menu.pack(side="left", padx=(4, 12))
+
+        def on_sound(*_, _cid=cid, var=sound_var):
+            self._set_custom(_cid, "sound_override", var.get())
+
+        sound_var.trace_add("write", on_sound)
+
+        # Test spawn
+        tk.Button(btn_row, text="▶ Test",
+                  command=lambda _cid=cid: self._on_test_custom_spawn and self._on_test_custom_spawn(_cid),
+                  bg=CARD_BG, fg=ACCENT2,
+                  activebackground=SEL_BG, activeforeground=FG,
+                  relief="flat", font=(FF, 8, "bold"),
+                  cursor="hand2", padx=8, pady=4).pack(side="left")
+
+        # Delete
+        tk.Button(btn_row, text="✕ Delete",
+                  command=lambda _cid=cid: self._delete_custom(_cid),
+                  bg=CARD_BG, fg=RED,
+                  activebackground="#2a1010", activeforeground=RED,
+                  relief="flat", font=(FF, 8),
+                  cursor="hand2", padx=8, pady=4).pack(side="right")
+
+    def _import_dialog(self, parent_inner: tk.Frame) -> None:
+        """Modal dialog to import a new custom critter."""
+        path = filedialog.askopenfilename(
+            title="Choose an image",
+            filetypes=[
+                ("Supported images", "*.png *.jpg *.jpeg *.gif"),
+                ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"), ("GIF", "*.gif"),
+            ],
+        )
+        if not path:
+            return
+
+        # Name autofilled from filename (no extension)
+        default_name = Path(path).stem.replace("_", " ").replace("-", " ").title()
+
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Import critter")
+        dlg.configure(bg=CONTENT_BG)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        w, h = 420, 200
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        tk.Label(dlg, text="Name your critter",
+                 font=(FF, 13, "bold"), bg=CONTENT_BG, fg=FG).pack(anchor="w", padx=24, pady=(20, 4))
+        tk.Label(dlg, text=Path(path).name,
+                 font=(FF, 8), bg=CONTENT_BG, fg=FG3).pack(anchor="w", padx=24)
+
+        name_var = tk.StringVar(value=default_name)
+        entry = tk.Entry(dlg, textvariable=name_var,
+                         font=(FF, 11), bg=CARD_BG, fg=FG,
+                         insertbackground=FG, relief="flat", bd=0)
+        entry.pack(fill="x", padx=24, pady=(10, 0), ipady=8)
+        entry.select_range(0, "end")
+        entry.focus_set()
+
+        status_lbl = tk.Label(dlg, text="", font=(FF, 8),
+                              bg=CONTENT_BG, fg=AMBER, wraplength=370, justify="left")
+        status_lbl.pack(anchor="w", padx=24, pady=(6, 0))
+
+        btn_row = tk.Frame(dlg, bg=CONTENT_BG)
+        btn_row.pack(fill="x", padx=24, pady=(12, 0))
+
+        def do_import():
+            name = name_var.get().strip()
+            if not name:
+                status_lbl.configure(text="Please enter a name.", fg=RED)
+                return
+
+            import_btn.configure(state="disabled", text="Importing…")
+            dlg.update()
+
+            try:
+                critter_id = run_import(path, name, get_custom_dir())
+            except ImportError as err:
+                status_lbl.configure(text=str(err), fg=RED)
+                import_btn.configure(state="normal", text="Import")
+                return
+            except Exception as err:
+                status_lbl.configure(text=f"Unexpected error: {err}", fg=RED)
+                import_btn.configure(state="normal", text="Import")
+                return
+
+            # Register in config
+            if "custom_animals" not in self._config:
+                self._config["custom_animals"] = {}
+            self._config["custom_animals"][critter_id] = {
+                "enabled": True, "weight": 1.0, "sound_override": None, "size_override": None,
+            }
+            save_config(self._config)
+
+            # Reload registry and notify overlay
+            self._registry.reload()
+            self._on_save(self._config)
+
+            dlg.destroy()
+            self._show_page("custom")
+
+        import_btn = tk.Button(btn_row, text="Import",
+                               command=do_import,
+                               bg="#1a0f35", fg=ACCENT,
+                               activebackground="#23154a", activeforeground=ACCENT,
+                               relief="flat", font=(FF, 10, "bold"),
+                               cursor="hand2", padx=16, pady=8)
+        import_btn.pack(side="left")
+
+        tk.Button(btn_row, text="Cancel",
+                  command=dlg.destroy,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="left", padx=(8, 0))
+
+        entry.bind("<Return>", lambda e: do_import())
+
+    def _delete_custom(self, critter_id: str) -> None:
+        name = self._registry.get(critter_id)
+        display = name.meta.get("name", critter_id) if name else critter_id
+        ok = messagebox.askyesno(
+            "Delete critter",
+            f"Delete \"{display}\"?\n\nThis cannot be undone.",
+            icon="warning",
+            parent=self._root,
+        )
+        if not ok:
+            return
+        delete_critter_folder(get_custom_dir(), critter_id)
+        self._registry.remove(critter_id)
+        self._config.get("custom_animals", {}).pop(critter_id, None)
+        save_config(self._config)
+        self._on_save(self._config)
+        self._show_page("custom")
+
+    def _set_custom(self, critter_id: str, key: str, value) -> None:
+        if "custom_animals" not in self._config:
+            self._config["custom_animals"] = {}
+        if critter_id not in self._config["custom_animals"]:
+            self._config["custom_animals"][critter_id] = {}
+        self._config["custom_animals"][critter_id][key] = value
+        save_config(self._config)
+        self._on_save(self._config)
 
     # ── Page: Spawning ────────────────────────────────────────────────────────
 
