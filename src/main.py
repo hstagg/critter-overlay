@@ -99,10 +99,11 @@ def main() -> None:
 
     import keyboard
     import pystray
-    from config          import load_config, save_config
-    from sounds          import SoundManager
-    from overlay         import Overlay
-    from settings_window import SettingsWindow
+    from config                      import load_config, save_config
+    from sounds                      import SoundManager
+    from overlay                     import Overlay
+    from settings_window             import SettingsWindow
+    from custom_critters.registry    import CustomCritterRegistry
 
     config = load_config()
     _set_autostart(config["system"].get("auto_launch", True))
@@ -111,6 +112,10 @@ def main() -> None:
 
     sound_mgr = SoundManager()
     sound_mgr.init(config)
+
+    # Registry is created before the overlay so the same object is shared
+    # everywhere; reload() is called after pygame.init() (inside Overlay.__init__)
+    registry = CustomCritterRegistry()
 
     # Placeholders — assigned before use
     overlay:      Overlay        = None  # type: ignore
@@ -138,12 +143,22 @@ def main() -> None:
     # Callbacks
     # ------------------------------------------------------------------
 
+    def _refresh_custom_sounds() -> None:
+        """Re-register sounds for all currently loaded custom critters."""
+        for record in registry.all():
+            sound_mgr.register_custom(
+                record.id,
+                record.meta.get("sound_profile", "kitten"),
+                record.meta.get("sound_seed", 0),
+            )
+
     def on_config_saved(new_config: dict) -> None:
         nonlocal config
         config = new_config
         if overlay:
             overlay.apply_new_config(new_config)
         _set_autostart(new_config["system"].get("auto_launch", True))
+        _refresh_custom_sounds()
 
     def on_quit() -> None:
         quit_event.set()
@@ -158,18 +173,25 @@ def main() -> None:
         open_settings_fn = lambda: settings_win.open() if settings_win else None,
         quit_event       = quit_event,
         on_pause_changed = update_tray,
+        registry         = registry,
     )
+
+    # pygame is now initialised inside Overlay — safe to load sprites/masks
+    registry.reload()
+    _refresh_custom_sounds()
 
     # ------------------------------------------------------------------
     # Build settings window (proper app window, shows in taskbar)
     # ------------------------------------------------------------------
 
     settings_win = SettingsWindow(
-        config         = config,
-        on_save        = on_config_saved,
-        on_force_spawn = overlay.force_spawn,
-        on_quit        = on_quit,
-        get_paused     = lambda: overlay.paused,
+        config               = config,
+        on_save              = on_config_saved,
+        on_force_spawn       = overlay.force_spawn,
+        on_quit              = on_quit,
+        get_paused           = lambda: overlay.paused,
+        registry             = registry,
+        on_test_custom_spawn = overlay.spawn_custom,
     )
 
     # Wire in pause toggle so the settings window can trigger it

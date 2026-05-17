@@ -43,6 +43,7 @@ DEFAULT_CONFIG = {
         "auto_launch": True,
         "hotkey_pause": "ctrl+shift+p",
     },
+    "custom_animals": {},   # keyed by critter_id; entries added by import pipeline
 }
 
 # ---------------------------------------------------------------------------
