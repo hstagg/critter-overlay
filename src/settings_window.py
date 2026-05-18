@@ -339,6 +339,13 @@ class SettingsWindow:
             else:
                 btn.configure(bg=SIDEBAR_BG, fg=FG2, font=(FF, 10))
 
+        # Unbind wheel before destroying old canvas so stale callbacks don't linger
+        if self._root:
+            try:
+                self._root.unbind_all("<MouseWheel>")
+            except Exception:
+                pass
+
         for w in self._content_frame.winfo_children():
             w.destroy()
 
@@ -1096,28 +1103,38 @@ class SettingsWindow:
 
         win_id = canvas.create_window((0, 0), window=inner, anchor="nw")
 
+        first_configure = [True]
+
         def _on_frame_configure(e):
-            bb = canvas.bbox("all")
-            if bb:
-                # Clamp top to 0 so you can never scroll above the content
-                canvas.configure(scrollregion=(0, 0, bb[2], bb[3]))
+            # Defer until pending layout is settled so bbox reflects final height.
+            def _apply():
+                try:
+                    bb = canvas.bbox("all")
+                    if bb:
+                        canvas.configure(scrollregion=(0, 0, bb[2], bb[3]))
+                    if first_configure[0]:
+                        canvas.yview_moveto(0)
+                        first_configure[0] = False
+                except tk.TclError:
+                    pass
+            canvas.after_idle(_apply)
 
         def _on_canvas_configure(e):
             canvas.itemconfig(win_id, width=e.width)
 
-        def _wheel(e):
-            canvas.yview_scroll(-1 * (e.delta // 120), "units")
-
-        def _bind_wheel(e):
-            canvas.bind_all("<MouseWheel>", _wheel)
-
-        def _unbind_wheel(e):
-            canvas.unbind_all("<MouseWheel>")
+        def _on_wheel(e):
+            try:
+                canvas.yview_scroll(-1 * (e.delta // 120), "units")
+            except tk.TclError:
+                pass
 
         inner.bind("<Configure>", _on_frame_configure)
         canvas.bind("<Configure>", _on_canvas_configure)
-        canvas.bind("<Enter>", _bind_wheel)
-        canvas.bind("<Leave>", _unbind_wheel)
+
+        # Bind immediately — _show_page unbinds before destroying old canvas,
+        # so this always refers to the current page's canvas.
+        if self._root:
+            self._root.bind_all("<MouseWheel>", _on_wheel)
 
         return canvas, inner
 
