@@ -13,6 +13,7 @@ Fallback priority:
 
 import math
 import os
+import random
 import sys
 
 import pygame
@@ -97,109 +98,139 @@ def _sweep(t, freq_start, freq_end):
     return np.sin(2 * math.pi * np.cumsum(freq) / SAMPLE_RATE)
 
 # ---------------------------------------------------------------------------
-# Per-animal sound generators
+# Seed perturbation helper
 # ---------------------------------------------------------------------------
 
-def _gen_kitten(volume: float) -> pygame.mixer.Sound:
+def _p(rng: random.Random | None, value: float, spread: float) -> float:
+    """Perturb value by ±spread fraction using rng; return value unchanged if rng is None."""
+    if rng is None:
+        return value
+    return value * rng.uniform(1.0 - spread, 1.0 + spread)
+
+
+# ---------------------------------------------------------------------------
+# Per-animal sound generators
+# Each accepts an optional rng; when provided, key synthesis params are
+# perturbed deterministically so custom critters get distinct sound variants.
+# seed=0 (default) → rng=None → exact canonical sound preserved.
+# ---------------------------------------------------------------------------
+
+def _gen_kitten(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Soft meow: falling pitch sweep with gentle envelope."""
-    duration = 0.35
+    duration = _p(rng, 0.35, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = _sweep(t, 900, 550)
-    env = _envelope(t, 0.02, 0.08, 0.15, 0.6, 0.10)
+    wave = _sweep(t, _p(rng, 900, 0.05), _p(rng, 550, 0.05))
+    env = _envelope(t, _p(rng, 0.02, 0.10), _p(rng, 0.08, 0.10),
+                    _p(rng, 0.15, 0.10), 0.6, _p(rng, 0.10, 0.10))
     return _make_sound(wave * env * volume * 0.7)
 
 
-def _gen_turtle(volume: float) -> pygame.mixer.Sound:
+def _gen_turtle(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Gentle hiss: low-frequency breathiness with noise."""
-    duration = 0.30
+    duration = _p(rng, 0.30, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
     noise = np.random.uniform(-1, 1, len(t))
-    tone = np.sin(2 * math.pi * 180 * t) * 0.3
+    tone = np.sin(2 * math.pi * _p(rng, 180, 0.05) * t) * 0.3
     wave = noise * 0.6 + tone
-    env = _envelope(t, 0.04, 0.05, 0.15, 0.4, 0.06)
+    env = _envelope(t, _p(rng, 0.04, 0.10), _p(rng, 0.05, 0.10),
+                    _p(rng, 0.15, 0.10), 0.4, _p(rng, 0.06, 0.10))
     return _make_sound(wave * env * volume * 0.5)
 
 
-def _gen_duck(volume: float) -> pygame.mixer.Sound:
+def _gen_duck(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Cheerful quack: sharp FM burst."""
-    duration = 0.25
+    duration = _p(rng, 0.25, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = _sine_fm(t, carrier_hz=450, mod_hz=80, mod_depth=4.0)
-    env = _envelope(t, 0.01, 0.06, 0.08, 0.5, 0.10)
+    wave = _sine_fm(t, carrier_hz=_p(rng, 450, 0.05),
+                    mod_hz=_p(rng, 80, 0.05), mod_depth=_p(rng, 4.0, 0.03))
+    env = _envelope(t, _p(rng, 0.01, 0.10), _p(rng, 0.06, 0.10),
+                    _p(rng, 0.08, 0.10), 0.5, _p(rng, 0.10, 0.10))
     return _make_sound(wave * env * volume * 0.65)
 
 
-def _gen_rabbit(volume: float) -> pygame.mixer.Sound:
+def _gen_rabbit(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Soft squeak: high brief chirp."""
-    duration = 0.20
+    duration = _p(rng, 0.20, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = _sweep(t, 1400, 1100)
-    env = _envelope(t, 0.01, 0.04, 0.05, 0.4, 0.10)
+    wave = _sweep(t, _p(rng, 1400, 0.05), _p(rng, 1100, 0.05))
+    env = _envelope(t, _p(rng, 0.01, 0.10), _p(rng, 0.04, 0.10),
+                    _p(rng, 0.05, 0.10), 0.4, _p(rng, 0.10, 0.10))
     return _make_sound(wave * env * volume * 0.55)
 
 
-def _gen_hedgehog(volume: float) -> pygame.mixer.Sound:
+def _gen_hedgehog(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Snuffle: low purring with slight noise texture."""
-    duration = 0.28
+    duration = _p(rng, 0.28, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    tone = np.sin(2 * math.pi * 220 * t) + 0.4 * np.sin(2 * math.pi * 440 * t)
+    f1, f2 = _p(rng, 220, 0.05), _p(rng, 440, 0.05)
+    tone = np.sin(2 * math.pi * f1 * t) + _p(rng, 0.4, 0.03) * np.sin(2 * math.pi * f2 * t)
     noise = np.random.uniform(-1, 1, len(t)) * 0.2
     wave = tone + noise
-    env = _envelope(t, 0.03, 0.06, 0.12, 0.5, 0.07)
+    env = _envelope(t, _p(rng, 0.03, 0.10), _p(rng, 0.06, 0.10),
+                    _p(rng, 0.12, 0.10), 0.5, _p(rng, 0.07, 0.10))
     return _make_sound(wave * env * volume * 0.45)
 
 
-def _gen_squirrel(volume: float) -> pygame.mixer.Sound:
+def _gen_squirrel(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Quick chatter: two-tone rapid chirp."""
-    duration = 0.22
+    duration = _p(rng, 0.22, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = np.sin(2 * math.pi * 1100 * t) * (0.5 + 0.5 * np.sin(2 * math.pi * 30 * t))
-    env = _envelope(t, 0.005, 0.05, 0.08, 0.6, 0.08)
+    wave = np.sin(2 * math.pi * _p(rng, 1100, 0.05) * t) * \
+           (0.5 + 0.5 * np.sin(2 * math.pi * _p(rng, 30, 0.05) * t))
+    env = _envelope(t, _p(rng, 0.005, 0.10), _p(rng, 0.05, 0.10),
+                    _p(rng, 0.08, 0.10), 0.6, _p(rng, 0.08, 0.10))
     return _make_sound(wave * env * volume * 0.60)
 
 
-def _gen_otter(volume: float) -> pygame.mixer.Sound:
+def _gen_otter(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Playful squeak: bouncy FM chirp."""
-    duration = 0.28
+    duration = _p(rng, 0.28, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = _sine_fm(t, carrier_hz=700, mod_hz=25, mod_depth=3.0)
-    env = _envelope(t, 0.01, 0.05, 0.12, 0.55, 0.10)
+    wave = _sine_fm(t, carrier_hz=_p(rng, 700, 0.05),
+                    mod_hz=_p(rng, 25, 0.05), mod_depth=_p(rng, 3.0, 0.03))
+    env = _envelope(t, _p(rng, 0.01, 0.10), _p(rng, 0.05, 0.10),
+                    _p(rng, 0.12, 0.10), 0.55, _p(rng, 0.10, 0.10))
     return _make_sound(wave * env * volume * 0.60)
 
 
-def _gen_panda(volume: float) -> pygame.mixer.Sound:
+def _gen_panda(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Gentle squeak: soft falling tone."""
-    duration = 0.32
+    duration = _p(rng, 0.32, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    wave = _sweep(t, 600, 400) + 0.3 * _sweep(t, 1200, 800)
-    env = _envelope(t, 0.03, 0.06, 0.12, 0.5, 0.11)
+    wave = _sweep(t, _p(rng, 600, 0.05), _p(rng, 400, 0.05)) + \
+           _p(rng, 0.3, 0.03) * _sweep(t, _p(rng, 1200, 0.05), _p(rng, 800, 0.05))
+    env = _envelope(t, _p(rng, 0.03, 0.10), _p(rng, 0.06, 0.10),
+                    _p(rng, 0.12, 0.10), 0.5, _p(rng, 0.11, 0.10))
     return _make_sound(wave * env * volume * 0.55)
 
 
-def _gen_unicorn(volume: float) -> pygame.mixer.Sound:
+def _gen_unicorn(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Magical chime: bright stacked harmonics rising into a shimmer."""
-    duration = 0.55
+    duration = _p(rng, 0.55, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    base = _sweep(t, 880, 1200)
-    third = _sweep(t, 1100, 1500)
-    fifth = _sweep(t, 1320, 1800)
-    high = np.sin(2 * math.pi * 2640 * t) * 0.25
-    shimmer = np.sin(2 * math.pi * 18 * t) * 0.15
-    wave = (base * 0.55 + third * 0.30 + fifth * 0.20 + high) * (1.0 + shimmer)
-    env = _envelope(t, 0.02, 0.10, 0.30, 0.55, 0.18)
+    base  = _sweep(t, _p(rng,  880, 0.05), _p(rng, 1200, 0.05))
+    third = _sweep(t, _p(rng, 1100, 0.05), _p(rng, 1500, 0.05))
+    fifth = _sweep(t, _p(rng, 1320, 0.05), _p(rng, 1800, 0.05))
+    high  = np.sin(2 * math.pi * _p(rng, 2640, 0.05) * t) * _p(rng, 0.25, 0.03)
+    shimmer = np.sin(2 * math.pi * _p(rng, 18, 0.05) * t) * 0.15
+    wave = (base * _p(rng, 0.55, 0.03) + third * _p(rng, 0.30, 0.03) +
+            fifth * _p(rng, 0.20, 0.03) + high) * (1.0 + shimmer)
+    env = _envelope(t, _p(rng, 0.02, 0.10), _p(rng, 0.10, 0.10),
+                    _p(rng, 0.30, 0.10), 0.55, _p(rng, 0.18, 0.10))
     return _make_sound(wave * env * volume * 0.55)
 
 
-def _gen_golden_kitten(volume: float) -> pygame.mixer.Sound:
+def _gen_golden_kitten(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Sparkly meow: kitten-style sweep with a bell harmonic on top."""
-    duration = 0.50
+    duration = _p(rng, 0.50, 0.10)
     t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
-    meow = _sweep(t, 1000, 620)
-    bell = np.sin(2 * math.pi * 2200 * t) * 0.30
-    bell2 = np.sin(2 * math.pi * 3300 * t) * 0.18
-    twinkle = (1.0 + 0.20 * np.sin(2 * math.pi * 14 * t))
-    wave = (meow * 0.65 + bell + bell2) * twinkle
-    env = _envelope(t, 0.02, 0.10, 0.20, 0.55, 0.18)
+    meow  = _sweep(t, _p(rng, 1000, 0.05), _p(rng, 620, 0.05))
+    bell  = np.sin(2 * math.pi * _p(rng, 2200, 0.05) * t) * _p(rng, 0.30, 0.03)
+    bell2 = np.sin(2 * math.pi * _p(rng, 3300, 0.05) * t) * _p(rng, 0.18, 0.03)
+    twinkle = (1.0 + _p(rng, 0.20, 0.03) * np.sin(2 * math.pi * _p(rng, 14, 0.05) * t))
+    wave = (meow * _p(rng, 0.65, 0.03) + bell + bell2) * twinkle
+    env = _envelope(t, _p(rng, 0.02, 0.10), _p(rng, 0.10, 0.10),
+                    _p(rng, 0.20, 0.10), 0.55, _p(rng, 0.18, 0.10))
     return _make_sound(wave * env * volume * 0.6)
 
 # ---------------------------------------------------------------------------
@@ -306,13 +337,34 @@ class SoundManager:
             # Synthesised sounds bake in the volume — regenerate at new level.
             self._generate_all()
 
+    def register_custom(self, critter_id: str, profile: str, seed: int) -> None:
+        """
+        Generate and cache a seeded sound variant for a custom critter.
+        Key stored as 'custom:<critter_id>'. No-op if numpy unavailable.
+        """
+        if not _NUMPY_OK or not pygame.mixer.get_init():
+            return
+        gen_fn = GENERATORS.get(profile, GENERATORS["kitten"])
+        rng = random.Random(seed) if seed else None
+        try:
+            sound = gen_fn(self._volume, rng)
+            self._sounds[f"custom:{critter_id}"] = sound
+        except Exception as e:
+            print(f"[sounds] register_custom failed for {critter_id}: {e}")
+
+    def unregister_custom(self, critter_id: str) -> None:
+        """Remove a custom critter's sound from the cache."""
+        self._sounds.pop(f"custom:{critter_id}", None)
+
     def play(self, species: str, config: dict) -> None:
         """Play the pop/throw sound for a species if enabled in config."""
         if not self._enabled:
             return
-        animal_cfg = config["animals"].get(species, {})
-        if not animal_cfg.get("sound", True):
-            return
+        # Custom critters: check global sound toggle; no per-species config key.
+        if not species.startswith("custom:"):
+            animal_cfg = config["animals"].get(species, {})
+            if not animal_cfg.get("sound", True):
+                return
         sound = self._sounds.get(species)
         if sound:
             try:
