@@ -180,6 +180,11 @@ def main() -> None:
     registry.reload()
     _refresh_custom_sounds()
 
+    # Render animated previews for the settings window using live pygame surfaces
+    from preview_renderer import render_all as _render_previews
+    from settings_window import ANIMALS as _ANIMALS_LIST
+    _preview_frames = _render_previews([sp for sp, _, _ in _ANIMALS_LIST])
+
     # ------------------------------------------------------------------
     # Build settings window (proper app window, shows in taskbar)
     # ------------------------------------------------------------------
@@ -192,6 +197,7 @@ def main() -> None:
         get_paused           = lambda: overlay.paused,
         registry             = registry,
         on_test_custom_spawn = overlay.spawn_custom,
+        preview_frames       = _preview_frames,
     )
 
     # Wire in pause toggle so the settings window can trigger it
