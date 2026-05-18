@@ -32,20 +32,29 @@ Right-click the paw icon in the system tray for Settings, Spawn Now, Pause/Resum
 
 ```
 Critter Overlay App/
-├── __main__.py        Bootstrapper: detects/builds venv, then launches the app
-├── build.py           Packages everything into a single .pyzw zipapp
+├── __main__.py           Bootstrapper: detects/builds venv, then launches the app
+├── build.py              Packages everything into a single .pyzw zipapp
 ├── src/
-│   ├── main.py        Entry point: tray icon, hotkeys, single-instance check
-│   ├── config.py      JSON settings stored at %APPDATA%\CritterOverlay
-│   ├── overlay.py     Pygame transparent window + render loop
-│   ├── animals.py     8 animal classes + particle system
-│   ├── spawn_manager.py
-│   ├── settings_window.py
-│   ├── animal_previews.py
-│   └── sounds.py      Procedural sound synthesis (numpy)
-├── requirements.txt   Reference list of runtime deps (also hardcoded in __main__.py)
+│   ├── main.py           Entry point: tray icon, hotkeys, single-instance check
+│   ├── config.py         JSON settings stored at %APPDATA%\CritterOverlay
+│   ├── overlay.py        Pygame transparent window + render loop
+│   ├── animals.py        8 built-in animal classes + particle system
+│   ├── animals_custom.py CustomAnimal class — inherits Animal, overrides draw/hit_test
+│   ├── spawn_manager.py  Weighted spawn pool (built-ins + custom critters)
+│   ├── settings_window.py Tkinter settings UI (Animals, Custom, Spawning, Visuals, Audio, System)
+│   ├── preview_renderer.py pygame→PIL animated preview frames for settings UI
+│   ├── sounds.py         Procedural sound synthesis with deterministic per-critter seeding
+│   └── custom_critters/
+│       ├── registry.py   Runtime store of loaded custom critter frames + masks
+│       ├── storage.py    Disk layout, meta.json I/O, ID generation
+│       ├── import_pipeline.py  Full import flow: validate → bg remove → animate → mask → write
+│       ├── bg_removal.py Corner flood-fill background removal for opaque images
+│       ├── procedural.py Split-image walk-cycle generator (bob + lean + stride shear)
+│       ├── masks.py      Alpha-mask generation and numpy dilation
+│       └── palette.py    Dominant-colour extraction
+├── requirements.txt      Runtime dependency reference (also hardcoded in __main__.py)
 ├── README.md
-└── Archive/           Old builds + the legacy batch-file installer
+└── Archive/              Old builds + the legacy batch-file installer
 ```
 
 ### Running from source during development
@@ -103,10 +112,20 @@ Result: end users see a single double-clickable file. First launch shows the ins
 Right-click the tray paw → Settings (or open from the auto-shown window on first launch). All changes save immediately to `%APPDATA%\CritterOverlay\settings.json`.
 
 - **Animals** — toggle species on/off, adjust spawn weight.
+- **Custom** — import your own PNG/JPG/GIF critters; manage, enable/disable, set weight and sound.
 - **Spawning** — group spawn frequency and size, solo perimeter walker toggle.
 - **Visuals** — animal size (80-200px), opacity, animation detail.
 - **Audio** — master toggle, volume, per-animal sounds.
 - **System** — auto-launch on startup, hotkey reference.
+
+### Custom critters
+
+Import any PNG, JPG, or animated GIF from Settings → Custom → Create. The app:
+- Removes the background (works best for solid-colour backgrounds; transparent PNGs work perfectly)
+- Generates a 4-frame walk animation automatically for static images
+- Assigns a sound profile deterministically from the critter's name
+
+Custom critters inherit all built-in behaviour: perimeter walking, idle pauses, drag, throw, pop, particle burst, sound. They live in `%APPDATA%\CritterOverlay\custom\` — each in a self-contained folder that can be backed up or deleted manually.
 
 The "Spawn now" button triggers an immediate group spawn for testing.
 
