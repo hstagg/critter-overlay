@@ -206,6 +206,11 @@ def main() -> None:
     # Open the control window at launch — user can minimise it
     settings_win.open()
 
+    # Background update check — runs after everything is set up so it
+    # doesn't delay startup. Shows a native dialog if a newer release exists.
+    from updater import check_in_background
+    check_in_background()
+
     # ------------------------------------------------------------------
     # System tray icon
     # ------------------------------------------------------------------

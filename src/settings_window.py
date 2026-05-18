@@ -15,12 +15,11 @@ import webbrowser
 from pathlib import Path
 from typing import Callable
 
-APP_VERSION  = "1.8"
-RELEASES_URL = "https://github.com/hstagg/critter-overlay/releases"
-
 from PIL import Image, ImageTk
 
 from config import save_config, reset_to_defaults
+from version import APP_VERSION
+from updater import RELEASES_URL, check_now
 from custom_critters.registry import CustomCritterRegistry
 from custom_critters.storage import delete_critter_folder, get_custom_dir, write_meta
 from custom_critters.import_pipeline import run_import
@@ -1068,9 +1067,34 @@ class SettingsWindow:
 
         # ── Updates ──
         self._section_label(inner, "Updates")
+
+        update_status = tk.Label(inner, text="", font=(FF, 8),
+                                 bg=CONTENT_BG, fg=FG3)
+        update_status.pack(anchor="w", pady=(0, 4))
+
+        def _do_check():
+            updates_btn.config(state="disabled", text="⏳   Checking…")
+            update_status.config(text="", fg=FG3)
+            def _run():
+                result = check_now()
+                def _apply():
+                    updates_btn.config(state="normal",
+                                       text="↗   Check for updates on GitHub")
+                    if result is None:
+                        update_status.config(
+                            text="You're on the latest version.", fg=FG3)
+                    else:
+                        tag, url = result
+                        update_status.config(
+                            text=f"Version {tag} is available!  →  opening GitHub…",
+                            fg=ACCENT)
+                        webbrowser.open(url)
+                inner.after(0, _apply)
+            threading.Thread(target=_run, daemon=True).start()
+
         updates_btn = tk.Button(inner,
             text="↗   Check for updates on GitHub",
-            command=lambda: webbrowser.open(RELEASES_URL),
+            command=_do_check,
             bg=CARD_BG, fg=FG2,
             activebackground=CARD_HOV, activeforeground=FG,
             relief="flat", font=(FF, 9),
