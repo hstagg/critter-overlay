@@ -83,7 +83,8 @@ class SettingsWindow:
                  on_quit: Callable[[], None],
                  get_paused: Callable[[], bool] = None,
                  registry: CustomCritterRegistry | None = None,
-                 on_test_custom_spawn: Callable[[str], None] | None = None):
+                 on_test_custom_spawn: Callable[[str], None] | None = None,
+                 preview_frames: dict | None = None):
         self._config               = config
         self._on_save              = on_save
         self._on_force_spawn       = on_force_spawn
@@ -93,16 +94,20 @@ class SettingsWindow:
         self._on_test_custom_spawn = on_test_custom_spawn
         self._on_toggle_pause: Callable | None = None
 
+        # Raw base64 frame data — PhotoImages are created in the tkinter thread
+        self._preview_frames_data: dict = preview_frames if preview_frames is not None else _ANIMAL_FRAMES
+
         self._root: tk.Tk | None = None
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
 
         # Animated preview frames: species -> list[ImageTk.PhotoImage]
-        self._animal_frames: dict[str, list[ImageTk.PhotoImage]] = {}
-        self._load_animal_frames()
+        # Populated in _run() (tkinter thread) from _preview_frames_data.
+        self._animal_frames:       dict[str, list] = {}
+        self._animal_frames_small: dict[str, list] = {}
 
-        # Active animation callbacks: label widget -> (frames, current_index)
-        self._anim_jobs: list[str] = []   # after() job ids, cancelled on page change
+        # Active animation callbacks: after() job ids, cancelled on page change
+        self._anim_jobs: list[str] = []
 
         self._current_page = "home"
         self._content_frame: tk.Frame | None = None
@@ -150,10 +155,13 @@ class SettingsWindow:
 
     def _run(self) -> None:
         self._root = tk.Tk()
+        self._load_animal_frames()   # must run in tkinter thread (PhotoImage needs a root)
         self._build_window()
         self._poll_status()
         self._root.mainloop()
         self._root = None
+        self._animal_frames.clear()
+        self._animal_frames_small.clear()
 
     # ── Window skeleton ───────────────────────────────────────────────────────
 
@@ -459,21 +467,26 @@ class SettingsWindow:
     # ── Animal preview frame loader ───────────────────────────────────────────
 
     def _load_animal_frames(self) -> None:
-        """Decode base64 PNGs for each species and cache as lists of PhotoImage."""
-        for species, b64_list in _ANIMAL_FRAMES.items():
-            photos = []
+        """Decode base64 PNGs into full-size and half-size PhotoImage lists."""
+        self._animal_frames.clear()
+        self._animal_frames_small.clear()
+        for species, b64_list in self._preview_frames_data.items():
+            full, small = [], []
             for b64 in b64_list:
                 try:
                     img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
-                    photos.append(ImageTk.PhotoImage(img))
+                    full.append(ImageTk.PhotoImage(img))
+                    sm = img.resize((48, 48), Image.LANCZOS)
+                    small.append(ImageTk.PhotoImage(sm))
                 except Exception as e:
                     print(f"[settings] Frame load failed for {species}: {e}")
-            if photos:
-                self._animal_frames[species] = photos
+            if full:
+                self._animal_frames[species]       = full
+            if small:
+                self._animal_frames_small[species] = small
 
-    def _start_anim(self, label: tk.Label, species: str) -> None:
-        """Start cycling frames on a Label widget."""
-        frames = self._animal_frames.get(species)
+    def _start_anim(self, label: tk.Label, frames: list) -> None:
+        """Cycle through frames on a Label widget at _ANIM_FPS."""
         if not frames or len(frames) < 2:
             return
         delay = 1000 // _ANIM_FPS
@@ -536,13 +549,17 @@ class SettingsWindow:
 
         # ── Animated preview ──
         frames = self._animal_frames.get(species)
-        first  = frames[0] if frames else None
-        img_lbl = tk.Label(left, image=first, bg=CARD_BG,
-                           width=_PREVIEW_SIZE, height=_PREVIEW_SIZE)
-        img_lbl.image = first
-        img_lbl.pack()
         if frames:
-            self._start_anim(img_lbl, species)
+            img_lbl = tk.Label(left, image=frames[0], bg=CARD_BG,
+                               width=_PREVIEW_SIZE, height=_PREVIEW_SIZE)
+            img_lbl.image = frames[0]
+            img_lbl.pack()
+            self._start_anim(img_lbl, frames)
+        else:
+            # Fallback: emoji placeholder at a fixed pixel size
+            img_lbl = tk.Label(left, text=emoji, font=(FF, 28), bg=CARD_BG)
+            img_lbl.pack(padx=(_PREVIEW_SIZE // 4,) * 2,
+                         pady=(_PREVIEW_SIZE // 4,) * 2)
 
         # ── Name + enabled toggle ──
         head = tk.Frame(right, bg=CARD_BG)
@@ -970,7 +987,18 @@ class SettingsWindow:
             cfg = self._config["animals"][species]
             var = tk.BooleanVar(value=cfg.get("sound", True))
 
-            tk.Label(cell, text=f"{emoji}  {name}",
+            # Animated 48×48 preview, or emoji fallback
+            small_frames = self._animal_frames_small.get(species)
+            if small_frames:
+                prev = tk.Label(cell, image=small_frames[0], bg=CARD_BG)
+                prev.image = small_frames[0]
+                prev.pack(side="left", padx=(0, 8))
+                self._start_anim(prev, small_frames)
+            else:
+                tk.Label(cell, text=emoji, font=(FF, 14),
+                         bg=CARD_BG, fg=FG2).pack(side="left", padx=(0, 4))
+
+            tk.Label(cell, text=name,
                      font=(FF, 9, "bold"), bg=CARD_BG, fg=FG).pack(side="left")
             chk = tk.Checkbutton(cell, variable=var,
                                  command=lambda s=species, v=var:
@@ -1069,15 +1097,27 @@ class SettingsWindow:
         win_id = canvas.create_window((0, 0), window=inner, anchor="nw")
 
         def _on_frame_configure(e):
-            canvas.configure(scrollregion=canvas.bbox("all"))
+            bb = canvas.bbox("all")
+            if bb:
+                # Clamp top to 0 so you can never scroll above the content
+                canvas.configure(scrollregion=(0, 0, bb[2], bb[3]))
 
         def _on_canvas_configure(e):
             canvas.itemconfig(win_id, width=e.width)
 
+        def _wheel(e):
+            canvas.yview_scroll(-1 * (e.delta // 120), "units")
+
+        def _bind_wheel(e):
+            canvas.bind_all("<MouseWheel>", _wheel)
+
+        def _unbind_wheel(e):
+            canvas.unbind_all("<MouseWheel>")
+
         inner.bind("<Configure>", _on_frame_configure)
         canvas.bind("<Configure>", _on_canvas_configure)
-        canvas.bind_all("<MouseWheel>",
-                        lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
+        canvas.bind("<Enter>", _bind_wheel)
+        canvas.bind("<Leave>", _unbind_wheel)
 
         return canvas, inner
 
