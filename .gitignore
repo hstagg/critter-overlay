@@ -5,3 +5,7 @@ CritterOverlay_v*.zip
 build/
 dist/
 installer/output/
+_README.md
+Sprite Images/assets/
+Sprite Images/*.gif
+
