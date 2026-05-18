@@ -1,4 +1,5 @@
 # build.spec — PyInstaller spec for Critter Overlay App
+# Produces a onedir build at dist/CritterOverlay/ which Inno Setup then wraps.
 # Run with: pyinstaller build.spec  (from the project root)
 
 from pathlib import Path
@@ -33,7 +34,7 @@ a = Analysis(
         'custom_critters.procedural',
         'custom_critters.registry',
         'custom_critters.storage',
-        # stdlib / builtins that PyInstaller sometimes misses
+        # stdlib
         'tkinter',
         'tkinter.ttk',
         'winreg',
@@ -52,22 +53,27 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
-    [],
+    [],          # onedir: binaries/datas go to COLLECT, not EXE
+    exclude_binaries=True,
     name='CritterOverlay',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=None,
+    icon='installer/icon.ico',
     uac_admin=False,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='CritterOverlay',
 )
