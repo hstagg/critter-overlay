@@ -121,6 +121,8 @@ def run_import(src_path: str | Path, name: str,
 
 def _load_static(path: Path) -> tuple[list[Image.Image], str]:
     """Load a PNG or JPG as a single RGBA image; generate 4 procedural frames."""
+    import numpy as np
+
     try:
         img = Image.open(path)
     except Exception as e:
@@ -128,8 +130,19 @@ def _load_static(path: Path) -> tuple[list[Image.Image], str]:
 
     img.load()
 
-    if img.mode == "RGBA" or "transparency" in img.info:
+    has_alpha_channel = img.mode == "RGBA" or "transparency" in img.info
+    if has_alpha_channel:
         rgba = img.convert("RGBA")
+        alpha = np.array(rgba)[:, :, 3]
+        # Treat as already transparent only if >1% of pixels are actually transparent.
+        # A PNG saved with mode=RGBA but a solid opaque background will have 0 transparent
+        # pixels — fall through to bg removal in that case.
+        meaningful_transparency = float((alpha < 255).sum()) / alpha.size > 0.01
+    else:
+        rgba = None
+        meaningful_transparency = False
+
+    if meaningful_transparency:
         method = "static_png"
     else:
         rgba = remove_background(img)
@@ -189,8 +202,19 @@ def _crop_and_fit(frames: list[Image.Image]) -> list[Image.Image]:
         if bbox:
             frame = frame.crop(bbox)
         fitted = _fit_to_canvas(frame, CANONICAL_SIZE)
+        fitted = _threshold_alpha(fitted)
         result.append(fitted)
     return result
+
+
+def _threshold_alpha(img: Image.Image, threshold: int = 180) -> Image.Image:
+    """
+    Eliminate semi-transparent fringe pixels that cause chroma-key bleed.
+    Pixels with alpha < threshold become fully transparent; rest become opaque.
+    """
+    r, g, b, a = img.split()
+    a = a.point(lambda v: 255 if v >= threshold else 0)
+    return Image.merge("RGBA", (r, g, b, a))
 
 
 def _fit_to_canvas(img: Image.Image, size: int) -> Image.Image:

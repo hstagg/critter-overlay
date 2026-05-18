@@ -76,6 +76,12 @@ class CustomCritterRegistry:
                 break
             try:
                 surf = pygame.image.load(str(p)).convert_alpha()
+                # Threshold semi-transparent edge pixels that alpha-blend against
+                # the magenta chroma key and produce a purple fringe on screen.
+                # Pixels with alpha < 180 become fully transparent; >= 180 → opaque.
+                px = pygame.surfarray.pixels_alpha(surf)
+                px[px < 180] = 0
+                del px  # release surface lock
                 surfaces.append(surf)
             except Exception as e:
                 print(f"[custom] Failed to load frame {p}: {e}")
