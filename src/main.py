@@ -94,19 +94,22 @@ def _make_tray_image(paused: bool = False):
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    # Load config and sync the startup registry entry before the mutex check.
+    # This ensures a stale entry (e.g. pointing at an old pythonw.exe path) is
+    # corrected even when this instance loses the single-instance race.
+    from config import load_config, save_config
+    config = load_config()
+    _set_autostart(config["system"].get("auto_launch", True))
+
     if not _ensure_single_instance():
         sys.exit(0)
 
     import keyboard
     import pystray
-    from config                      import load_config, save_config
     from sounds                      import SoundManager
     from overlay                     import Overlay
     from settings_window             import SettingsWindow
     from custom_critters.registry    import CustomCritterRegistry
-
-    config = load_config()
-    _set_autostart(config["system"].get("auto_launch", True))
 
     quit_event = threading.Event()
 

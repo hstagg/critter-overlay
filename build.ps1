@@ -74,7 +74,7 @@ Write-Host ""
 
 Write-Host "[3/6] Pre-generating sound WAVs (removes numpy from bundle)..." -ForegroundColor Yellow
 Set-Location $ProjectRoot
-python build_sounds.py
+python scripts\build_sounds.py
 if ($LASTEXITCODE -ne 0) { Write-Error "build_sounds.py failed"; exit 1 }
 Write-Host ""
 

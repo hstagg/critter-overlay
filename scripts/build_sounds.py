@@ -18,8 +18,8 @@ import os
 import sys
 import wave
 
-# Make src/ importable
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+# Make src/ importable (this script lives in scripts/, so go up one level)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
 import pygame
 
@@ -39,7 +39,7 @@ def _write_wav(path: str, sound: pygame.mixer.Sound) -> None:
 
 
 def main() -> None:
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sounds")
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sounds")
     os.makedirs(out_dir, exist_ok=True)
 
     # Initialise mixer so pygame.mixer.Sound objects can be created
