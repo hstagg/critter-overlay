@@ -112,22 +112,29 @@ Result: end users see a single double-clickable file. First launch shows the ins
 Right-click the tray paw → Settings (or open from the auto-shown window on first launch). All changes save immediately to `%APPDATA%\CritterOverlay\settings.json`.
 
 - **Animals** — toggle species on/off, adjust spawn weight.
-- **Custom** — import your own PNG/JPG/GIF critters; manage, enable/disable, set weight and sound.
+- **Custom** — import your own critters; manage, enable/disable, set weight, sound, and per-critter personality.
 - **Spawning** — group spawn frequency and size, solo perimeter walker toggle.
-- **Visuals** — animal size (80-200px), opacity, animation detail.
 - **Audio** — master toggle, volume, per-animal sounds.
 - **System** — auto-launch on startup, hotkey reference.
 
 ### Custom critters
 
-Import any PNG, JPG, or animated GIF from Settings → Custom → Create. The app:
-- Removes the background (works best for solid-colour backgrounds; transparent PNGs work perfectly)
-- Generates a 4-frame walk animation automatically for static images
-- Assigns a sound profile deterministically from the critter's name
+Two import modes in Settings → Custom:
 
-Custom critters inherit all built-in behaviour: perimeter walking, idle pauses, drag, throw, pop, particle burst, sound. They live in `%APPDATA%\CritterOverlay\custom\` — each in a self-contained folder that can be backed up or deleted manually.
+**Import critter** — single PNG, JPG, or animated GIF. The app removes the background automatically (works best for solid-colour backgrounds; transparent PNGs are used as-is) and generates a 4-frame procedural walk animation from static images.
 
-The "Spawn now" button triggers an immediate group spawn for testing.
+**Import from frames** — upload 2–8 hand-drawn PNG frames in walk-cycle order. Frames are used directly, giving full control over the animation. The app detects transparency per-frame and only runs background removal where needed.
+
+Per-critter settings (gear icon on each card):
+- **Speed** — snail / slow / average / fast / rapid / supersonic
+- **Idle** — wired / active / normal / lazy / sleepy / narcoleptic
+- **Trail** — none / dots / stars (uses the critter's dominant colours)
+
+Custom critters inherit all built-in behaviour: elastic collision with other critters, perimeter walking, idle pauses, drag, throw, pop, particle burst, sound. They live in `%APPDATA%\CritterOverlay\custom\` — each in a self-contained folder that can be backed up or deleted manually.
+
+### Critter physics
+
+All critters (built-in and custom) interact physically. Elastic equal-mass collisions — throw one at a group and they scatter like bowling pins. Thrown critters transfer momentum on impact; the hit critter coasts freely before resuming normal walking.
 
 ---
 

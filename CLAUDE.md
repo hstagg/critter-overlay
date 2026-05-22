@@ -22,12 +22,12 @@ This repo is public. Before committing anything, ask: "Could this embarrass the 
 
 ---
 
-## State of play (as of 2026-05-18)
+## State of play (as of 2026-05-23)
 
 - **Current branch:** `main` — this is where active development lives
-- **Last release:** v1.8 — offline custom critters, procedural walk animation, per-pixel hit detection, animated previews
-- **Uncommitted changes:** large — most source files modified. These are v1.9 candidates. Commit or stash before starting new feature work to avoid mixing concerns
-- **`feature/custom-critters`:** already merged into main (was the v1.8 branch). Safe to delete
+- **Last release:** v1.9 — elastic critter collision, per-critter personality sliders, frame-strip import, hover-animated critter cards
+- **Uncommitted changes:** none after v1.9 release commit
+- **Next planning doc:** `v1.9-v2.0 Dev Handoff.md`
 
 ---
 

@@ -22,7 +22,7 @@ from version import APP_VERSION
 from updater import RELEASES_URL, check_now
 from custom_critters.registry import CustomCritterRegistry
 from custom_critters.storage import delete_critter_folder, get_custom_dir, write_meta
-from custom_critters.import_pipeline import run_import
+from custom_critters.import_pipeline import run_import, run_import_frames
 
 try:
     from animal_previews import FRAMES as _ANIMAL_FRAMES
@@ -56,6 +56,18 @@ SEL_BG     = "#23234a"   # selected nav item
 SLIDER_TR  = "#2d2d55"   # slider trough
 
 FF = "Segoe UI"          # font family
+
+# ── Per-critter personality tables ───────────────────────────────────────────
+
+_SPEED_VALUES = [0.10, 0.30, 1.0, 2.5, 5.0, 12.0]
+_SPEED_LABELS = ["snail", "slow", "average", "fast", "rapid", "supersonic"]
+
+_IDLE_VALUES  = [0.003, 0.008, 0.018, 0.045, 0.100, 0.250]
+_IDLE_LABELS  = ["wired", "active", "normal", "lazy", "sleepy", "narcoleptic"]
+
+
+def _nearest_pos(value: float, table: list) -> int:
+    return min(range(len(table)), key=lambda i: abs(table[i] - value))
 
 # ── Animal roster ────────────────────────────────────────────────────────────
 
@@ -626,23 +638,37 @@ class SettingsWindow:
 
     def _page_custom(self, parent: tk.Frame) -> None:
         self._page_header(parent, "Custom",
-                          "Import your own critters from PNG, JPG, or animated GIF.")
+                          "Import your own critters from PNG, JPG, GIF, or hand-drawn animation frames.")
         _, inner = self._scrollable(parent)
 
-        # Import button
-        import_btn = tk.Button(inner,
-            text="＋  Import new critter",
+        # ── Two import buttons ──
+        btn_row = tk.Frame(inner, bg=CONTENT_BG)
+        btn_row.pack(fill="x", pady=(0, 16))
+        btn_row.grid_columnconfigure(0, weight=1)
+        btn_row.grid_columnconfigure(1, weight=1)
+
+        tk.Button(btn_row,
+            text="＋  Import critter",
             command=lambda: self._import_dialog(inner),
             bg="#1a0f35", fg=ACCENT,
             activebackground="#23154a", activeforeground=ACCENT,
             relief="flat", font=(FF, 10, "bold"),
-            cursor="hand2", pady=12, padx=16, anchor="w")
-        import_btn.pack(fill="x", pady=(0, 16))
+            cursor="hand2", pady=12, padx=16, anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        tk.Button(btn_row,
+            text="＋  Import from frames",
+            command=lambda: self._import_frames_dialog(inner),
+            bg="#0f1a35", fg=ACCENT2,
+            activebackground="#152545", activeforeground=ACCENT2,
+            relief="flat", font=(FF, 10, "bold"),
+            cursor="hand2", pady=12, padx=16, anchor="w",
+        ).grid(row=0, column=1, sticky="ew")
 
         records = self._registry.all()
         if not records:
             tk.Label(inner,
-                     text="No custom critters yet. Click 'Import new critter' above to add one.",
+                     text="No custom critters yet. Use the buttons above to add one.",
                      font=(FF, 9), bg=CONTENT_BG, fg=FG3,
                      wraplength=460, justify="left").pack(anchor="w", pady=20)
             return
@@ -651,41 +677,37 @@ class SettingsWindow:
             self._custom_critter_row(inner, record)
 
     def _custom_critter_row(self, parent: tk.Frame, record) -> None:
-        cid  = record.id
-        meta = record.meta
+        cid        = record.id
+        meta       = record.meta
         custom_cfg = self._config.get("custom_animals", {}).get(cid, {})
 
         card = tk.Frame(parent, bg=CARD_BG, padx=16, pady=14)
         card.pack(fill="x", pady=(0, 8))
 
-        # ── Thumbnail ──
-        left = tk.Frame(card, bg=CARD_BG)
+        # ── Left: animated preview on hover ──
+        left = tk.Frame(card, bg=CARD_BG, width=_PREVIEW_SIZE, height=_PREVIEW_SIZE)
         left.pack(side="left", padx=(0, 14))
+        left.pack_propagate(False)
 
-        thumb_path = get_custom_dir() / cid / "thumb.png"
-        thumb_photo = None
-        if thumb_path.exists():
-            try:
-                img = Image.open(str(thumb_path)).convert("RGBA")
-                bg  = Image.new("RGBA", img.size, (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
-                bg.paste(img, mask=img.split()[3])
-                thumb_photo = ImageTk.PhotoImage(bg.convert("RGB"))
-            except Exception:
-                pass
+        preview_lbl = tk.Label(left, bg=CARD_BG,
+                               width=_PREVIEW_SIZE, height=_PREVIEW_SIZE)
+        preview_lbl.pack()
 
-        if thumb_photo:
-            lbl = tk.Label(left, image=thumb_photo, bg=CARD_BG)
-            lbl.image = thumb_photo
-            lbl.pack()
+        # Load static thumb immediately; animate on hover
+        static_photo = self._load_custom_thumb(cid)
+        if static_photo:
+            preview_lbl.configure(image=static_photo)
+            preview_lbl.image = static_photo
         else:
-            tk.Label(left, text="🐾", font=(FF, 22), bg=CARD_BG, fg=FG3,
-                     width=4, height=2).pack()
+            preview_lbl.configure(text="🐾", font=(FF, 22), fg=FG3)
+
+        self._bind_custom_hover(preview_lbl, cid, static_photo)
 
         # ── Right controls ──
         right = tk.Frame(card, bg=CARD_BG)
         right.pack(side="left", fill="both", expand=True)
 
-        # Name row
+        # Name + enabled row
         head = tk.Frame(right, bg=CARD_BG)
         head.pack(fill="x")
 
@@ -706,7 +728,6 @@ class SettingsWindow:
         name_entry.bind("<FocusOut>", on_name_change)
         name_entry.bind("<Return>",   on_name_change)
 
-        # Enabled pill
         is_on       = custom_cfg.get("enabled", True)
         enabled_var = tk.BooleanVar(value=is_on)
         pill = tk.Label(head,
@@ -733,7 +754,21 @@ class SettingsWindow:
         chk.configure(command=on_toggle)
         pill.bind("<Button-1>", lambda e, v=enabled_var: (v.set(not v.get()), on_toggle()))
 
-        # Weight slider
+        # Frame count + method badge
+        frame_count  = meta.get("frame_count", 4)
+        import_method = meta.get("import_method", "static_png")
+        badge_text = {
+            "static_png":   "procedural",
+            "static_jpg":   "procedural",
+            "animated_gif": "animated gif",
+            "frame_strip":  "drawn frames",
+        }.get(import_method, import_method)
+
+        tk.Label(right,
+                 text=f"{frame_count} frames  ·  {badge_text}",
+                 font=(FF, 7), bg=CARD_BG, fg=FG3).pack(anchor="w", pady=(2, 0))
+
+        # Spawn-frequency slider
         tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(8, 6))
 
         w_row = tk.Frame(right, bg=CARD_BG)
@@ -756,44 +791,208 @@ class SettingsWindow:
                  highlightthickness=0, bd=0, showvalue=False,
                  command=on_weight).pack(fill="x", pady=(4, 6))
 
-        # Sound preset dropdown + action buttons
-        btn_row = tk.Frame(right, bg=CARD_BG)
-        btn_row.pack(fill="x")
+        # Bottom action bar
+        act_row = tk.Frame(right, bg=CARD_BG)
+        act_row.pack(fill="x")
 
-        tk.Label(btn_row, text="Sound:", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
+        # Settings gear — toggles inline panel
+        settings_panel = tk.Frame(right, bg=CARD_BG)
 
+        gear_btn = tk.Button(act_row,
+            text="⚙ Settings",
+            command=lambda p=settings_panel, _cid=cid, _meta=meta:
+                self._toggle_critter_settings(p, _cid, _meta),
+            bg=CARD_BG, fg=FG3,
+            activebackground=SEL_BG, activeforeground=FG,
+            relief="flat", font=(FF, 8),
+            cursor="hand2", padx=8, pady=4)
+        gear_btn.pack(side="left")
+
+        # Sound preset
+        tk.Label(act_row, text="Sound:", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left", padx=(8, 0))
         current_preset = custom_cfg.get("sound_override") or meta.get("sound_profile", "kitten")
         sound_var = tk.StringVar(value=current_preset)
-        preset_menu = tk.OptionMenu(btn_row, sound_var, *SOUND_PRESETS)
+        preset_menu = tk.OptionMenu(act_row, sound_var, *SOUND_PRESETS)
         preset_menu.configure(bg=CARD_BG, fg=FG2, activebackground=SEL_BG,
                               activeforeground=FG, relief="flat",
                               font=(FF, 8), highlightthickness=0)
         preset_menu["menu"].configure(bg=CARD_BG, fg=FG2, font=(FF, 8))
-        preset_menu.pack(side="left", padx=(4, 12))
+        preset_menu.pack(side="left", padx=(4, 0))
 
         def on_sound(*_, _cid=cid, var=sound_var):
             self._set_custom(_cid, "sound_override", var.get())
 
         sound_var.trace_add("write", on_sound)
 
-        # Test spawn
-        tk.Button(btn_row, text="▶ Test",
-                  command=lambda _cid=cid: self._on_test_custom_spawn and self._on_test_custom_spawn(_cid),
+        tk.Button(act_row, text="▶ Test",
+                  command=lambda _cid=cid:
+                      self._on_test_custom_spawn and self._on_test_custom_spawn(_cid),
                   bg=CARD_BG, fg=ACCENT2,
                   activebackground=SEL_BG, activeforeground=FG,
                   relief="flat", font=(FF, 8, "bold"),
-                  cursor="hand2", padx=8, pady=4).pack(side="left")
+                  cursor="hand2", padx=8, pady=4).pack(side="left", padx=(8, 0))
 
-        # Delete
-        tk.Button(btn_row, text="✕ Delete",
+        tk.Button(act_row, text="✕ Delete",
                   command=lambda _cid=cid: self._delete_custom(_cid),
                   bg=CARD_BG, fg=RED,
                   activebackground="#2a1010", activeforeground=RED,
                   relief="flat", font=(FF, 8),
                   cursor="hand2", padx=8, pady=4).pack(side="right")
 
+        settings_panel.pack(fill="x")
+
+    # ── Custom critter settings inline panel ─────────────────────────────────
+
+    def _toggle_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
+        if panel.winfo_children():
+            for w in panel.winfo_children():
+                w.destroy()
+            return
+        self._build_critter_settings(panel, cid, meta)
+
+    def _build_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
+        tk.Frame(panel, bg=BORDER, height=1).pack(fill="x", pady=(6, 8))
+
+        def _labeled_slider(parent, row_label, steps, labels, meta_key):
+            cur_val = meta.get(meta_key, steps[2])
+            cur_pos = _nearest_pos(cur_val, steps)
+
+            row = tk.Frame(parent, bg=CARD_BG)
+            row.pack(fill="x", pady=(0, 6))
+
+            tk.Label(row, text=row_label, font=(FF, 8), bg=CARD_BG,
+                     fg=FG3, width=8, anchor="w").pack(side="left")
+
+            val_lbl = tk.Label(row, text=labels[cur_pos],
+                               font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT, width=12, anchor="w")
+            val_lbl.pack(side="left", padx=(4, 0))
+
+            var = tk.IntVar(value=cur_pos)
+
+            def on_change(v, _key=meta_key, _steps=steps, _labels=labels,
+                          _lbl=val_lbl, _cid=cid, _meta=meta):
+                pos = int(float(v))
+                _lbl.configure(text=_labels[pos])
+                _meta[_key] = _steps[pos]
+                write_meta(get_custom_dir() / _cid, _meta)
+
+            tk.Scale(row, from_=0, to=len(steps) - 1, resolution=1,
+                     orient="horizontal", variable=var,
+                     bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
+                     highlightthickness=0, bd=0, showvalue=False,
+                     command=on_change).pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+        _labeled_slider(panel, "Speed", _SPEED_VALUES, _SPEED_LABELS, "speed_multiplier")
+        _labeled_slider(panel, "Idle",  _IDLE_VALUES,  _IDLE_LABELS,  "idle_rate")
+
+        # Trail — three radio buttons
+        trail_row = tk.Frame(panel, bg=CARD_BG)
+        trail_row.pack(fill="x", pady=(0, 8))
+        tk.Label(trail_row, text="Trail", font=(FF, 8), bg=CARD_BG,
+                 fg=FG3, width=8, anchor="w").pack(side="left")
+
+        trail_var = tk.StringVar(value=meta.get("trail_style", "none"))
+
+        def on_trail(*_, _cid=cid, _meta=meta, var=trail_var):
+            _meta["trail_style"] = var.get()
+            write_meta(get_custom_dir() / _cid, _meta)
+
+        trail_var.trace_add("write", on_trail)
+
+        for style_val, style_lbl in [("none", "None"), ("dots", "Dots"), ("stars", "Stars")]:
+            tk.Radiobutton(trail_row, text=style_lbl, variable=trail_var, value=style_val,
+                           bg=CARD_BG, fg=FG2, activebackground=CARD_BG,
+                           selectcolor=CARD_BG, font=(FF, 8),
+                           relief="flat", cursor="hand2").pack(side="left", padx=(4, 0))
+
+    # ── Custom critter preview helpers ───────────────────────────────────────
+
+    def _load_custom_thumb(self, cid: str) -> "ImageTk.PhotoImage | None":
+        thumb_path = get_custom_dir() / cid / "thumb.png"
+        if not thumb_path.exists():
+            return None
+        try:
+            img = Image.open(str(thumb_path)).convert("RGBA")
+            img = img.resize((_PREVIEW_SIZE, _PREVIEW_SIZE), Image.LANCZOS)
+            bg  = Image.new("RGBA", img.size, (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
+            bg.paste(img, mask=img.split()[3])
+            photo = ImageTk.PhotoImage(bg.convert("RGB"))
+            return photo
+        except Exception:
+            return None
+
+    def _load_custom_anim_frames(self, cid: str) -> list:
+        """Load all stored animation frames for a custom critter as PhotoImage list."""
+        frames_path = get_custom_dir() / cid / "frames"
+        images = []
+        for i in range(8):
+            p = frames_path / f"frame_{i}.png"
+            if not p.exists():
+                break
+            try:
+                img = Image.open(str(p)).convert("RGBA")
+                img = img.resize((_PREVIEW_SIZE, _PREVIEW_SIZE), Image.LANCZOS)
+                bg  = Image.new("RGBA", img.size, (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
+                bg.paste(img, mask=img.split()[3])
+                images.append(ImageTk.PhotoImage(bg.convert("RGB")))
+            except Exception:
+                break
+        return images
+
+    def _bind_custom_hover(self, label: tk.Label, cid: str,
+                           static_photo: "ImageTk.PhotoImage | None") -> None:
+        """Start animation on Enter, revert to static on Leave."""
+        hover_state = {"jobs": [], "frames": None}
+
+        def on_enter(e):
+            if hover_state["frames"] is None:
+                frames = self._load_custom_anim_frames(cid)
+                hover_state["frames"] = frames if len(frames) >= 2 else []
+            if not hover_state["frames"]:
+                return
+            self._start_anim_on(label, hover_state["frames"], hover_state["jobs"])
+
+        def on_leave(e):
+            for job in hover_state["jobs"]:
+                try:
+                    self._root.after_cancel(job)
+                except Exception:
+                    pass
+            hover_state["jobs"].clear()
+            if static_photo:
+                try:
+                    label.configure(image=static_photo)
+                except tk.TclError:
+                    pass
+
+        label.bind("<Enter>", on_enter)
+        label.bind("<Leave>", on_leave)
+
+    def _start_anim_on(self, label: tk.Label, frames: list, job_list: list) -> None:
+        """Cycle frames on label, tracking job IDs in job_list."""
+        if not frames or len(frames) < 2:
+            return
+        delay = 1000 // _ANIM_FPS
+        state = [0]
+
+        def tick():
+            if not self._root:
+                return
+            try:
+                state[0] = (state[0] + 1) % len(frames)
+                label.configure(image=frames[state[0]])
+                job = self._root.after(delay, tick)
+                job_list.append(job)
+            except tk.TclError:
+                pass
+
+        job = self._root.after(delay, tick)
+        job_list.append(job)
+
+    # ── Import: single image ─────────────────────────────────────────────────
+
     def _import_dialog(self, parent_inner: tk.Frame) -> None:
-        """Modal dialog to import a new custom critter."""
+        """Modal dialog to import a single image as a new custom critter."""
         path = filedialog.askopenfilename(
             title="Choose an image",
             filetypes=[
@@ -804,7 +1003,6 @@ class SettingsWindow:
         if not path:
             return
 
-        # Name autofilled from filename (no extension)
         default_name = Path(path).stem.replace("_", " ").replace("-", " ").title()
 
         dlg = tk.Toplevel(self._root)
@@ -842,10 +1040,8 @@ class SettingsWindow:
             if not name:
                 status_lbl.configure(text="Please enter a name.", fg=RED)
                 return
-
             import_btn.configure(state="disabled", text="Importing…")
             dlg.update()
-
             try:
                 critter_id = run_import(path, name, get_custom_dir())
             except ImportError as err:
@@ -856,19 +1052,7 @@ class SettingsWindow:
                 status_lbl.configure(text=f"Unexpected error: {err}", fg=RED)
                 import_btn.configure(state="normal", text="Import")
                 return
-
-            # Register in config
-            if "custom_animals" not in self._config:
-                self._config["custom_animals"] = {}
-            self._config["custom_animals"][critter_id] = {
-                "enabled": True, "weight": 1.0, "sound_override": None, "size_override": None,
-            }
-            save_config(self._config)
-
-            # Reload registry and notify overlay
-            self._registry.reload()
-            self._on_save(self._config)
-
+            self._finish_import(critter_id)
             dlg.destroy()
             self._show_page("custom")
 
@@ -888,6 +1072,275 @@ class SettingsWindow:
                   cursor="hand2", padx=12, pady=8).pack(side="left", padx=(8, 0))
 
         entry.bind("<Return>", lambda e: do_import())
+
+    # ── Import: animation frames ──────────────────────────────────────────────
+
+    def _import_frames_dialog(self, parent_inner: tk.Frame) -> None:
+        """Modal dialog to import 2–8 hand-drawn PNG frames."""
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Import animation frames")
+        dlg.configure(bg=CONTENT_BG)
+        dlg.resizable(True, False)
+        dlg.grab_set()
+
+        w, h = 620, 460
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        # State
+        paths = []           # list of Path
+        thumb_photos = []    # list of ImageTk.PhotoImage (kept alive)
+        transp_flags = []    # list of bool — True = already transparent
+        preview_frames = []  # list of ImageTk.PhotoImage for the preview strip
+
+        # ── Header ──
+        tk.Label(dlg, text="Import animation frames",
+                 font=(FF, 13, "bold"), bg=CONTENT_BG, fg=FG).pack(anchor="w", padx=24, pady=(18, 2))
+        tk.Label(dlg,
+                 text="Upload 2–8 PNG frames in walk-cycle order. Transparent PNGs are used as-is;\n"
+                      "opaque images will have their background removed automatically.",
+                 font=(FF, 8), bg=CONTENT_BG, fg=FG2, justify="left").pack(anchor="w", padx=24, pady=(0, 10))
+
+        # ── Frame strip ──
+        strip_outer = tk.Frame(dlg, bg=CARD_BG, height=140)
+        strip_outer.pack(fill="x", padx=24, pady=(0, 10))
+        strip_outer.pack_propagate(False)
+
+        strip_canvas = tk.Canvas(strip_outer, bg=CARD_BG, highlightthickness=0, height=140)
+        strip_scroll = tk.Scrollbar(strip_outer, orient="horizontal",
+                                    command=strip_canvas.xview,
+                                    bg=CARD_BG, troughcolor=CARD_BG,
+                                    relief="flat", bd=0, width=6)
+        strip_canvas.configure(xscrollcommand=strip_scroll.set)
+        strip_scroll.pack(side="bottom", fill="x")
+        strip_canvas.pack(side="left", fill="both", expand=True)
+
+        strip_inner = tk.Frame(strip_canvas, bg=CARD_BG)
+        strip_win = strip_canvas.create_window((0, 0), window=strip_inner, anchor="nw")
+
+        def _update_strip_scroll(e=None):
+            strip_canvas.configure(scrollregion=strip_canvas.bbox("all"))
+            strip_canvas.itemconfig(strip_win, height=strip_canvas.winfo_height())
+
+        strip_inner.bind("<Configure>", _update_strip_scroll)
+
+        # ── Name field ──
+        name_row = tk.Frame(dlg, bg=CONTENT_BG)
+        name_row.pack(fill="x", padx=24, pady=(0, 8))
+        tk.Label(name_row, text="Name", font=(FF, 9), bg=CONTENT_BG, fg=FG3).pack(side="left", padx=(0, 8))
+        name_var = tk.StringVar()
+        name_entry = tk.Entry(name_row, textvariable=name_var,
+                              font=(FF, 10), bg=CARD_BG, fg=FG,
+                              insertbackground=FG, relief="flat", bd=0)
+        name_entry.pack(side="left", fill="x", expand=True, ipady=6)
+
+        # ── Status / error label ──
+        status_lbl = tk.Label(dlg, text="", font=(FF, 8),
+                              bg=CONTENT_BG, fg=AMBER, wraplength=570, justify="left")
+        status_lbl.pack(anchor="w", padx=24, pady=(0, 4))
+
+        # ── Bottom buttons ──
+        bot_row = tk.Frame(dlg, bg=CONTENT_BG)
+        bot_row.pack(fill="x", padx=24, pady=(4, 18))
+
+        add_btn = tk.Button(bot_row, text="＋ Add frame",
+                            bg=CARD_BG, fg=ACCENT2,
+                            activebackground=SEL_BG, activeforeground=FG,
+                            relief="flat", font=(FF, 9, "bold"),
+                            cursor="hand2", padx=10, pady=6)
+        add_btn.pack(side="left")
+
+        import_btn = tk.Button(bot_row, text="Import",
+                               bg="#1a0f35", fg=ACCENT,
+                               activebackground="#23154a", activeforeground=ACCENT,
+                               relief="flat", font=(FF, 10, "bold"),
+                               cursor="hand2", padx=16, pady=8,
+                               state="disabled")
+        import_btn.pack(side="right")
+
+        tk.Button(bot_row, text="Cancel",
+                  command=dlg.destroy,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="right", padx=(0, 8))
+
+        # ── Strip rebuild ──
+        def _rebuild_strip():
+            for w in strip_inner.winfo_children():
+                w.destroy()
+            thumb_photos.clear()
+            preview_frames.clear()
+
+            for idx, (p, transp) in enumerate(zip(paths, transp_flags)):
+                col = tk.Frame(strip_inner, bg=CARD_BG, padx=4, pady=6)
+                col.pack(side="left")
+
+                # Thumbnail
+                try:
+                    img = Image.open(str(p)).convert("RGBA")
+                    img.thumbnail((80, 80), Image.LANCZOS)
+                    bg_img = Image.new("RGBA", (80, 80), (_CARD_RGB[0], _CARD_RGB[1], _CARD_RGB[2], 255))
+                    ox = (80 - img.width) // 2
+                    oy = (80 - img.height) // 2
+                    bg_img.paste(img, (ox, oy), img)
+                    photo = ImageTk.PhotoImage(bg_img.convert("RGB"))
+                    thumb_photos.append(photo)
+                    preview_frames.append(photo)
+                except Exception:
+                    photo = None
+
+                frame_lbl = tk.Label(col, image=photo if photo else None,
+                                     text="" if photo else "?",
+                                     bg=CARD_BG, width=80, height=80)
+                if photo:
+                    frame_lbl.image = photo
+                frame_lbl.pack()
+
+                # Transparency badge
+                badge_text = "✓ transparent" if transp else "⚠ bg-remove"
+                badge_fg   = "#4ade80" if transp else AMBER
+                tk.Label(col, text=badge_text, font=(FF, 7), bg=CARD_BG, fg=badge_fg).pack()
+
+                # Reorder + remove buttons
+                ctrl = tk.Frame(col, bg=CARD_BG)
+                ctrl.pack()
+
+                def make_left(i=idx):
+                    def go():
+                        if i > 0:
+                            paths[i-1], paths[i] = paths[i], paths[i-1]
+                            transp_flags[i-1], transp_flags[i] = transp_flags[i], transp_flags[i-1]
+                            _rebuild_strip()
+                            _update_import_btn()
+                    return go
+
+                def make_right(i=idx):
+                    def go():
+                        if i < len(paths) - 1:
+                            paths[i+1], paths[i] = paths[i], paths[i+1]
+                            transp_flags[i+1], transp_flags[i] = transp_flags[i], transp_flags[i+1]
+                            _rebuild_strip()
+                            _update_import_btn()
+                    return go
+
+                def make_remove(i=idx):
+                    def go():
+                        paths.pop(i)
+                        transp_flags.pop(i)
+                        _rebuild_strip()
+                        _update_import_btn()
+                    return go
+
+                for text, cmd, fg_col in [
+                    ("←", make_left(idx),   FG2),
+                    ("→", make_right(idx),  FG2),
+                    ("✕", make_remove(idx), RED),
+                ]:
+                    tk.Button(ctrl, text=text, command=cmd,
+                              bg=CARD_BG, fg=fg_col,
+                              activebackground=SEL_BG, activeforeground=FG,
+                              relief="flat", font=(FF, 8),
+                              cursor="hand2", padx=4, pady=2).pack(side="left")
+
+            strip_canvas.after_idle(_update_strip_scroll)
+
+        def _update_import_btn():
+            ok = 2 <= len(paths) <= 8
+            import_btn.configure(state="normal" if ok else "disabled")
+            if len(paths) == 0:
+                status_lbl.configure(text="Add 2–8 frames to continue.", fg=FG3)
+            elif len(paths) == 1:
+                status_lbl.configure(text="Add at least one more frame.", fg=AMBER)
+            elif len(paths) > 8:
+                status_lbl.configure(text="Maximum 8 frames.", fg=RED)
+            else:
+                status_lbl.configure(text=f"{len(paths)} frames ready.", fg=FG3)
+
+        def _check_transparency(path: Path) -> bool:
+            """Return True if the image already has meaningful transparency."""
+            import numpy as np
+            try:
+                img = Image.open(str(path))
+                if img.mode != "RGBA" and "transparency" not in img.info:
+                    return False
+                rgba = img.convert("RGBA")
+                alpha = np.array(rgba)[:, :, 3]
+                return float((alpha < 255).sum()) / alpha.size > 0.01
+            except Exception:
+                return False
+
+        def _add_files(file_paths):
+            for fp in file_paths:
+                p = Path(fp)
+                ext = p.suffix.lower()
+                if ext not in (".png", ".jpg", ".jpeg"):
+                    status_lbl.configure(
+                        text=f"{p.name} skipped — use PNG or JPG frames only.", fg=AMBER)
+                    continue
+                if len(paths) >= 8:
+                    status_lbl.configure(text="Maximum 8 frames reached.", fg=AMBER)
+                    break
+                transp = _check_transparency(p)
+                paths.append(p)
+                transp_flags.append(transp)
+            _rebuild_strip()
+            _update_import_btn()
+
+        def on_add():
+            chosen = filedialog.askopenfilenames(
+                title="Choose frame images",
+                filetypes=[("Images", "*.png *.jpg *.jpeg"), ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg")],
+                parent=dlg,
+            )
+            if chosen:
+                _add_files(chosen)
+                if not name_var.get().strip() and chosen:
+                    default = Path(chosen[0]).stem.replace("_", " ").replace("-", " ").title()
+                    name_var.set(default)
+                    name_entry.select_range(0, "end")
+
+        add_btn.configure(command=on_add)
+
+        def do_import():
+            name = name_var.get().strip()
+            if not name:
+                status_lbl.configure(text="Please enter a name.", fg=RED)
+                return
+            if not (2 <= len(paths) <= 8):
+                return
+            import_btn.configure(state="disabled", text="Importing…")
+            dlg.update()
+            try:
+                critter_id = run_import_frames(paths, name, get_custom_dir())
+            except ImportError as err:
+                status_lbl.configure(text=str(err), fg=RED)
+                import_btn.configure(state="normal", text="Import")
+                return
+            except Exception as err:
+                status_lbl.configure(text=f"Unexpected error: {err}", fg=RED)
+                import_btn.configure(state="normal", text="Import")
+                return
+            self._finish_import(critter_id)
+            dlg.destroy()
+            self._show_page("custom")
+
+        import_btn.configure(command=do_import)
+        name_entry.bind("<Return>", lambda e: do_import())
+
+        # Initialise strip with empty state hint
+        _update_import_btn()
+
+    def _finish_import(self, critter_id: str) -> None:
+        """Register a newly imported critter in config and reload the registry."""
+        if "custom_animals" not in self._config:
+            self._config["custom_animals"] = {}
+        self._config["custom_animals"][critter_id] = {
+            "enabled": True, "weight": 1.0, "sound_override": None, "size_override": None,
+        }
+        save_config(self._config)
+        self._registry.reload()
+        self._on_save(self._config)
 
     def _delete_custom(self, critter_id: str) -> None:
         name = self._registry.get(critter_id)

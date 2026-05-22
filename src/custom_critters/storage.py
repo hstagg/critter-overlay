@@ -83,6 +83,10 @@ def default_meta(critter_id: str, name: str) -> dict:
         "sound_profile": "kitten",
         "sound_seed": 0,
         "hit_radius_fallback": 55,
+        # v1.9 personality fields — backward-compatible defaults
+        "speed_multiplier": 1.0,
+        "idle_rate": 0.018,
+        "trail_style": "none",
         "notes": "",
     }
 
