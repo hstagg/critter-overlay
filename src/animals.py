@@ -225,10 +225,13 @@ class Animal:
     TRAIL_LIFE     = 1.0
     TRAIL_STAR     = False      # draw as a 4-point sparkle instead of dot
 
-    WALKING = "walking"
-    IDLE    = "idle"
-    TURNING = "turning"
-    POPPING = "popping"
+    IDLE_RATE = 0.018   # chance per second to enter idle while walking
+
+    WALKING  = "walking"
+    IDLE     = "idle"
+    TURNING  = "turning"
+    POPPING  = "popping"
+    SCATTERED = "scattered"
 
     # Throw/drag physics
     THROW_GRAVITY = 520.0
@@ -265,10 +268,22 @@ class Animal:
         self.spin_angle     = 0.0
         self.spin_speed     = 0.0
 
+        # Scatter state (collision impulse)
+        self.scatter_timer  = 0.0
+
         # Trail emission accumulator
         self._trail_acc     = 0.0
 
     # ------------------------------------------------------------------ throw/drag
+
+    def scatter(self, vx: float, vy: float) -> None:
+        """Enter scatter state after a collision impulse."""
+        self.vx = vx
+        self.vy = vy
+        self.state = self.SCATTERED
+        self.scatter_timer = 1.2
+        if abs(vx) > 5:
+            self.direction = 1 if vx > 0 else -1
 
     def set_thrown(self, vx: float, vy: float) -> None:
         """Launch this critter ballistically — it'll fly until off-screen."""
@@ -349,12 +364,38 @@ class Animal:
             self.idle_timer -= dt
             if self.idle_timer <= 0:
                 self.state = self.WALKING
+        elif self.state == self.SCATTERED:
+            self.scatter_timer -= dt
+            drag = 2.0
+            self.vx *= max(0.0, 1.0 - drag * dt)
+            self.vy *= max(0.0, 1.0 - drag * dt)
+            m = self.size // 2
+            nx = self.x + self.vx * dt
+            ny = self.y + self.vy * dt
+            if nx < m:
+                nx = float(m);               self.vx =  abs(self.vx)
+            elif nx > self.screen_w - m:
+                nx = float(self.screen_w - m); self.vx = -abs(self.vx)
+            if ny < m:
+                ny = float(m);               self.vy =  abs(self.vy)
+            elif ny > self.screen_h - m:
+                ny = float(self.screen_h - m); self.vy = -abs(self.vy)
+            self.x, self.y = nx, ny
+            spd = math.hypot(self.vx, self.vy)
+            if self.scatter_timer <= 0 or spd < self.BASE_SPEED * 0.35:
+                self.state = self.WALKING
+                if spd > 0.1:
+                    self.vx = (self.vx / spd) * self.BASE_SPEED
+                    self.vy = (self.vy / spd) * self.BASE_SPEED
+                else:
+                    self.vx = self.direction * self.BASE_SPEED
+                    self.vy = 0.0
         elif self.state == self.WALKING:
             if self.perimeter_walker:
                 self._update_perimeter(dt)
             else:
                 self._update_free(dt, all_animals)
-            if random.random() < dt * 0.018:
+            if random.random() < dt * self.IDLE_RATE:
                 self.state = self.IDLE
                 self.idle_timer = random.uniform(0.8, 2.5)
 
@@ -376,24 +417,6 @@ class Animal:
         if bounced:
             self.state = self.TURNING
             self.turn_timer = random.uniform(0.15, 0.35)
-
-        for other in all_animals:
-            if other is self or not other.alive:
-                continue
-            if other.thrown or other.being_dragged:
-                continue
-            dx, dy = self.x - other.x, self.y - other.y
-            dist = math.hypot(dx, dy)
-            md = (self.hit_radius + other.hit_radius) * 0.88
-            if 0 < dist < md:
-                nx += (dx/dist) * (md-dist) * 0.5
-                ny += (dy/dist) * (md-dist) * 0.5
-                self.vx += (dx/dist) * 12
-                self.vy += (dy/dist) * 12
-                spd = math.hypot(self.vx, self.vy)
-                if spd > 0:
-                    self.vx = self.vx/spd * self.BASE_SPEED
-                    self.vy = self.vy/spd * self.BASE_SPEED
 
         self.x, self.y = nx, ny
 

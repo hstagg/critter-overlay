@@ -116,6 +116,102 @@ def run_import(src_path: str | Path, name: str,
 
 
 # ---------------------------------------------------------------------------
+# Second public entry point — multi-frame import
+# ---------------------------------------------------------------------------
+
+def run_import_frames(src_paths: list, name: str, custom_dir: Path) -> str:
+    """
+    Import 2–8 hand-drawn PNG frames as a custom critter animation.
+    Returns critter_id.  Raises ImportError with a user-facing message on failure.
+    """
+    import numpy as np
+
+    src_paths = [Path(p) for p in src_paths]
+
+    if not (2 <= len(src_paths) <= 8):
+        raise ImportError("Please provide between 2 and 8 frames.")
+
+    pil_frames = []
+    for path in src_paths:
+        _validate_file(path)
+        try:
+            img = Image.open(path)
+        except Exception as e:
+            raise ImportError(f"Could not open {path.name}: {e}")
+
+        img.load()
+
+        if img.mode == "RGBA":
+            rgba = img.convert("RGBA")
+            alpha = np.array(rgba)[:, :, 3]
+            meaningful = float((alpha < 255).sum()) / alpha.size > 0.01
+        else:
+            rgba = None
+            meaningful = False
+
+        if not meaningful:
+            rgba = remove_background(img if rgba is None else img)
+
+        pil_frames.append(rgba)
+
+    # Align all frames to the same global bounding box
+    bbox = _global_bbox(pil_frames)
+    if bbox:
+        pil_frames = [f.crop(bbox) for f in pil_frames]
+
+    pil_frames = _crop_and_fit(pil_frames)
+    _validate_content(pil_frames[0])
+
+    critter_id   = generate_critter_id(name)
+    critter_path = create_critter_folder(custom_dir, critter_id)
+
+    # Preserve originals for future re-generation
+    src_dir = critter_path / "source_frames"
+    src_dir.mkdir(exist_ok=True)
+    for i, path in enumerate(src_paths):
+        shutil.copy2(path, src_dir / f"frame_{i}{path.suffix}")
+
+    fd = frames_dir(custom_dir, critter_id)
+    for i, frame in enumerate(pil_frames):
+        frame.save(str(fd / f"frame_{i}.png"), format="PNG")
+
+    from custom_critters.storage import masks_dir as _masks_dir
+    md = _masks_dir(custom_dir, critter_id)
+    generate_and_save_masks(pil_frames, md)
+
+    thumb = pil_frames[0].copy()
+    thumb.thumbnail((64, 64), Image.LANCZOS)
+    thumb64 = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    ox = (64 - thumb.width) // 2
+    oy = (64 - thumb.height) // 2
+    thumb64.paste(thumb, (ox, oy), thumb)
+    thumb64.save(str(critter_path / "thumb.png"), format="PNG")
+
+    palette    = extract_palette(pil_frames[0])
+    name_hash  = int(hashlib.md5(name.encode()).hexdigest()[:8], 16)
+    _PRESETS   = ["kitten", "turtle", "duck", "rabbit",
+                  "hedgehog", "squirrel", "otter", "panda"]
+    sound_profile = _PRESETS[name_hash % len(_PRESETS)]
+    sound_seed    = name_hash & 0xFFFF
+
+    meta = default_meta(critter_id, name)
+    meta.update({
+        "frame_count":        len(pil_frames),
+        "frame_size":         [CANONICAL_SIZE, CANONICAL_SIZE],
+        "import_method":      "frame_strip",
+        "procedural_animation": False,
+        "source_dimensions":  list(Image.open(src_paths[0]).size),
+        "trail_palette":      palette,
+        "sound_profile":      sound_profile,
+        "sound_seed":         sound_seed,
+        "hit_radius_fallback": int(CANONICAL_SIZE * 0.46),
+    })
+    write_meta(critter_path, meta)
+
+    return critter_id
+
+
+# ---------------------------------------------------------------------------
 # Loaders
 # ---------------------------------------------------------------------------
 

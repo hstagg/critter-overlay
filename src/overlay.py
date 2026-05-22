@@ -402,6 +402,9 @@ class Overlay:
                 if new_trails:
                     self._trail_particles.extend(new_trails)
 
+        # Elastic collision pass — after all positions updated
+        _resolve_collisions(self._animals)
+
         # Reap thrown animals that have left the screen
         if any(not a.alive for a in self._animals):
             self._animals = [a for a in self._animals if a.alive]
@@ -469,3 +472,81 @@ class Overlay:
 
     def _cleanup(self) -> None:
         pygame.quit()
+
+
+# ---------------------------------------------------------------------------
+# Module-level physics helper — no class state needed
+# ---------------------------------------------------------------------------
+
+def _resolve_collisions(animals: list) -> None:
+    """
+    One elastic collision pass over all animal pairs.
+    Equal-mass 2-D billiard physics: velocity components along the collision
+    axis are swapped; perpendicular components are untouched.
+    Animals above SCATTER_THRESHOLD speed enter the SCATTERED state so they
+    coast visibly instead of having the impulse normalised away immediately.
+    """
+    n = len(animals)
+    if n < 2:
+        return
+
+    SCATTER_THRESHOLD = 80.0   # px/s — above this the hit animal scatters
+    MIN_SCATTER_SPD   = 130.0  # floor to make low-energy hits still look punchy
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            a, b = animals[i], animals[j]
+            if not a.alive or not b.alive:
+                continue
+            if a.being_dragged or b.being_dragged:
+                continue
+            if a.perimeter_walker or b.perimeter_walker:
+                continue
+
+            dx   = b.x - a.x
+            dy   = b.y - a.y
+            dist = math.hypot(dx, dy)
+            min_dist = (a.hit_radius + b.hit_radius) * 0.90
+
+            if dist >= min_dist or dist < 1.0:
+                continue
+
+            # Normalise collision axis
+            nx = dx / dist
+            ny = dy / dist
+
+            # Push apart so they no longer overlap
+            overlap = (min_dist - dist) * 0.5
+            a.x -= nx * overlap
+            a.y -= ny * overlap
+            b.x += nx * overlap
+            b.y += ny * overlap
+
+            # Relative velocity projection onto collision axis
+            rel_dot = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
+
+            # Only resolve if the pair is actually approaching
+            if rel_dot <= 0:
+                continue
+
+            # Equal-mass elastic: swap axial velocity components
+            a.vx -= rel_dot * nx
+            a.vy -= rel_dot * ny
+            b.vx += rel_dot * nx
+            b.vy += rel_dot * ny
+
+            # Decide whether each animal scatters or just nudges
+            for animal in (a, b):
+                if animal.thrown:
+                    continue   # thrown animals stay ballistic; velocity already updated
+                spd = math.hypot(animal.vx, animal.vy)
+                if spd > SCATTER_THRESHOLD:
+                    if spd < MIN_SCATTER_SPD:
+                        scale = MIN_SCATTER_SPD / spd
+                        animal.vx *= scale
+                        animal.vy *= scale
+                    animal.scatter(animal.vx, animal.vy)
+                else:
+                    # Gentle nudge — just update facing direction
+                    if abs(animal.vx) > 5:
+                        animal.direction = 1 if animal.vx > 0 else -1

@@ -49,8 +49,25 @@ class CustomAnimal(Animal):
         palette_hex = self.meta.get("trail_palette") or []
         self.PARTICLE_COLORS = [self._hex_to_rgb(c) for c in palette_hex] or [(200, 200, 200)]
 
+        # Per-critter personality (v1.9) — applied before super().__init__ so
+        # the base class reads the overridden BASE_SPEED when computing initial vx/vy
+        speed_mult = float(self.meta.get("speed_multiplier", 1.0))
+        self.BASE_SPEED = max(1, int(CustomAnimal.BASE_SPEED * speed_mult))
+
         super().__init__(x, y, size, screen_w, screen_h,
                          direction=direction, perimeter_walker=perimeter_walker)
+
+        # Instance-level overrides set after super().__init__
+        self.IDLE_RATE = float(self.meta.get("idle_rate", 0.018))
+
+        trail_style = self.meta.get("trail_style", "none")
+        if trail_style != "none" and self.PARTICLE_COLORS:
+            self.LEAVES_TRAIL  = True
+            self.TRAIL_PALETTE = self.PARTICLE_COLORS
+            self.TRAIL_RATE    = 15
+            self.TRAIL_SIZE    = 6
+            self.TRAIL_LIFE    = 0.9
+            self.TRAIL_STAR    = (trail_style == "stars")
 
         self._frame_count = len(self.frames)
         # Cache: (frame_idx, size, flip) -> pygame.Surface
