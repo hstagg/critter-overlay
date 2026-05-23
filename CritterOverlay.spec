@@ -57,10 +57,9 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # numpy is only needed for sound synthesis; if WAVs are bundled we
-        # don't need it at runtime. Remove to cut ~25 MB from the bundle.
-        # If build_sounds.py wasn't run, sounds will be silently skipped.
-        'numpy',
+        # numpy is required at runtime — used by masks.py, procedural.py,
+        # registry.py, and animals_custom.py (all top-level imports).
+        # Do NOT exclude it.
         # Unused stdlib / package internals
         'unittest',
         'test',
