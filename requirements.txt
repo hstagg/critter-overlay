@@ -7,3 +7,4 @@ keyboard>=0.13.5
 pystray>=0.19.0
 Pillow>=10.0.0
 pyinstaller>=6.0.0   # build only — not needed at runtime
+sv-ttk>=2.6.0        # modern ttk dark theme for settings window

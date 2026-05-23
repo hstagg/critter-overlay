@@ -11,9 +11,16 @@ import threading
 import tkinter as tk
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
+import tkinter.ttk as ttk
 import webbrowser
 from pathlib import Path
 from typing import Callable
+
+try:
+    import sv_ttk as _sv_ttk
+    _SVTTK = True
+except ImportError:
+    _SVTTK = False
 
 from PIL import Image, ImageTk
 
@@ -80,6 +87,9 @@ _TRAIL_STYLES = [
     ("hearts",   "Hearts"),
 ]
 
+_WEIGHT_VALUES = [0.1, 1.0, 3.0, 5.0]
+_WEIGHT_LABELS = ["rare", "normal", "often", "constant"]
+
 
 def _nearest_pos(value: float, table: list) -> int:
     return min(range(len(table)), key=lambda i: abs(table[i] - value))
@@ -137,17 +147,14 @@ class SettingsWindow:
         # Active animation callbacks: after() job ids, cancelled on page change
         self._anim_jobs: list[str] = []
 
-        self._current_page = "home"
+        self._current_page = "critters"
         self._content_frame: tk.Frame | None = None
         self._nav_btns: dict[str, tk.Button] = {}
 
-        # Live-update labels
+        # Live-update labels (sidebar only)
         self._status_dot: tk.Label | None   = None
         self._status_lbl: tk.Label | None   = None
         self._sidebar_pause_btn: tk.Button | None = None
-        self._home_big_lbl: tk.Label | None = None
-        self._home_big_sub: tk.Label | None = None
-        self._home_big_bg:  str = CARD_BG
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -185,7 +192,11 @@ class SettingsWindow:
         self._root = tk.Tk()
         self._load_animal_frames()   # must run in tkinter thread (PhotoImage needs a root)
         self._build_window()
+        if _SVTTK:
+            _sv_ttk.set_theme("dark")
         self._poll_status()
+        if not self._config.get("first_run_completed", False):
+            self._root.after(400, self._show_welcome_modal)
         self._root.mainloop()
         self._root = None
         self._animal_frames.clear()
@@ -220,7 +231,7 @@ class SettingsWindow:
 
         self._content_frame = content_wrap
         self._build_sidebar(sidebar)
-        self._show_page("home")
+        self._show_page("critters")
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
 
@@ -252,12 +263,10 @@ class SettingsWindow:
 
         # ── Nav items ──
         nav = [
-            ("home",     "⌂",  "Home"),
-            ("animals",  "🐾", "Animals"),
-            ("custom",   "✨", "Custom"),
-            ("spawning", "⏱",  "Spawning"),
-            ("audio",    "🔊", "Audio"),
-            ("system",   "⚙",  "System"),
+            ("critters",  "🐾", "Critters"),
+            ("behaviour", "⏱",  "Behaviour"),
+            ("audio",     "🔊", "Audio"),
+            ("system",    "⚙",  "System"),
         ]
         for page_id, icon, label in nav:
             btn = tk.Button(
@@ -330,31 +339,6 @@ class SettingsWindow:
             except tk.TclError:
                 pass
 
-        # Home-page live labels
-        if self._current_page == "home":
-            self._refresh_home_status(paused)
-
-    def _refresh_home_status(self, paused: bool) -> None:
-        if self._home_big_lbl is None:
-            return
-        try:
-            if paused:
-                bg   = "#1f0f0f"
-                fg   = RED
-                text = "⏸  PAUSED"
-                sub  = "Animals are frozen — click Resume to continue."
-            else:
-                bg   = "#0f1f12"
-                fg   = GREEN
-                text = "●  RUNNING"
-                sub  = "Animals are roaming freely across your screen."
-
-            self._home_big_lbl.configure(text=text, fg=fg, bg=bg)
-            self._home_big_sub.configure(text=sub, bg=bg)
-            self._home_big_lbl.master.configure(bg=bg)
-        except tk.TclError:
-            pass
-
     # ── Page routing ──────────────────────────────────────────────────────────
 
     def _show_page(self, page_id: str) -> None:
@@ -377,127 +361,188 @@ class SettingsWindow:
         for w in self._content_frame.winfo_children():
             w.destroy()
 
-        # Reset home live labels
-        self._home_big_lbl = None
-        self._home_big_sub = None
-
         {
-            "home":     self._page_home,
-            "animals":  self._page_animals,
-            "custom":   self._page_custom,
-            "spawning": self._page_spawning,
-            "audio":    self._page_audio,
-            "system":   self._page_system,
-        }.get(page_id, self._page_home)(self._content_frame)
+            "critters":  self._page_critters,
+            "behaviour": self._page_behaviour,
+            "audio":     self._page_audio,
+            "system":    self._page_system,
+        }.get(page_id, self._page_critters)(self._content_frame)
 
-    # ── Page: Home ────────────────────────────────────────────────────────────
+    # ── Welcome modal (first-run only) ────────────────────────────────────────
 
-    def _page_home(self, parent: tk.Frame) -> None:
-        scroll_canvas, inner = self._scrollable(parent)
+    def _show_welcome_modal(self) -> None:
+        if not self._root:
+            return
 
-        paused = self._get_paused()
+        modal = tk.Toplevel(self._root)
+        modal.title("Welcome")
+        modal.configure(bg=CONTENT_BG)
+        modal.resizable(False, False)
+        modal.grab_set()
 
-        # ── Big status card ──
-        status_bg = "#0f1f12" if not paused else "#1f0f0f"
-        status_card = tk.Frame(inner, bg=status_bg, padx=24, pady=22)
-        status_card.pack(fill="x", pady=(0, 16))
+        w, h = 420, 230
+        sw, sh = modal.winfo_screenwidth(), modal.winfo_screenheight()
+        modal.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
 
-        self._home_big_lbl = tk.Label(
-            status_card,
-            text="●  RUNNING" if not paused else "⏸  PAUSED",
-            font=(FF, 26, "bold"),
-            bg=status_bg,
-            fg=GREEN if not paused else RED,
-        )
-        self._home_big_lbl.pack(anchor="w")
+        inner = tk.Frame(modal, bg=CONTENT_BG, padx=28, pady=22)
+        inner.pack(fill="both", expand=True)
 
-        self._home_big_sub = tk.Label(
-            status_card,
-            text=("Animals are roaming freely across your screen."
-                  if not paused else "Animals are frozen — click Resume to continue."),
-            font=(FF, 10),
-            bg=status_bg,
-            fg=FG2,
-        )
-        self._home_big_sub.pack(anchor="w", pady=(5, 0))
+        tk.Label(inner, text="Welcome to Critter Overlay",
+                 font=(FF, 14, "bold"), bg=CONTENT_BG, fg=FG).pack(anchor="w")
 
-        # ── Quick-action pair ──
-        actions = tk.Frame(inner, bg=CONTENT_BG)
-        actions.pack(fill="x", pady=(0, 20))
-        actions.grid_columnconfigure(0, weight=1)
-        actions.grid_columnconfigure(1, weight=1)
+        tk.Label(inner,
+                 text="Right-click the paw icon in your taskbar to open\n"
+                      "settings, pause, or spawn a critter.",
+                 font=(FF, 9), bg=CONTENT_BG, fg=FG2,
+                 justify="left").pack(anchor="w", pady=(10, 6))
 
-        self._action_card(
-            actions, row=0, col=0, padright=8,
-            icon="💥", title="Spawn Now",
-            desc="Send a wave of critters onto the screen",
-            color=ACCENT,
-            command=self._on_force_spawn,
-        )
-        self._action_card(
-            actions, row=0, col=1, padright=0,
-            icon="▶" if paused else "⏸",
-            title="Resume" if paused else "Pause",
-            desc="Freeze or unfreeze all animal activity",
-            color=GREEN if paused else RED,
-            command=self._toggle_pause,
-        )
+        hotkey_row = tk.Frame(inner, bg=CONTENT_BG)
+        hotkey_row.pack(anchor="w", pady=(0, 18))
+        tk.Label(hotkey_row, text="Hotkey: ",
+                 font=(FF, 9), bg=CONTENT_BG, fg=FG2).pack(side="left")
+        tk.Label(hotkey_row, text="Ctrl + Shift + P",
+                 font=(FF, 9, "bold"), bg="#1a1040", fg=ACCENT,
+                 padx=8, pady=3).pack(side="left")
+        tk.Label(hotkey_row, text="  pause / resume",
+                 font=(FF, 9), bg=CONTENT_BG, fg=FG2).pack(side="left")
 
-        # ── Stat trio ──
-        stats = tk.Frame(inner, bg=CONTENT_BG)
-        stats.pack(fill="x", pady=(0, 24))
-        stats.grid_columnconfigure(0, weight=1)
-        stats.grid_columnconfigure(1, weight=1)
-        stats.grid_columnconfigure(2, weight=1)
+        btn_row = tk.Frame(inner, bg=CONTENT_BG)
+        btn_row.pack(fill="x")
 
-        spawn_min   = self._config["spawn"].get("primary_interval_min", 5)
-        cnt_min     = self._config["spawn"].get("primary_count_min", 5)
-        cnt_max     = self._config["spawn"].get("primary_count_max", 10)
-        enabled_n   = sum(1 for s in self._config["animals"].values()
-                          if s.get("enabled", True))
+        def _dismiss():
+            self._config["first_run_completed"] = True
+            save_config(self._config)
+            self._on_save(self._config)
+            try:
+                modal.destroy()
+            except tk.TclError:
+                pass
 
-        self._stat_card(stats, col=0, pad=8, icon="⏱",
-                        value=f"{spawn_min} min", label="Spawn interval")
-        self._stat_card(stats, col=1, pad=8, icon="🐾",
-                        value=f"{cnt_min}–{cnt_max}", label="Per-spawn count")
-        self._stat_card(stats, col=2, pad=0, icon="✓",
-                        value=f"{enabled_n} / 8", label="Species active")
+        tk.Button(btn_row, text="Don't show again",
+                  command=_dismiss,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="left")
 
-        # ── Tip bar ──
-        tip = tk.Frame(inner, bg=CARD_BG, padx=16, pady=10)
-        tip.pack(fill="x")
-        tk.Label(tip, text="💡", font=(FF, 10), bg=CARD_BG, fg=AMBER).pack(side="left")
-        tk.Label(tip, text="  Use the sidebar to adjust which animals appear and how often.",
-                 font=(FF, 9), bg=CARD_BG, fg=FG2).pack(side="left")
-        tk.Label(tip, text="  Ctrl+Shift+P  to pause from any app.",
-                 font=(FF, 9), bg=CARD_BG, fg=FG3).pack(side="left")
+        tk.Button(btn_row, text="Open Settings",
+                  command=_dismiss,
+                  bg="#1a0f35", fg=ACCENT,
+                  activebackground="#23154a", activeforeground=ACCENT,
+                  relief="flat", font=(FF, 9, "bold"),
+                  cursor="hand2", padx=16, pady=8).pack(side="left", padx=(8, 0))
 
-    def _action_card(self, parent, row, col, padright,
-                     icon, title, desc, color, command):
-        card = tk.Frame(parent, bg=CARD_BG, padx=20, pady=18, cursor="hand2")
-        card.grid(row=row, column=col, sticky="nsew",
-                  padx=(0, padright), pady=(0, 0))
+        modal.after(8000, lambda: _dismiss() if modal.winfo_exists() else None)
 
-        top = tk.Frame(card, bg=CARD_BG)
-        top.pack(anchor="w")
-        tk.Label(top, text=icon, font=(FF, 16), bg=CARD_BG, fg=color).pack(side="left")
-        tk.Label(top, text=f"  {title}", font=(FF, 13, "bold"),
-                 bg=CARD_BG, fg=color).pack(side="left")
+    # ── Tooltip helper ────────────────────────────────────────────────────────
 
-        tk.Label(card, text=desc, font=(FF, 9), bg=CARD_BG, fg=FG3).pack(anchor="w", pady=(5, 0))
+    def _add_tooltip(self, widget: tk.Widget, text: str) -> None:
+        """Show a small tooltip near the widget on hover."""
+        tip: dict = {"win": None}
 
-        for w in [card] + list(card.winfo_children()) + [top] + list(top.winfo_children()):
-            w.bind("<Button-1>", lambda e, c=command: c())
-            w.bind("<Enter>",    lambda e, f=card: f.configure(bg=CARD_HOV))
-            w.bind("<Leave>",    lambda e, f=card: f.configure(bg=CARD_BG))
+        def on_enter(e):
+            if tip["win"]:
+                return
+            x = widget.winfo_rootx() + 20
+            y = widget.winfo_rooty() + widget.winfo_height() + 4
+            tw = tk.Toplevel(self._root)
+            tw.wm_overrideredirect(True)
+            tw.wm_geometry(f"+{x}+{y}")
+            tk.Label(tw, text=text, font=(FF, 8), bg="#2d2d4a", fg=FG2,
+                     padx=7, pady=4, justify="left",
+                     wraplength=260).pack()
+            tip["win"] = tw
 
-    def _stat_card(self, parent, col, pad, icon, value, label):
-        card = tk.Frame(parent, bg=CARD_BG, padx=16, pady=16)
-        card.grid(row=0, column=col, sticky="nsew", padx=(0, pad))
-        tk.Label(card, text=icon, font=(FF, 14), bg=CARD_BG, fg=ACCENT).pack(anchor="w")
-        tk.Label(card, text=value, font=(FF, 16, "bold"),
-                 bg=CARD_BG, fg=FG).pack(anchor="w", pady=(3, 0))
-        tk.Label(card, text=label, font=(FF, 8), bg=CARD_BG, fg=FG3).pack(anchor="w")
+        def on_leave(e):
+            if tip["win"]:
+                try:
+                    tip["win"].destroy()
+                except tk.TclError:
+                    pass
+                tip["win"] = None
+
+        widget.bind("<Enter>", on_enter, add="+")
+        widget.bind("<Leave>", on_leave, add="+")
+
+    # ── Generic fn-based setting widgets ─────────────────────────────────────
+
+    def _setting_toggle_fn(self, parent, label, desc, get_fn, set_fn,
+                           tooltip: str = "") -> None:
+        """Toggle card with custom get/set lambdas (for nested config paths)."""
+        card = tk.Frame(parent, bg=CARD_BG, padx=18, pady=14)
+        card.pack(fill="x", pady=(0, 8))
+
+        cur = get_fn()
+        var = tk.BooleanVar(value=cur)
+
+        head = tk.Frame(card, bg=CARD_BG)
+        head.pack(fill="x")
+
+        lbl = tk.Label(head, text=label, font=(FF, 10, "bold"), bg=CARD_BG, fg=FG)
+        lbl.pack(side="left")
+        if tooltip:
+            self._add_tooltip(lbl, tooltip)
+
+        state_lbl = tk.Label(head,
+                             text=("✓  ON" if cur else "✕  OFF"),
+                             font=(FF, 8, "bold"), bg=CARD_BG,
+                             fg=(GREEN if cur else FG3))
+        state_lbl.pack(side="right", padx=(0, 6))
+
+        def on_toggle(v=var, lbl=state_lbl):
+            val = v.get()
+            lbl.configure(text=("✓  ON" if val else "✕  OFF"),
+                          fg=(GREEN if val else FG3))
+            set_fn(val)
+            save_config(self._config)
+            self._on_save(self._config)
+
+        chk = tk.Checkbutton(head, variable=var, command=on_toggle,
+                             bg=CARD_BG, activebackground=CARD_BG,
+                             selectcolor=CARD_BG, fg=ACCENT,
+                             relief="flat", cursor="hand2")
+        chk.pack(side="right")
+
+        tk.Label(card, text=desc, font=(FF, 8), bg=CARD_BG, fg=FG3).pack(
+            anchor="w", pady=(2, 0))
+
+    def _setting_slider_fn(self, parent, label, desc, get_fn, set_fn,
+                           from_, to, res, unit="", tooltip: str = "") -> None:
+        """Slider card with custom get/set lambdas."""
+        card = tk.Frame(parent, bg=CARD_BG, padx=18, pady=14)
+        card.pack(fill="x", pady=(0, 8))
+
+        head = tk.Frame(card, bg=CARD_BG)
+        head.pack(fill="x")
+
+        lbl = tk.Label(head, text=label, font=(FF, 10, "bold"), bg=CARD_BG, fg=FG)
+        lbl.pack(side="left")
+        if tooltip:
+            self._add_tooltip(lbl, tooltip)
+
+        cur = get_fn()
+        display_val = int(cur) if res >= 1 else round(cur, 2)
+        val_lbl = tk.Label(head, text=f"{display_val}{unit}",
+                           font=(FF, 10, "bold"), bg=CARD_BG, fg=ACCENT)
+        val_lbl.pack(side="right")
+
+        tk.Label(card, text=desc, font=(FF, 8), bg=CARD_BG, fg=FG3).pack(
+            anchor="w", pady=(2, 6))
+
+        var = tk.DoubleVar(value=cur)
+
+        def on_slide(v, lbl=val_lbl, u=unit):
+            fv = int(float(v)) if res >= 1 else round(float(v), 2)
+            lbl.configure(text=f"{fv}{u}")
+            set_fn(fv)
+            save_config(self._config)
+            self._on_save(self._config)
+
+        tk.Scale(card, from_=from_, to=to, resolution=res,
+                 orient="horizontal", variable=var,
+                 bg=CARD_BG, fg=FG, troughcolor=SLIDER_TR,
+                 highlightthickness=0, bd=0, showvalue=False,
+                 command=on_slide).pack(fill="x")
 
     # ── Animal preview frame loader ───────────────────────────────────────────
 
@@ -551,29 +596,9 @@ class SettingsWindow:
                     pass
         self._anim_jobs.clear()
 
-    # ── Page: Animals ─────────────────────────────────────────────────────────
-
-    def _page_animals(self, parent: tk.Frame) -> None:
-        self._page_header(parent, "Animals",
-                          "Choose which species appear and how frequently they're picked.")
-        _, inner = self._scrollable(parent)
-
-        for species, emoji, name in ANIMALS:
-            cell = tk.Frame(inner, bg=CARD_BG, padx=18, pady=16)
-            cell.pack(fill="x", pady=(0, 8))
-            self._animal_card(cell, species, emoji, name)
-
-        # Reset weights link
-        link = tk.Label(inner, text="Reset all weights to default",
-                        font=(FF, 9), bg=CONTENT_BG, fg=FG3,
-                        cursor="hand2")
-        link.pack(anchor="w", pady=(12, 0))
-        link.bind("<Button-1>", lambda e: self._reset_weights())
-
     def _animal_card(self, parent, species, emoji, name) -> None:
         cfg = self._config["animals"][species]
         enabled_var = tk.BooleanVar(value=cfg.get("enabled", True))
-        weight_var  = tk.DoubleVar(value=cfg.get("weight", 1.0))
 
         # ── Horizontal layout: animated preview | controls ──
         left = tk.Frame(parent, bg=CARD_BG)
@@ -591,7 +616,6 @@ class SettingsWindow:
             img_lbl.pack()
             self._start_anim(img_lbl, frames)
         else:
-            # Fallback: emoji placeholder at a fixed pixel size
             img_lbl = tk.Label(left, text=emoji, font=(FF, 28), bg=CARD_BG)
             img_lbl.pack(padx=(_PREVIEW_SIZE // 4,) * 2,
                          pady=(_PREVIEW_SIZE // 4,) * 2)
@@ -603,8 +627,8 @@ class SettingsWindow:
         tk.Label(head, text=name, font=(FF, 12, "bold"),
                  bg=CARD_BG, fg=FG).pack(side="left")
 
-        is_on   = cfg.get("enabled", True)
-        pill = tk.Label(head, text="ON" if is_on else "OFF",
+        is_on = cfg.get("enabled", True)
+        pill = tk.Label(head, text="✓  ON" if is_on else "✕  OFF",
                         font=(FF, 8, "bold"),
                         bg=("#0f2015" if is_on else CARD_BG),
                         fg=(GREEN if is_on else FG3),
@@ -619,7 +643,7 @@ class SettingsWindow:
 
         def on_toggle(p=pill, v=enabled_var, s=species):
             val = v.get()
-            p.configure(text="ON" if val else "OFF",
+            p.configure(text="✓  ON" if val else "✕  OFF",
                         fg=(GREEN if val else FG3),
                         bg=("#0f2015" if val else CARD_BG))
             self._set("animals", s, "enabled", val)
@@ -627,39 +651,35 @@ class SettingsWindow:
         chk.configure(command=on_toggle)
         pill.bind("<Button-1>", lambda e, v=enabled_var: (v.set(not v.get()), on_toggle()))
 
-        # ── Weight ──
+        # ── Spawn frequency (labeled stops) ──
         tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
 
-        w_head = tk.Frame(right, bg=CARD_BG)
-        w_head.pack(fill="x")
-        tk.Label(w_head, text="Spawn frequency",
-                 font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
+        freq_lbl = tk.Label(right, text="Spawn frequency",
+                            font=(FF, 8), bg=CARD_BG, fg=FG3)
+        freq_lbl.pack(anchor="w")
+        self._add_tooltip(freq_lbl, "How often this species is chosen when a group spawns.\n"
+                                    "rare = picked rarely, constant = almost always included.")
+        self._labeled_slider(right, "",
+                             _WEIGHT_VALUES, _WEIGHT_LABELS,
+                             get_fn=lambda s=species: cfg.get("weight", 1.0),
+                             set_fn=lambda v, s=species: self._set("animals", s, "weight", v))
 
-        w_lbl = tk.Label(w_head, text=f"{weight_var.get():.1f}×",
-                         font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT)
-        w_lbl.pack(side="right")
+        # ── Personality sliders ──
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(6, 6))
 
-        def on_weight(v, s=species, lbl=w_lbl):
-            fv = round(float(v), 1)
-            lbl.configure(text=f"{fv:.1f}×")
-            self._set("animals", s, "weight", fv)
-
-        sl = tk.Scale(right, from_=0.1, to=5.0, resolution=0.1,
-                      orient="horizontal", variable=weight_var,
-                      bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
-                      highlightthickness=0, bd=0, showvalue=False,
-                      command=on_weight)
-        sl.pack(fill="x", pady=(4, 0))
-
-        # ── Personality sliders (v1.10) ──
-        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(8, 6))
-
-        self._labeled_slider(right, "Speed",
+        speed_lbl = tk.Label(right, text="Speed", font=(FF, 8), bg=CARD_BG, fg=FG3)
+        speed_lbl.pack(anchor="w")
+        self._add_tooltip(speed_lbl, "How fast this species moves across the screen.")
+        self._labeled_slider(right, "",
                              _SPEED_VALUES, _SPEED_LABELS,
                              get_fn=lambda s=species: cfg.get("speed_multiplier", 1.0),
                              set_fn=lambda v, s=species: self._set("animals", s, "speed_multiplier", v))
 
-        self._labeled_slider(right, "Idle",
+        act_lbl = tk.Label(right, text="Activity level", font=(FF, 8), bg=CARD_BG, fg=FG3)
+        act_lbl.pack(anchor="w", pady=(4, 0))
+        self._add_tooltip(act_lbl, "How often this species stops to idle, groom, or nap.\n"
+                                   "narcoleptic = constantly stopping, wired = rarely stops.")
+        self._labeled_slider(right, "",
                              _IDLE_VALUES, _IDLE_LABELS,
                              get_fn=lambda s=species: cfg.get("idle_rate", 0.018),
                              set_fn=lambda v, s=species: self._set("animals", s, "idle_rate", v))
@@ -668,14 +688,14 @@ class SettingsWindow:
                               get_fn=lambda s=species: cfg.get("trail_style", "none"),
                               set_fn=lambda v, s=species: self._set("animals", s, "trail_style", v))
 
-    # ── Page: Custom critters ────────────────────────────────────────────────
+    # ── Page: Critters (built-ins + custom merged) ───────────────────────────
 
-    def _page_custom(self, parent: tk.Frame) -> None:
-        self._page_header(parent, "Custom",
-                          "Import your own critters from PNG, JPG, GIF, or hand-drawn animation frames.")
+    def _page_critters(self, parent: tk.Frame) -> None:
+        self._page_header(parent, "Critters",
+                          "Manage built-in species and custom critters.")
         _, inner = self._scrollable(parent)
 
-        # ── Two import buttons ──
+        # ── Import buttons ──
         btn_row = tk.Frame(inner, bg=CONTENT_BG)
         btn_row.pack(fill="x", pady=(0, 16))
         btn_row.grid_columnconfigure(0, weight=1)
@@ -699,12 +719,28 @@ class SettingsWindow:
             cursor="hand2", pady=12, padx=16, anchor="w",
         ).grid(row=0, column=1, sticky="ew")
 
+        # ── Built-in species ──
+        self._section_label(inner, "Built-in species")
+
+        for species, emoji, name in ANIMALS:
+            cell = tk.Frame(inner, bg=CARD_BG, padx=18, pady=16)
+            cell.pack(fill="x", pady=(0, 8))
+            self._animal_card(cell, species, emoji, name)
+
+        link = tk.Label(inner, text="Reset all weights to default",
+                        font=(FF, 9), bg=CONTENT_BG, fg=FG3, cursor="hand2")
+        link.pack(anchor="w", pady=(8, 16))
+        link.bind("<Button-1>", lambda e: self._reset_weights())
+
+        # ── Custom critters ──
+        self._section_label(inner, "Custom critters")
+
         records = self._registry.all()
         if not records:
             tk.Label(inner,
-                     text="No custom critters yet. Use the buttons above to add one.",
+                     text="No custom critters yet. Use the import buttons above to add one.",
                      font=(FF, 9), bg=CONTENT_BG, fg=FG3,
-                     wraplength=460, justify="left").pack(anchor="w", pady=20)
+                     wraplength=460, justify="left").pack(anchor="w", pady=(4, 16))
             return
 
         for record in records:
@@ -765,7 +801,7 @@ class SettingsWindow:
         is_on       = custom_cfg.get("enabled", True)
         enabled_var = tk.BooleanVar(value=is_on)
         pill = tk.Label(head,
-                        text="ON" if is_on else "OFF",
+                        text="✓  ON" if is_on else "✕  OFF",
                         font=(FF, 8, "bold"),
                         bg=("#0f2015" if is_on else CARD_BG),
                         fg=(GREEN if is_on else FG3),
@@ -780,7 +816,7 @@ class SettingsWindow:
 
         def on_toggle(_cid=cid, v=enabled_var, p=pill):
             val = v.get()
-            p.configure(text="ON" if val else "OFF",
+            p.configure(text="✓  ON" if val else "✕  OFF",
                         fg=(GREEN if val else FG3),
                         bg=("#0f2015" if val else CARD_BG))
             self._set_custom(_cid, "enabled", val)
@@ -802,45 +838,61 @@ class SettingsWindow:
                  text=f"{frame_count} frames  ·  {badge_text}",
                  font=(FF, 7), bg=CARD_BG, fg=FG3).pack(anchor="w", pady=(2, 0))
 
-        # Spawn-frequency slider
+        # ── Spawn frequency (labeled stops) ──
         tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(8, 6))
 
-        w_row = tk.Frame(right, bg=CARD_BG)
-        w_row.pack(fill="x")
-        tk.Label(w_row, text="Spawn frequency", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left")
+        freq_lbl = tk.Label(right, text="Spawn frequency",
+                            font=(FF, 8), bg=CARD_BG, fg=FG3)
+        freq_lbl.pack(anchor="w")
+        self._add_tooltip(freq_lbl, "How often this critter is chosen when a group spawns.")
+        self._labeled_slider(right, "",
+                             _WEIGHT_VALUES, _WEIGHT_LABELS,
+                             get_fn=lambda _cid=cid: custom_cfg.get("weight", 1.0),
+                             set_fn=lambda v, _cid=cid: self._set_custom(_cid, "weight", v))
 
-        weight_var = tk.DoubleVar(value=custom_cfg.get("weight", 1.0))
-        w_lbl = tk.Label(w_row, text=f"{weight_var.get():.1f}×",
-                         font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT)
-        w_lbl.pack(side="right")
+        # ── Personality controls (always visible) ──
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(6, 6))
 
-        def on_weight(v, _cid=cid, lbl=w_lbl):
-            fv = round(float(v), 1)
-            lbl.configure(text=f"{fv:.1f}×")
-            self._set_custom(_cid, "weight", fv)
+        def _meta_set(key, value, _cid=cid):
+            meta[key] = value
+            write_meta(get_custom_dir() / _cid, meta)
 
-        tk.Scale(right, from_=0.5, to=5.0, resolution=0.1,
-                 orient="horizontal", variable=weight_var,
-                 bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
-                 highlightthickness=0, bd=0, showvalue=False,
-                 command=on_weight).pack(fill="x", pady=(4, 6))
+        size_lbl = tk.Label(right, text="Size", font=(FF, 8), bg=CARD_BG, fg=FG3)
+        size_lbl.pack(anchor="w")
+        self._add_tooltip(size_lbl, "Scales this critter up or down relative to the global size.")
+        self._labeled_slider(right, "",
+                             _SIZE_VALUES, _SIZE_LABELS,
+                             get_fn=lambda: meta.get("size_multiplier", 1.0),
+                             set_fn=lambda v: _meta_set("size_multiplier", v))
 
-        # Bottom action bar
+        speed_lbl = tk.Label(right, text="Speed", font=(FF, 8), bg=CARD_BG, fg=FG3)
+        speed_lbl.pack(anchor="w", pady=(4, 0))
+        self._add_tooltip(speed_lbl, "How fast this critter walks across the screen.")
+        self._labeled_slider(right, "",
+                             _SPEED_VALUES, _SPEED_LABELS,
+                             get_fn=lambda: meta.get("speed_multiplier", 1.0),
+                             set_fn=lambda v: _meta_set("speed_multiplier", v))
+
+        act_lbl = tk.Label(right, text="Activity level", font=(FF, 8), bg=CARD_BG, fg=FG3)
+        act_lbl.pack(anchor="w", pady=(4, 0))
+        self._add_tooltip(act_lbl, "How often this critter stops to idle, groom, or nap.")
+        self._labeled_slider(right, "",
+                             _IDLE_VALUES, _IDLE_LABELS,
+                             get_fn=lambda: meta.get("idle_rate", 0.018),
+                             set_fn=lambda v: _meta_set("idle_rate", v))
+
+        self._trail_radio_row(right,
+                              get_fn=lambda: meta.get("trail_style", "none"),
+                              set_fn=lambda v: _meta_set("trail_style", v))
+
+        # ── Sound ──
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(4, 8))
+        self._build_sound_picker(right, cid, meta)
+
+        # ── Action row ──
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(6, 6))
         act_row = tk.Frame(right, bg=CARD_BG)
         act_row.pack(fill="x")
-
-        # Settings gear — toggles inline panel
-        settings_panel = tk.Frame(right, bg=CARD_BG)
-
-        gear_btn = tk.Button(act_row,
-            text="⚙ Settings",
-            command=lambda p=settings_panel, _cid=cid, _meta=meta:
-                self._toggle_critter_settings(p, _cid, _meta),
-            bg=CARD_BG, fg=FG3,
-            activebackground=SEL_BG, activeforeground=FG,
-            relief="flat", font=(FF, 8),
-            cursor="hand2", padx=8, pady=4)
-        gear_btn.pack(side="left")
 
         tk.Button(act_row, text="▶ Test",
                   command=lambda _cid=cid:
@@ -848,7 +900,7 @@ class SettingsWindow:
                   bg=CARD_BG, fg=ACCENT2,
                   activebackground=SEL_BG, activeforeground=FG,
                   relief="flat", font=(FF, 8, "bold"),
-                  cursor="hand2", padx=8, pady=4).pack(side="left", padx=(8, 0))
+                  cursor="hand2", padx=8, pady=4).pack(side="left")
 
         tk.Button(act_row, text="✕ Delete",
                   command=lambda _cid=cid: self._delete_custom(_cid),
@@ -856,8 +908,6 @@ class SettingsWindow:
                   activebackground="#2a1010", activeforeground=RED,
                   relief="flat", font=(FF, 8),
                   cursor="hand2", padx=8, pady=4).pack(side="right")
-
-        settings_panel.pack(fill="x")
 
     # ── Shared slider widget ──────────────────────────────────────────────────
 
@@ -871,8 +921,9 @@ class SettingsWindow:
         row = tk.Frame(parent, bg=bg)
         row.pack(fill="x", pady=(0, 6))
 
-        tk.Label(row, text=row_label, font=(FF, 8), bg=bg,
-                 fg=FG3, width=8, anchor="w").pack(side="left")
+        if row_label:
+            tk.Label(row, text=row_label, font=(FF, 8), bg=bg,
+                     fg=FG3, width=8, anchor="w").pack(side="left")
 
         val_lbl = tk.Label(row, text=labels[cur_pos],
                            font=(FF, 8, "bold"), bg=bg, fg=ACCENT, width=12, anchor="w")
@@ -892,11 +943,11 @@ class SettingsWindow:
                  command=on_change).pack(side="left", fill="x", expand=True, padx=(8, 0))
 
     def _trail_radio_row(self, parent: tk.Frame, get_fn, set_fn, bg=CARD_BG) -> None:
-        """Trail style radio buttons (7 options). get_fn() → current str; set_fn(str) → persist."""
+        """Animation trail radio buttons (7 options). get_fn() → current str; set_fn(str) → persist."""
         trail_row = tk.Frame(parent, bg=bg)
         trail_row.pack(fill="x", pady=(0, 8))
         tk.Label(trail_row, text="Trail", font=(FF, 8), bg=bg,
-                 fg=FG3, width=8, anchor="w").pack(side="left")
+                 fg=FG3, anchor="w").pack(side="left", padx=(0, 4))
 
         trail_var = tk.StringVar(value=get_fn())
 
@@ -919,14 +970,7 @@ class SettingsWindow:
                            selectcolor=bg, font=(FF, 8),
                            relief="flat", cursor="hand2").pack(side="left", padx=(4, 0))
 
-    # ── Custom critter settings inline panel ─────────────────────────────────
-
-    def _toggle_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
-        if panel.winfo_children():
-            for w in panel.winfo_children():
-                w.destroy()
-            return
-        self._build_critter_settings(panel, cid, meta)
+    # ── Custom critter settings panel (reused by inline layout) ──────────────
 
     def _build_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
         tk.Frame(panel, bg=BORDER, height=1).pack(fill="x", pady=(6, 8))
@@ -1218,7 +1262,7 @@ class SettingsWindow:
                 return
             self._finish_import(critter_id)
             dlg.destroy()
-            self._show_page("custom")
+            self._show_page("critters")
 
         import_btn = tk.Button(btn_row, text="Import",
                                command=do_import,
@@ -1487,7 +1531,7 @@ class SettingsWindow:
                 return
             self._finish_import(critter_id)
             dlg.destroy()
-            self._show_page("custom")
+            self._show_page("critters")
 
         import_btn.configure(command=do_import)
         name_entry.bind("<Return>", lambda e: do_import())
@@ -1524,7 +1568,7 @@ class SettingsWindow:
         self._config.get("custom_animals", {}).pop(critter_id, None)
         save_config(self._config)
         self._on_save(self._config)
-        self._show_page("custom")
+        self._show_page("critters")
 
     def _set_custom(self, critter_id: str, key: str, value) -> None:
         if "custom_animals" not in self._config:
@@ -1535,14 +1579,15 @@ class SettingsWindow:
         save_config(self._config)
         self._on_save(self._config)
 
-    # ── Page: Spawning ────────────────────────────────────────────────────────
+    # ── Page: Behaviour ───────────────────────────────────────────────────────
 
-    def _page_spawning(self, parent: tk.Frame) -> None:
-        self._page_header(parent, "Spawning",
-                          "Control how frequently critters arrive and in what numbers.")
+    def _page_behaviour(self, parent: tk.Frame) -> None:
+        self._page_header(parent, "Behaviour",
+                          "Spawning rates, living-world activity, and rarity settings.")
         _, inner = self._scrollable(parent)
 
-        self._section_label(inner, "Primary group spawns")
+        # ── Spawning ──
+        self._section_label(inner, "Spawning")
 
         self._setting_slider(inner,
             label="Spawn frequency",
@@ -1574,6 +1619,96 @@ class SettingsWindow:
             desc="One solo walker every N minutes",
             section="spawn", key="solo_interval_min",
             from_=1, to=60, res=1, unit=" min")
+
+        # ── Living world ──
+        self._section_label(inner, "Living world")
+
+        self._setting_toggle(inner,
+            label="Day / night cycle",
+            desc="Activity slows at night and speeds up in the morning — felt through behaviour, never visual tint",
+            section="behaviour", key="day_night_enabled")
+
+        self._setting_slider(inner,
+            label="Behaviour frequency",
+            desc="How often critters stop to stretch, groom, interact, or nap  (0.3 = rarely, 2.0 = constantly)",
+            section="behaviour", key="behaviour_frequency",
+            from_=0.3, to=2.0, res=0.1, unit="×")
+
+        self._setting_toggle(inner,
+            label="Pair interactions",
+            desc="Allow two critters nearby to sniff, follow, play, or groom each other",
+            section="behaviour", key="interactions_enabled")
+
+        # ── Rarity ──
+        self._section_label(inner, "Rarity")
+
+        self._setting_toggle(inner,
+            label="Enable rarity tiers",
+            desc="Spawned critters roll a hidden tier (Common → Legendary) that shows as a subtle aura and trail",
+            section="rarity", key="enabled")
+
+        # Tier distribution sliders
+        dist_card = tk.Frame(inner, bg=CARD_BG, padx=18, pady=14)
+        dist_card.pack(fill="x", pady=(0, 8))
+        tk.Label(dist_card, text="Tier distribution", font=(FF, 10, "bold"),
+                 bg=CARD_BG, fg=FG).pack(anchor="w")
+        tk.Label(dist_card, text="Percentage chance for each rarity tier per spawn  "
+                                 "(values are relative weights — they don't need to sum to 100)",
+                 font=(FF, 8), bg=CARD_BG, fg=FG3, wraplength=440,
+                 justify="left").pack(anchor="w", pady=(2, 8))
+
+        _TIERS = [
+            ("common",    "Common",    0.90),
+            ("uncommon",  "Uncommon",  0.07),
+            ("rare",      "Rare",      0.02),
+            ("epic",      "Epic",      0.009),
+            ("legendary", "Legendary", 0.001),
+        ]
+        dist = self._config["rarity"]["distribution"]
+        for tier_key, tier_label, tier_default in _TIERS:
+            row = tk.Frame(dist_card, bg=CARD_BG)
+            row.pack(fill="x", pady=(0, 4))
+            tk.Label(row, text=tier_label, font=(FF, 8), bg=CARD_BG, fg=FG3,
+                     width=10, anchor="w").pack(side="left")
+            cur = dist.get(tier_key, tier_default)
+            val_lbl = tk.Label(row, text=f"{cur*100:.1f}%",
+                               font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT, width=6)
+            val_lbl.pack(side="right")
+            var = tk.DoubleVar(value=cur)
+
+            def on_dist(v, tk_=tier_key, lbl=val_lbl):
+                fv = round(float(v), 4)
+                lbl.configure(text=f"{fv*100:.1f}%")
+                self._config["rarity"]["distribution"][tk_] = fv
+                save_config(self._config)
+                self._on_save(self._config)
+
+            tk.Scale(row, from_=0.0, to=0.5, resolution=0.001,
+                     orient="horizontal", variable=var,
+                     bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
+                     highlightthickness=0, bd=0, showvalue=False,
+                     command=on_dist).pack(side="left", fill="x", expand=True, padx=(4, 8))
+
+        # Rare hour
+        rh = self._config["rarity"]["rare_hour"]
+        self._setting_toggle_fn(inner,
+            label="Rare hour",
+            desc="Double the odds of Rare+ tiers during a daily one-hour window",
+            get_fn=lambda: rh.get("enabled", True),
+            set_fn=lambda v: rh.update({"enabled": v}))
+
+        self._setting_slider_fn(inner,
+            label="Rare hour start",
+            desc="Local hour when rare-hour begins (24-hour clock)",
+            get_fn=lambda: rh.get("start_hour", 21),
+            set_fn=lambda v: rh.update({"start_hour": int(v)}),
+            from_=0, to=23, res=1, unit=":00")
+
+        self._setting_toggle_fn(inner,
+            label="First spawn of the day bonus",
+            desc="The first critter spawned after midnight is guaranteed Rare or better",
+            get_fn=lambda: self._config["rarity"].get("first_spawn_of_day_bonus", True),
+            set_fn=lambda v: self._config["rarity"].update({"first_spawn_of_day_bonus": v}))
 
         self._section_label(inner, "Behaviour")
 
@@ -1613,74 +1748,77 @@ class SettingsWindow:
             section="audio", key="volume",
             from_=0, to=100, res=5, unit="%")
 
-        self._section_label(inner, "Per-species sounds")
+        self._section_label(inner, "All species")
 
-        grid = tk.Frame(inner, bg=CONTENT_BG)
-        grid.pack(fill="x")
-        grid.grid_columnconfigure(0, weight=1)
-        grid.grid_columnconfigure(1, weight=1)
+        # ── Unified list: built-ins then custom ──
+        for species, emoji, name in ANIMALS:
+            self._audio_row(inner, name=name, emoji=emoji,
+                            small_frames=self._animal_frames_small.get(species),
+                            get_sound=lambda s=species: self._config["animals"][s].get("sound", True),
+                            set_sound=lambda v, s=species: self._set("animals", s, "sound", v),
+                            preview=lambda s=species: (
+                                self._sound_manager.play_preview(s)
+                                if self._sound_manager else None))
 
-        for i, (species, emoji, name) in enumerate(ANIMALS):
-            row_i, col_i = divmod(i, 2)
-            pad_r = 8 if col_i == 0 else 0
-            cell = tk.Frame(grid, bg=CARD_BG, padx=14, pady=10)
-            cell.grid(row=row_i, column=col_i, sticky="nsew",
-                      padx=(0, pad_r), pady=(0, 6))
+        for record in self._registry.all():
+            cid   = record.id
+            cname = record.meta.get("name", cid)
+            custom_cfg = self._config.get("custom_animals", {}).setdefault(cid, {})
+            sound_key  = custom_cfg.get("sound_override") or record.meta.get("sound_profile", "kitten")
+            sound_file = custom_cfg.get("sound_file", "")
 
-            cfg = self._config["animals"][species]
-            var = tk.BooleanVar(value=cfg.get("sound", True))
+            def _preview_custom(_cid=cid, _sk=sound_key, _sf=sound_file):
+                if not self._sound_manager:
+                    return
+                _cfg = self._config.get("custom_animals", {}).get(_cid, {})
+                sf = _cfg.get("sound_file", "")
+                if sf:
+                    self._sound_manager.play_preview(sf)
+                else:
+                    self._sound_manager.play_preview(
+                        _cfg.get("sound_override") or _sk)
 
-            # Animated 48×48 preview, or emoji fallback
-            small_frames = self._animal_frames_small.get(species)
-            if small_frames:
-                prev = tk.Label(cell, image=small_frames[0], bg=CARD_BG)
-                prev.image = small_frames[0]
-                prev.pack(side="left", padx=(0, 8))
-                self._start_anim(prev, small_frames)
-            else:
-                tk.Label(cell, text=emoji, font=(FF, 14),
-                         bg=CARD_BG, fg=FG2).pack(side="left", padx=(0, 4))
+            self._audio_row(inner, name=cname, emoji="🐾",
+                            small_frames=None,
+                            get_sound=lambda _cid=cid: self._config.get(
+                                "custom_animals", {}).get(_cid, {}).get("sound", True),
+                            set_sound=lambda v, _cid=cid: self._set_custom(_cid, "sound", v),
+                            preview=_preview_custom)
 
-            tk.Label(cell, text=name,
-                     font=(FF, 9, "bold"), bg=CARD_BG, fg=FG).pack(side="left")
-            chk = tk.Checkbutton(cell, variable=var,
-                                 command=lambda s=species, v=var:
-                                     self._set("animals", s, "sound", v.get()),
-                                 bg=CARD_BG, activebackground=CARD_BG,
-                                 selectcolor=CARD_BG, fg=ACCENT,
-                                 relief="flat", cursor="hand2")
-            chk.pack(side="right")
+    def _audio_row(self, parent, name, emoji, small_frames,
+                   get_sound, set_sound, preview) -> None:
+        """Single row in the unified audio list."""
+        cell = tk.Frame(parent, bg=CARD_BG, padx=14, pady=10)
+        cell.pack(fill="x", pady=(0, 6))
 
-        # ── Custom critters sound section ──
-        custom_records = self._registry.all()
-        if custom_records:
-            self._section_label(inner, "Custom critters")
-            cust_grid = tk.Frame(inner, bg=CONTENT_BG)
-            cust_grid.pack(fill="x")
-            cust_grid.grid_columnconfigure(0, weight=1)
-            cust_grid.grid_columnconfigure(1, weight=1)
-            for j, record in enumerate(custom_records):
-                cid = record.id
-                cname = record.meta.get("name", cid)
-                custom_cfg = self._config.get("custom_animals", {}).setdefault(cid, {})
-                row_j, col_j = divmod(j, 2)
-                pad_r = 8 if col_j == 0 else 0
-                cell = tk.Frame(cust_grid, bg=CARD_BG, padx=14, pady=10)
-                cell.grid(row=row_j, column=col_j, sticky="nsew",
-                          padx=(0, pad_r), pady=(0, 6))
-                cvar = tk.BooleanVar(value=custom_cfg.get("sound", True))
-                tk.Label(cell, text="🐾", font=(FF, 14),
-                         bg=CARD_BG, fg=FG2).pack(side="left", padx=(0, 4))
-                tk.Label(cell, text=cname,
-                         font=(FF, 9, "bold"), bg=CARD_BG, fg=FG).pack(side="left")
-                def _on_custom_sound(_cid=cid, v=cvar):
-                    self._set_custom(_cid, "sound", v.get())
-                cchk = tk.Checkbutton(cell, variable=cvar,
-                                      command=_on_custom_sound,
-                                      bg=CARD_BG, activebackground=CARD_BG,
-                                      selectcolor=CARD_BG, fg=ACCENT,
-                                      relief="flat", cursor="hand2")
-                cchk.pack(side="right")
+        if small_frames:
+            prev = tk.Label(cell, image=small_frames[0], bg=CARD_BG)
+            prev.image = small_frames[0]
+            prev.pack(side="left", padx=(0, 8))
+            self._start_anim(prev, small_frames)
+        else:
+            tk.Label(cell, text=emoji, font=(FF, 14),
+                     bg=CARD_BG, fg=FG2).pack(side="left", padx=(0, 6))
+
+        tk.Label(cell, text=name,
+                 font=(FF, 9, "bold"), bg=CARD_BG, fg=FG).pack(side="left")
+
+        # Preview button
+        tk.Button(cell, text="▶",
+                  command=preview,
+                  bg=CARD_BG, fg=ACCENT2,
+                  activebackground=SEL_BG, activeforeground=FG,
+                  relief="flat", font=(FF, 8), cursor="hand2",
+                  padx=6, pady=2).pack(side="right", padx=(0, 4))
+
+        # Sound toggle
+        var = tk.BooleanVar(value=get_sound())
+        chk = tk.Checkbutton(cell, variable=var,
+                             command=lambda v=var: set_sound(v.get()),
+                             bg=CARD_BG, activebackground=CARD_BG,
+                             selectcolor=CARD_BG, fg=ACCENT,
+                             relief="flat", cursor="hand2")
+        chk.pack(side="right")
 
     # ── Page: System ──────────────────────────────────────────────────────────
 
@@ -1769,6 +1907,42 @@ class SettingsWindow:
             cursor="hand2", pady=11, padx=16, anchor="w")
         updates_btn.pack(fill="x", pady=(0, 0))
 
+        # ── Critters I've seen ──
+        self._section_label(inner, "Critters I've seen")
+
+        seen_log = self._config.get("rarity", {}).get("seen_log", {})
+        seen_enabled = self._config.get("rarity", {}).get("seen_log_enabled", True)
+
+        if not seen_enabled:
+            tk.Label(inner, text="Seen log is disabled (rarity.seen_log_enabled = false).",
+                     font=(FF, 8), bg=CONTENT_BG, fg=FG3).pack(anchor="w")
+        elif not seen_log:
+            tk.Label(inner,
+                     text="Nothing recorded yet — first sightings of each rarity tier per species will appear here.",
+                     font=(FF, 8), bg=CONTENT_BG, fg=FG3,
+                     wraplength=460, justify="left").pack(anchor="w")
+        else:
+            _TIER_COLORS = {
+                "common":    FG3,
+                "uncommon":  "#67e8f9",
+                "rare":      "#a78bfa",
+                "epic":      "#f59e0b",
+                "legendary": "#f87171",
+            }
+            seen_card = tk.Frame(inner, bg=CARD_BG, padx=16, pady=12)
+            seen_card.pack(fill="x", pady=(0, 8))
+            for species, tiers in sorted(seen_log.items()):
+                row = tk.Frame(seen_card, bg=CARD_BG)
+                row.pack(fill="x", pady=(0, 4))
+                tk.Label(row, text=species.capitalize(),
+                         font=(FF, 9, "bold"), bg=CARD_BG, fg=FG,
+                         width=12, anchor="w").pack(side="left")
+                for tier, count in sorted(tiers.items()):
+                    col = _TIER_COLORS.get(tier, FG2)
+                    tk.Label(row, text=f"{tier} ×{count}",
+                             font=(FF, 8), bg=CARD_BG, fg=col,
+                             padx=6).pack(side="left")
+
         # ── About ──
         self._section_label(inner, "About")
         tk.Label(inner, text=f"Critter Overlay  ·  v{APP_VERSION}",
@@ -1782,10 +1956,14 @@ class SettingsWindow:
         """Returns (canvas, inner_frame) for a vertically scrollable area."""
         canvas = tk.Canvas(parent, bg=CONTENT_BG, highlightthickness=0,
                            relief="flat", bd=0)
-        scrollbar = tk.Scrollbar(parent, orient="vertical",
-                                 command=canvas.yview,
-                                 bg=CONTENT_BG, troughcolor=CONTENT_BG,
-                                 relief="flat", bd=0, width=8)
+        if _SVTTK:
+            scrollbar = ttk.Scrollbar(parent, orient="vertical",
+                                      command=canvas.yview)
+        else:
+            scrollbar = tk.Scrollbar(parent, orient="vertical",
+                                     command=canvas.yview,
+                                     bg=CONTENT_BG, troughcolor=CONTENT_BG,
+                                     relief="flat", bd=0, width=8)
         inner = tk.Frame(canvas, bg=CONTENT_BG)
 
         canvas.configure(yscrollcommand=scrollbar.set)
@@ -1895,7 +2073,7 @@ class SettingsWindow:
         tk.Label(head, text=label, font=(FF, 10, "bold"),
                  bg=CARD_BG, fg=FG).pack(side="left")
 
-        state_lbl = tk.Label(head, text="ON" if cur else "OFF",
+        state_lbl = tk.Label(head, text="✓  ON" if cur else "✕  OFF",
                              font=(FF, 8, "bold"),
                              bg=CARD_BG,
                              fg=GREEN if cur else FG3)
@@ -1903,7 +2081,7 @@ class SettingsWindow:
 
         def on_toggle(s=section, k=key, v=var, lbl=state_lbl):
             val = v.get()
-            lbl.configure(text="ON" if val else "OFF",
+            lbl.configure(text="✓  ON" if val else "✕  OFF",
                           fg=GREEN if val else FG3)
             self._set_direct(s, k, val)
 
@@ -1940,7 +2118,7 @@ class SettingsWindow:
         self._config["animals"]["kitten"]["weight"] = 3.0
         save_config(self._config)
         self._on_save(self._config)
-        self._show_page("animals")
+        self._show_page("critters")
 
     def _do_quit(self) -> None:
         if self._root:
