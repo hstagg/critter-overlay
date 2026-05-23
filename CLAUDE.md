@@ -25,9 +25,10 @@ This repo is public. Before committing anything, ask: "Could this embarrass the 
 ## State of play (as of 2026-05-23)
 
 - **Current branch:** `main` — this is where active development lives
-- **Last release:** v1.9 — elastic critter collision, per-critter personality sliders, frame-strip import, hover-animated critter cards
-- **Uncommitted changes:** none after v1.9 release commit
+- **Last release:** v1.9.0 — elastic critter collision, per-critter personality sliders, frame-strip import, hover-animated critter cards; shipped as `CritterOverlaySetup-1.9.0.exe` via GitHub Releases
+- **Uncommitted changes:** none
 - **Next planning doc:** `v1.9-v2.0 Dev Handoff.md`
+- **Release pipeline:** `release.ps1` — single command handles version bump, build, commit, push, and GitHub release creation
 
 ---
 
