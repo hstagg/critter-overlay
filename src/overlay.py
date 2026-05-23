@@ -120,13 +120,15 @@ class Overlay:
 
     def __init__(self, config: dict, sound_manager: SoundManager,
                  open_settings_fn, quit_event, on_pause_changed=None,
-                 registry: CustomCritterRegistry | None = None):
+                 registry: CustomCritterRegistry | None = None,
+                 file_drop_callback=None):
         self.config = config
         self.sound_manager = sound_manager
         self.open_settings_fn = open_settings_fn
         self.quit_event = quit_event
         self._on_pause_changed = on_pause_changed  # callback → updates tray icon
         self._registry = registry or CustomCritterRegistry()
+        self._file_drop_callback = file_drop_callback  # called with path str on DROPFILE
 
         self.paused: bool = False  # always start unpaused
 
@@ -293,6 +295,10 @@ class Overlay:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.quit_event.set()
+
+            elif event.type == pygame.DROPFILE:
+                if self._file_drop_callback and event.file.endswith(".critter"):
+                    self._file_drop_callback(event.file)
 
     # ------------------------------------------------------------------
     # Mouse: press → potentially grab, release → click=pop or drag=throw

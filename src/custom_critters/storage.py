@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +91,11 @@ def default_meta(critter_id: str, name: str) -> dict:
         # v2.0 fields — auto-migrated for v1 critters
         "rarity_strategy": "auto",   # "auto"|"fixed:<tier>"|"common_only"
         "locomotion": "classic",     # locomotion profile (Phase 2)
+        "size_multiplier": 1.0,
+        "author": "anonymous",
+        "license": "unknown",
+        "attribution_url": None,
+        "app_min_version": "2.0.0",
     }
 
 
