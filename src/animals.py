@@ -312,6 +312,9 @@ class Animal:
         # Trail emission accumulator
         self._trail_acc     = 0.0
 
+        # Set by spawn_manager after construction; drives aura rendering
+        self.rarity         = None   # RarityTier | None
+
     # ------------------------------------------------------------------ throw/drag
 
     def scatter(self, vx: float, vy: float) -> None:

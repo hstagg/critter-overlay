@@ -8,17 +8,16 @@ from typing import Callable
 
 from animals import create_animal, Animal
 from animals_custom import CustomAnimal
-from config import get_animal_weights
+from config import get_animal_weights, save_config
+from constants import TRAIL_PRESETS
 from custom_critters.registry import CustomCritterRegistry
+from rarity import (
+    RarityTier, get_modifier, roll_tier,
+    check_first_spawn_of_day, record_sighting,
+)
 
 # First spawn fires 30 seconds after launch so users see it's working immediately
 FIRST_SPAWN_DELAY = 30.0
-
-# Fixed rarities for super-rare species. These rolls are PER-INDIVIDUAL spawn
-# (so a 5–10 critter group gets that many independent chances), bypassing the
-# normal weighted pool entirely.
-RARITY_GOLDEN_KITTEN = 1.0 / 1000.0  # legendary
-RARITY_UNICORN       = 1.0 / 100.0   # super rare
 
 
 class SpawnManager:
@@ -72,15 +71,6 @@ class SpawnManager:
         weights = list(pool.values())
         return random.choices(keys, weights=weights, k=1)[0]
 
-    def _roll_entry(self, fallback: str) -> str:
-        """Roll super-rares first; fall back to a pool-picked entry."""
-        r = random.random()
-        if r < RARITY_GOLDEN_KITTEN:
-            return "golden_kitten"
-        if r < RARITY_GOLDEN_KITTEN + RARITY_UNICORN:
-            return "unicorn"
-        return fallback
-
     def _animal_size(self) -> int:
         return self.config["visual"].get("animal_size", 120)
 
@@ -103,15 +93,56 @@ class SpawnManager:
         else:
             return float(self.screen_w - m), random.uniform(m, self.screen_h - m), -1
 
-    # Map config trail_style names → (TrailParticle style, rate, size, life)
-    _TRAIL_PRESETS = {
-        "dots":     ("dot",     15, 6, 0.9),
-        "stars":    ("star",    15, 6, 0.9),
-        "sparkles": ("sparkle", 25, 4, 0.5),
-        "bubbles":  ("bubble",  12, 7, 1.4),
-        "glitter":  ("glitter", 40, 2, 0.25),
-        "hearts":   ("heart",   12, 6, 0.9),
-    }
+    # ------------------------------------------------------------------
+    # Rarity helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _species_from_entry(entry: str) -> str | None:
+        """Return the species name for built-ins, None for custom critters."""
+        return None if entry.startswith("custom:") else entry
+
+    def _roll_tier_for_entry(self, entry: str) -> RarityTier:
+        """Roll a rarity tier, respecting custom critter rarity_strategy."""
+        if entry.startswith("custom:"):
+            critter_id = entry[len("custom:"):]
+            record = self.registry.get(critter_id)
+            if record:
+                strategy = record.meta.get("rarity_strategy", "auto")
+                if strategy == "common_only":
+                    return RarityTier.COMMON
+                if strategy.startswith("fixed:"):
+                    from rarity import parse_tier
+                    return parse_tier(strategy[len("fixed:"):])
+        return roll_tier(self.config, self._species_from_entry(entry))
+
+    def _apply_rarity(self, animal: Animal, tier: RarityTier) -> None:
+        """Attach rarity tier to an animal and apply visual modifiers."""
+        animal.rarity = tier
+        mod = get_modifier(tier)
+
+        # Speed variance for this tier
+        lo, hi = mod.speed_range
+        if lo != hi or lo != 1.0:
+            mult = random.uniform(lo, hi)
+            animal.vx *= mult
+            animal.vy *= mult
+
+        # Apply rarity trail if the animal has no species-configured trail
+        if not animal.LEAVES_TRAIL and mod.trail_style_default != "none":
+            preset = TRAIL_PRESETS.get(mod.trail_style_default)
+            if preset:
+                particle_style, rate, sz, life = preset
+                animal.LEAVES_TRAIL  = True
+                animal.TRAIL_PALETTE = list(animal.PARTICLE_COLORS) or [(220, 220, 255)]
+                animal.TRAIL_STYLE   = particle_style
+                animal.TRAIL_RATE    = rate
+                animal.TRAIL_SIZE    = sz
+                animal.TRAIL_LIFE    = life
+
+        # Seen log — fire and forget (persisted on next settings save)
+        species = getattr(animal, "SPECIES", "unknown")
+        record_sighting(self.config, species, tier)
 
     def _make_animal(self, entry: str, x: float, y: float,
                      direction: int | None = None,
@@ -148,7 +179,7 @@ class SpawnManager:
         trail_style = species_cfg.get("trail_style", "none")
         # Super-rares manage their own trail config — don't override
         if trail_style != "none" and entry not in ("unicorn", "golden_kitten"):
-            preset = self._TRAIL_PRESETS.get(trail_style)
+            preset = TRAIL_PRESETS.get(trail_style)
             if preset:
                 particle_style, rate, sz, life = preset
                 animal.LEAVES_TRAIL = True
@@ -197,12 +228,20 @@ class SpawnManager:
             self.config["spawn"].get("primary_count_min", 5),
             self.config["spawn"].get("primary_count_max", 10),
         )
+
+        # First-spawn-of-day bonus applies to the first animal in the group
+        bonus_tier = check_first_spawn_of_day(self.config)
+        if bonus_tier is not None:
+            save_config(self.config)  # persist the date immediately
+
         animals = []
-        for _ in range(count):
-            entry = self._roll_entry(base_entry)
-            x, y  = self._random_pos()
-            a = self._make_animal(entry, x, y)
+        for i in range(count):
+            x, y = self._random_pos()
+            a = self._make_animal(base_entry, x, y)
             if a is not None:
+                tier = bonus_tier if (i == 0 and bonus_tier is not None) \
+                       else self._roll_tier_for_entry(base_entry)
+                self._apply_rarity(a, tier)
                 animals.append(a)
         if animals:
             self.on_spawn(animals)
@@ -211,11 +250,11 @@ class SpawnManager:
         base_entry = self._pick_from_pool()
         if not base_entry:
             return
-        entry = self._roll_entry(base_entry)
         x, y, direction = self._edge_pos()
-        perimeter = entry not in ("unicorn", "golden_kitten")
-        a = self._make_animal(entry, x, y, direction=direction, perimeter_walker=perimeter)
+        a = self._make_animal(base_entry, x, y, direction=direction, perimeter_walker=True)
         if a is not None:
+            tier = self._roll_tier_for_entry(base_entry)
+            self._apply_rarity(a, tier)
             self.on_spawn([a])
 
     def force_spawn(self) -> None:

@@ -16,18 +16,20 @@ _SPECIES_PERSONALITY = {
     "speed_multiplier": 1.0,
     "idle_rate":        0.018,
     "trail_style":      "none",
+    "rarity_min":       "common",
+    "rarity_max":       "legendary",
 }
 
 DEFAULT_CONFIG = {
     "animals": {
         "kitten":   {"enabled": True, "weight": 3.0, "sound": True, **_SPECIES_PERSONALITY},
-        "turtle":   {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "turtle":   {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY, "rarity_max": "epic"},
         "duck":     {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
         "rabbit":   {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
         "hedgehog": {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
         "squirrel": {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
         "otter":    {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
-        "panda":    {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "panda":    {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY, "rarity_max": "epic"},
     },
     "spawn": {
         "primary_interval_min": 5,    # minutes between group spawns
@@ -49,6 +51,27 @@ DEFAULT_CONFIG = {
         "auto_launch": True,
         "hotkey_pause": "ctrl+shift+p",
     },
+    "rarity": {
+        "enabled": True,
+        "distribution": {
+            "common":    0.90,
+            "uncommon":  0.07,
+            "rare":      0.02,
+            "epic":      0.009,
+            "legendary": 0.001,
+        },
+        "rare_hour": {
+            "enabled":         True,
+            "start_hour":      21,
+            "duration_minutes": 60,
+            "rare_tier_boost": 2.0,
+        },
+        "first_spawn_of_day_bonus": True,
+        "last_first_spawn_date":    "",
+        "seen_log_enabled": True,
+        "seen_log":         {},
+    },
+    "first_run_completed": False,
     "custom_animals": {},   # keyed by critter_id; entries added by import pipeline
 }
 
