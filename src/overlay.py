@@ -537,9 +537,13 @@ def _resolve_collisions(animals: list) -> None:
 
             # Decide whether each animal scatters or just nudges
             for animal in (a, b):
-                if animal.thrown:
-                    continue   # thrown animals stay ballistic; velocity already updated
                 spd = math.hypot(animal.vx, animal.vy)
+                if animal.thrown:
+                    # Thrown animal hit something: if it lost enough momentum, absorb it
+                    if spd < SCATTER_THRESHOLD:
+                        animal.thrown = False
+                        animal.scatter(animal.vx, animal.vy)
+                    continue   # either scattering now or still ballistic
                 if spd > SCATTER_THRESHOLD:
                     if spd < MIN_SCATTER_SPD:
                         scale = MIN_SCATTER_SPD / spd

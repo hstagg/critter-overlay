@@ -23,6 +23,7 @@ from updater import RELEASES_URL, check_now
 from custom_critters.registry import CustomCritterRegistry
 from custom_critters.storage import delete_critter_folder, get_custom_dir, write_meta
 from custom_critters.import_pipeline import run_import, run_import_frames
+from sounds import EXTRA_PRESETS
 
 try:
     from animal_previews import FRAMES as _ANIMAL_FRAMES
@@ -30,7 +31,8 @@ except ImportError:
     _ANIMAL_FRAMES = {}
 
 SOUND_PRESETS = ["kitten", "turtle", "duck", "rabbit",
-                 "hedgehog", "squirrel", "otter", "panda"]
+                 "hedgehog", "squirrel", "otter", "panda",
+                 "squeak", "chirp", "bloop", "pop", "grunt", "bell"]
 
 # Card background as RGB tuple for PIL compositing
 _CARD_RGB     = (30, 30, 53)   # matches CARD_BG "#1e1e35"
@@ -65,6 +67,19 @@ _SPEED_LABELS = ["snail", "slow", "average", "fast", "rapid", "supersonic"]
 _IDLE_VALUES  = [0.003, 0.008, 0.018, 0.045, 0.100, 0.250]
 _IDLE_LABELS  = ["wired", "active", "normal", "lazy", "sleepy", "narcoleptic"]
 
+_SIZE_VALUES  = [0.5, 0.75, 1.0, 1.5, 2.5]
+_SIZE_LABELS  = ["tiny", "small", "normal", "large", "huge"]
+
+_TRAIL_STYLES = [
+    ("none",     "None"),
+    ("dots",     "Dots"),
+    ("stars",    "Stars"),
+    ("sparkles", "Sparkles"),
+    ("bubbles",  "Bubbles"),
+    ("glitter",  "Glitter"),
+    ("hearts",   "Hearts"),
+]
+
 
 def _nearest_pos(value: float, table: list) -> int:
     return min(range(len(table)), key=lambda i: abs(table[i] - value))
@@ -95,7 +110,8 @@ class SettingsWindow:
                  get_paused: Callable[[], bool] = None,
                  registry: CustomCritterRegistry | None = None,
                  on_test_custom_spawn: Callable[[str], None] | None = None,
-                 preview_frames: dict | None = None):
+                 preview_frames: dict | None = None,
+                 sound_manager=None):
         self._config               = config
         self._on_save              = on_save
         self._on_force_spawn       = on_force_spawn
@@ -104,6 +120,7 @@ class SettingsWindow:
         self._registry             = registry or CustomCritterRegistry()
         self._on_test_custom_spawn = on_test_custom_spawn
         self._on_toggle_pause: Callable | None = None
+        self._sound_manager        = sound_manager
 
         # Raw base64 frame data — PhotoImages are created in the tkinter thread
         self._preview_frames_data: dict = preview_frames if preview_frames is not None else _ANIMAL_FRAMES
@@ -634,6 +651,23 @@ class SettingsWindow:
                       command=on_weight)
         sl.pack(fill="x", pady=(4, 0))
 
+        # ── Personality sliders (v1.10) ──
+        tk.Frame(right, bg=BORDER, height=1).pack(fill="x", pady=(8, 6))
+
+        self._labeled_slider(right, "Speed",
+                             _SPEED_VALUES, _SPEED_LABELS,
+                             get_fn=lambda s=species: cfg.get("speed_multiplier", 1.0),
+                             set_fn=lambda v, s=species: self._set("animals", s, "speed_multiplier", v))
+
+        self._labeled_slider(right, "Idle",
+                             _IDLE_VALUES, _IDLE_LABELS,
+                             get_fn=lambda s=species: cfg.get("idle_rate", 0.018),
+                             set_fn=lambda v, s=species: self._set("animals", s, "idle_rate", v))
+
+        self._trail_radio_row(right,
+                              get_fn=lambda s=species: cfg.get("trail_style", "none"),
+                              set_fn=lambda v, s=species: self._set("animals", s, "trail_style", v))
+
     # ── Page: Custom critters ────────────────────────────────────────────────
 
     def _page_custom(self, parent: tk.Frame) -> None:
@@ -808,22 +842,6 @@ class SettingsWindow:
             cursor="hand2", padx=8, pady=4)
         gear_btn.pack(side="left")
 
-        # Sound preset
-        tk.Label(act_row, text="Sound:", font=(FF, 8), bg=CARD_BG, fg=FG3).pack(side="left", padx=(8, 0))
-        current_preset = custom_cfg.get("sound_override") or meta.get("sound_profile", "kitten")
-        sound_var = tk.StringVar(value=current_preset)
-        preset_menu = tk.OptionMenu(act_row, sound_var, *SOUND_PRESETS)
-        preset_menu.configure(bg=CARD_BG, fg=FG2, activebackground=SEL_BG,
-                              activeforeground=FG, relief="flat",
-                              font=(FF, 8), highlightthickness=0)
-        preset_menu["menu"].configure(bg=CARD_BG, fg=FG2, font=(FF, 8))
-        preset_menu.pack(side="left", padx=(4, 0))
-
-        def on_sound(*_, _cid=cid, var=sound_var):
-            self._set_custom(_cid, "sound_override", var.get())
-
-        sound_var.trace_add("write", on_sound)
-
         tk.Button(act_row, text="▶ Test",
                   command=lambda _cid=cid:
                       self._on_test_custom_spawn and self._on_test_custom_spawn(_cid),
@@ -841,6 +859,66 @@ class SettingsWindow:
 
         settings_panel.pack(fill="x")
 
+    # ── Shared slider widget ──────────────────────────────────────────────────
+
+    def _labeled_slider(self, parent: tk.Frame, row_label: str,
+                        steps: list, labels: list,
+                        get_fn, set_fn, bg=CARD_BG) -> None:
+        """Reusable labeled discrete slider. get_fn() → current value; set_fn(value) → persist."""
+        cur_val = get_fn()
+        cur_pos = _nearest_pos(cur_val, steps)
+
+        row = tk.Frame(parent, bg=bg)
+        row.pack(fill="x", pady=(0, 6))
+
+        tk.Label(row, text=row_label, font=(FF, 8), bg=bg,
+                 fg=FG3, width=8, anchor="w").pack(side="left")
+
+        val_lbl = tk.Label(row, text=labels[cur_pos],
+                           font=(FF, 8, "bold"), bg=bg, fg=ACCENT, width=12, anchor="w")
+        val_lbl.pack(side="left", padx=(4, 0))
+
+        var = tk.IntVar(value=cur_pos)
+
+        def on_change(v, _steps=steps, _labels=labels, _lbl=val_lbl, _set=set_fn):
+            pos = int(float(v))
+            _lbl.configure(text=_labels[pos])
+            _set(_steps[pos])
+
+        tk.Scale(row, from_=0, to=len(steps) - 1, resolution=1,
+                 orient="horizontal", variable=var,
+                 bg=bg, fg=FG2, troughcolor=SLIDER_TR,
+                 highlightthickness=0, bd=0, showvalue=False,
+                 command=on_change).pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+    def _trail_radio_row(self, parent: tk.Frame, get_fn, set_fn, bg=CARD_BG) -> None:
+        """Trail style radio buttons (7 options). get_fn() → current str; set_fn(str) → persist."""
+        trail_row = tk.Frame(parent, bg=bg)
+        trail_row.pack(fill="x", pady=(0, 8))
+        tk.Label(trail_row, text="Trail", font=(FF, 8), bg=bg,
+                 fg=FG3, width=8, anchor="w").pack(side="left")
+
+        trail_var = tk.StringVar(value=get_fn())
+
+        def on_trail(*_, var=trail_var):
+            set_fn(var.get())
+
+        trail_var.trace_add("write", on_trail)
+
+        # Two rows of radio buttons to avoid overflow
+        rb_wrap = tk.Frame(trail_row, bg=bg)
+        rb_wrap.pack(side="left", fill="x", expand=True)
+        row1 = tk.Frame(rb_wrap, bg=bg)
+        row1.pack(anchor="w")
+        row2 = tk.Frame(rb_wrap, bg=bg)
+        row2.pack(anchor="w")
+        for i, (style_val, style_lbl) in enumerate(_TRAIL_STYLES):
+            dest = row1 if i < 4 else row2
+            tk.Radiobutton(dest, text=style_lbl, variable=trail_var, value=style_val,
+                           bg=bg, fg=FG2, activebackground=bg,
+                           selectcolor=bg, font=(FF, 8),
+                           relief="flat", cursor="hand2").pack(side="left", padx=(4, 0))
+
     # ── Custom critter settings inline panel ─────────────────────────────────
 
     def _toggle_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
@@ -853,57 +931,143 @@ class SettingsWindow:
     def _build_critter_settings(self, panel: tk.Frame, cid: str, meta: dict) -> None:
         tk.Frame(panel, bg=BORDER, height=1).pack(fill="x", pady=(6, 8))
 
-        def _labeled_slider(parent, row_label, steps, labels, meta_key):
-            cur_val = meta.get(meta_key, steps[2])
-            cur_pos = _nearest_pos(cur_val, steps)
+        def _meta_get(key, default):
+            return meta.get(key, default)
 
-            row = tk.Frame(parent, bg=CARD_BG)
-            row.pack(fill="x", pady=(0, 6))
+        def _meta_set(key, value):
+            meta[key] = value
+            write_meta(get_custom_dir() / cid, meta)
 
-            tk.Label(row, text=row_label, font=(FF, 8), bg=CARD_BG,
-                     fg=FG3, width=8, anchor="w").pack(side="left")
+        # Size slider (top of panel)
+        self._labeled_slider(panel, "Size",
+                             _SIZE_VALUES, _SIZE_LABELS,
+                             get_fn=lambda: _meta_get("size_multiplier", 1.0),
+                             set_fn=lambda v: _meta_set("size_multiplier", v))
 
-            val_lbl = tk.Label(row, text=labels[cur_pos],
-                               font=(FF, 8, "bold"), bg=CARD_BG, fg=ACCENT, width=12, anchor="w")
-            val_lbl.pack(side="left", padx=(4, 0))
+        self._labeled_slider(panel, "Speed",
+                             _SPEED_VALUES, _SPEED_LABELS,
+                             get_fn=lambda: _meta_get("speed_multiplier", 1.0),
+                             set_fn=lambda v: _meta_set("speed_multiplier", v))
 
-            var = tk.IntVar(value=cur_pos)
+        self._labeled_slider(panel, "Idle",
+                             _IDLE_VALUES, _IDLE_LABELS,
+                             get_fn=lambda: _meta_get("idle_rate", 0.018),
+                             set_fn=lambda v: _meta_set("idle_rate", v))
 
-            def on_change(v, _key=meta_key, _steps=steps, _labels=labels,
-                          _lbl=val_lbl, _cid=cid, _meta=meta):
-                pos = int(float(v))
-                _lbl.configure(text=_labels[pos])
-                _meta[_key] = _steps[pos]
-                write_meta(get_custom_dir() / _cid, _meta)
+        self._trail_radio_row(panel,
+                              get_fn=lambda: meta.get("trail_style", "none"),
+                              set_fn=lambda v: _meta_set("trail_style", v))
 
-            tk.Scale(row, from_=0, to=len(steps) - 1, resolution=1,
-                     orient="horizontal", variable=var,
-                     bg=CARD_BG, fg=FG2, troughcolor=SLIDER_TR,
-                     highlightthickness=0, bd=0, showvalue=False,
-                     command=on_change).pack(side="left", fill="x", expand=True, padx=(8, 0))
+        # Sound picker: preset + file upload
+        tk.Frame(panel, bg=BORDER, height=1).pack(fill="x", pady=(4, 8))
+        self._build_sound_picker(panel, cid, meta)
 
-        _labeled_slider(panel, "Speed", _SPEED_VALUES, _SPEED_LABELS, "speed_multiplier")
-        _labeled_slider(panel, "Idle",  _IDLE_VALUES,  _IDLE_LABELS,  "idle_rate")
+    def _build_sound_picker(self, panel: tk.Frame, cid: str, meta: dict) -> None:
+        """Sound preset selector + file upload + preview button for a custom critter."""
+        custom_cfg = self._config.get("custom_animals", {}).get(cid, {})
 
-        # Trail — three radio buttons
-        trail_row = tk.Frame(panel, bg=CARD_BG)
-        trail_row.pack(fill="x", pady=(0, 8))
-        tk.Label(trail_row, text="Trail", font=(FF, 8), bg=CARD_BG,
+        lbl_row = tk.Frame(panel, bg=CARD_BG)
+        lbl_row.pack(fill="x", pady=(0, 4))
+        tk.Label(lbl_row, text="Sound", font=(FF, 8, "bold"),
+                 bg=CARD_BG, fg=FG2).pack(side="left")
+
+        current_profile = custom_cfg.get("sound_override") or meta.get("sound_profile", "kitten")
+        current_file    = custom_cfg.get("sound_file", "")
+
+        # --- Preset row ---
+        preset_row = tk.Frame(panel, bg=CARD_BG)
+        preset_row.pack(fill="x", pady=(0, 4))
+
+        tk.Label(preset_row, text="Preset", font=(FF, 8), bg=CARD_BG,
                  fg=FG3, width=8, anchor="w").pack(side="left")
 
-        trail_var = tk.StringVar(value=meta.get("trail_style", "none"))
+        sound_var = tk.StringVar(value=current_profile)
+        preset_menu = tk.OptionMenu(preset_row, sound_var, *SOUND_PRESETS)
+        preset_menu.configure(bg=CARD_BG, fg=FG2, activebackground=SEL_BG,
+                              activeforeground=FG, relief="flat",
+                              font=(FF, 8), highlightthickness=0)
+        preset_menu["menu"].configure(bg=CARD_BG, fg=FG2, font=(FF, 8))
+        preset_menu.pack(side="left", padx=(4, 0))
 
-        def on_trail(*_, _cid=cid, _meta=meta, var=trail_var):
-            _meta["trail_style"] = var.get()
-            write_meta(get_custom_dir() / _cid, _meta)
+        def on_sound_preset(*_, _cid=cid, var=sound_var):
+            self._set_custom(_cid, "sound_override", var.get())
+            self._set_custom(_cid, "sound_file", "")
+            file_lbl.configure(text="")
 
-        trail_var.trace_add("write", on_trail)
+        sound_var.trace_add("write", on_sound_preset)
 
-        for style_val, style_lbl in [("none", "None"), ("dots", "Dots"), ("stars", "Stars")]:
-            tk.Radiobutton(trail_row, text=style_lbl, variable=trail_var, value=style_val,
-                           bg=CARD_BG, fg=FG2, activebackground=CARD_BG,
-                           selectcolor=CARD_BG, font=(FF, 8),
-                           relief="flat", cursor="hand2").pack(side="left", padx=(4, 0))
+        def preview_preset():
+            if self._sound_manager:
+                self._sound_manager.play_preview(sound_var.get())
+
+        tk.Button(preset_row, text="▶",
+                  command=preview_preset,
+                  bg=CARD_BG, fg=ACCENT2,
+                  activebackground=SEL_BG, activeforeground=FG,
+                  relief="flat", font=(FF, 8), cursor="hand2",
+                  padx=6, pady=2).pack(side="left", padx=(4, 0))
+
+        # --- File upload row ---
+        file_row = tk.Frame(panel, bg=CARD_BG)
+        file_row.pack(fill="x", pady=(0, 4))
+
+        tk.Label(file_row, text="File", font=(FF, 8), bg=CARD_BG,
+                 fg=FG3, width=8, anchor="w").pack(side="left")
+
+        short_name = Path(current_file).name if current_file else ""
+        file_lbl = tk.Label(file_row, text=short_name, font=(FF, 8), bg=CARD_BG,
+                            fg=FG2, anchor="w")
+        file_lbl.pack(side="left", padx=(4, 0), fill="x", expand=True)
+
+        def upload_sound(_cid=cid):
+            path = filedialog.askopenfilename(
+                title="Choose a sound file",
+                filetypes=[("Audio files", "*.wav *.mp3"), ("All files", "*.*")]
+            )
+            if not path:
+                return
+            # Copy to critter data dir
+            import shutil
+            dest_dir = get_custom_dir() / _cid
+            dest_path = dest_dir / "sound.wav"
+            try:
+                shutil.copy2(path, str(dest_path))
+            except Exception as e:
+                messagebox.showerror("Upload failed", str(e))
+                return
+            stored = str(dest_path)
+            self._set_custom(_cid, "sound_file", stored)
+            file_lbl.configure(text=Path(path).name)
+
+        def remove_sound(_cid=cid):
+            self._set_custom(_cid, "sound_file", "")
+            file_lbl.configure(text="")
+
+        def preview_file():
+            sf = self._config.get("custom_animals", {}).get(cid, {}).get("sound_file", "")
+            if sf and self._sound_manager:
+                self._sound_manager.play_preview(sf)
+
+        tk.Button(file_row, text="Upload",
+                  command=upload_sound,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=SEL_BG, activeforeground=FG,
+                  relief="flat", font=(FF, 8), cursor="hand2",
+                  padx=6, pady=2).pack(side="right")
+
+        tk.Button(file_row, text="▶",
+                  command=preview_file,
+                  bg=CARD_BG, fg=ACCENT2,
+                  activebackground=SEL_BG, activeforeground=FG,
+                  relief="flat", font=(FF, 8), cursor="hand2",
+                  padx=6, pady=2).pack(side="right", padx=(0, 4))
+
+        tk.Button(file_row, text="✕",
+                  command=remove_sound,
+                  bg=CARD_BG, fg=RED,
+                  activebackground="#2a1010", activeforeground=RED,
+                  relief="flat", font=(FF, 8), cursor="hand2",
+                  padx=4, pady=2).pack(side="right", padx=(0, 2))
 
     # ── Custom critter preview helpers ───────────────────────────────────────
 
@@ -1336,7 +1500,9 @@ class SettingsWindow:
         if "custom_animals" not in self._config:
             self._config["custom_animals"] = {}
         self._config["custom_animals"][critter_id] = {
-            "enabled": True, "weight": 1.0, "sound_override": None, "size_override": None,
+            "enabled": True, "weight": 1.0,
+            "sound_override": None, "sound_file": "", "sound": True,
+            "size_override": None,
         }
         save_config(self._config)
         self._registry.reload()
@@ -1466,6 +1632,37 @@ class SettingsWindow:
                                  selectcolor=CARD_BG, fg=ACCENT,
                                  relief="flat", cursor="hand2")
             chk.pack(side="right")
+
+        # ── Custom critters sound section ──
+        custom_records = self._registry.all()
+        if custom_records:
+            self._section_label(inner, "Custom critters")
+            cust_grid = tk.Frame(inner, bg=CONTENT_BG)
+            cust_grid.pack(fill="x")
+            cust_grid.grid_columnconfigure(0, weight=1)
+            cust_grid.grid_columnconfigure(1, weight=1)
+            for j, record in enumerate(custom_records):
+                cid = record.id
+                cname = record.meta.get("name", cid)
+                custom_cfg = self._config.get("custom_animals", {}).setdefault(cid, {})
+                row_j, col_j = divmod(j, 2)
+                pad_r = 8 if col_j == 0 else 0
+                cell = tk.Frame(cust_grid, bg=CARD_BG, padx=14, pady=10)
+                cell.grid(row=row_j, column=col_j, sticky="nsew",
+                          padx=(0, pad_r), pady=(0, 6))
+                cvar = tk.BooleanVar(value=custom_cfg.get("sound", True))
+                tk.Label(cell, text="🐾", font=(FF, 14),
+                         bg=CARD_BG, fg=FG2).pack(side="left", padx=(0, 4))
+                tk.Label(cell, text=cname,
+                         font=(FF, 9, "bold"), bg=CARD_BG, fg=FG).pack(side="left")
+                def _on_custom_sound(_cid=cid, v=cvar):
+                    self._set_custom(_cid, "sound", v.get())
+                cchk = tk.Checkbutton(cell, variable=cvar,
+                                      command=_on_custom_sound,
+                                      bg=CARD_BG, activebackground=CARD_BG,
+                                      selectcolor=CARD_BG, fg=ACCENT,
+                                      relief="flat", cursor="hand2")
+                cchk.pack(side="right")
 
     # ── Page: System ──────────────────────────────────────────────────────────
 

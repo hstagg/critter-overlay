@@ -158,13 +158,15 @@ class Particle:
 # ---------------------------------------------------------------------------
 
 class TrailParticle:
-    """A small fading sparkle. Shrinks and gently drifts to simulate a fade.
+    """A small fading sparkle/shape. Shrinks over lifetime to simulate fade.
 
     We can't use alpha against the chroma-key background, so we 'fade' by
-    shrinking the radius toward zero over the particle's lifetime.
+    shrinking toward zero over the particle's lifetime.
+
+    style values: "dot", "star", "sparkle", "bubble", "glitter", "heart"
     """
 
-    def __init__(self, x, y, color, size=6, life=1.0, star=False):
+    def __init__(self, x, y, color, size=6, life=1.0, star=False, style="dot"):
         self.x, self.y = float(x), float(y)
         # Avoid the chroma-key colour exactly
         if color == (255, 0, 255):
@@ -173,9 +175,18 @@ class TrailParticle:
         self.size = size
         self.life = life
         self.max_life = life
-        self.star = star
+        # Legacy star flag maps to style
+        if star and style == "dot":
+            style = "star"
+        self.style = style
         self.vx = random.uniform(-18, 18)
         self.vy = random.uniform(-30, 6)
+        if style == "bubble":
+            self.vy = -15.0 + random.uniform(-5, 5)
+            self.vx = random.uniform(-8, 8)
+        elif style == "glitter":
+            self.vx = random.uniform(-10, 10)
+            self.vy = random.uniform(-12, 4)
         self.twinkle_phase = random.uniform(0, math.pi * 2)
         self.t_total = 0.0
 
@@ -184,10 +195,15 @@ class TrailParticle:
         self.t_total += dt
         self.x += self.vx * dt
         self.y += self.vy * dt
-        # Slight gravity so trail sags a bit
-        self.vy += 35 * dt
-        # Air drag so trail settles
-        self.vx *= (1.0 - 0.9 * dt)
+        if self.style == "bubble":
+            # Bubbles drift up gently, minimal gravity
+            self.vy += 8 * dt
+            self.vx *= (1.0 - 0.5 * dt)
+        else:
+            # Slight gravity so trail sags a bit
+            self.vy += 35 * dt
+            # Air drag so trail settles
+            self.vx *= (1.0 - 0.9 * dt)
         return self.life > 0
 
     def draw(self, surface):
@@ -197,11 +213,32 @@ class TrailParticle:
         if r <= 0:
             return
         ix, iy = int(self.x), int(self.y)
-        if self.star and r >= 2:
-            # Tiny 4-point sparkle
+
+        if self.style in ("star", "sparkle") and r >= 2:
             pygame.draw.line(surface, self.color, (ix - r, iy), (ix + r, iy), 1)
             pygame.draw.line(surface, self.color, (ix, iy - r), (ix, iy + r), 1)
+            if self.style == "sparkle":
+                # Diagonal arms too for 8-point shimmer
+                d = max(1, int(r * 0.7))
+                pygame.draw.line(surface, self.color, (ix-d, iy-d), (ix+d, iy+d), 1)
+                pygame.draw.line(surface, self.color, (ix+d, iy-d), (ix-d, iy+d), 1)
             _circ(surface, self.color, ix, iy, max(1, r // 2))
+
+        elif self.style == "bubble":
+            if r >= 2:
+                pygame.draw.circle(surface, self.color, (ix, iy), r, max(1, r // 3))
+
+        elif self.style == "glitter":
+            _circ(surface, self.color, ix, iy, max(1, r))
+
+        elif self.style == "heart" and r >= 2:
+            # Simple heart: two circles + a downward triangle
+            half = max(1, r // 2)
+            _circ(surface, self.color, ix - half, iy - half // 2, half)
+            _circ(surface, self.color, ix + half, iy - half // 2, half)
+            pts = [(ix - r, iy), (ix + r, iy), (ix, iy + r)]
+            pygame.draw.polygon(surface, self.color, pts)
+
         else:
             _circ(surface, self.color, ix, iy, r)
 
@@ -223,7 +260,8 @@ class Animal:
     TRAIL_RATE     = 0          # particles per second
     TRAIL_SIZE     = 6
     TRAIL_LIFE     = 1.0
-    TRAIL_STAR     = False      # draw as a 4-point sparkle instead of dot
+    TRAIL_STAR     = False      # legacy — prefer TRAIL_STYLE
+    TRAIL_STYLE    = "dot"      # "dot","star","sparkle","bubble","glitter","heart"
 
     IDLE_RATE = 0.018   # chance per second to enter idle while walking
 
@@ -315,7 +353,11 @@ class Animal:
         interval = 1.0 / float(self.TRAIL_RATE)
         out = []
         # Cap to avoid runaway after a stutter
-        max_emit = 6
+        max_emit = 8
+        # Resolve style (TRAIL_STYLE takes priority; TRAIL_STAR is legacy compat)
+        style = self.TRAIL_STYLE
+        if style == "dot" and self.TRAIL_STAR:
+            style = "star"
         while self._trail_acc >= interval and len(out) < max_emit:
             self._trail_acc -= interval
             ox = random.uniform(-self.size * 0.18, self.size * 0.18)
@@ -325,7 +367,7 @@ class Animal:
             life = random.uniform(self.TRAIL_LIFE * 0.65, self.TRAIL_LIFE * 1.25)
             out.append(TrailParticle(self.x + ox, self.y + oy,
                                      color, size=sz, life=life,
-                                     star=self.TRAIL_STAR))
+                                     style=style))
         if self._trail_acc > interval * max_emit:
             self._trail_acc = 0.0
         return out

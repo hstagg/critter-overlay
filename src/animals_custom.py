@@ -22,7 +22,7 @@ from custom_critters.registry import CustomCritterRecord
 class CustomAnimal(Animal):
     SPECIES    = "custom"
     BASE_SPEED = 50
-    LEAVES_TRAIL = False   # trails reserved for rare built-ins in v1.8
+    LEAVES_TRAIL = False
 
     # Populated per-instance from metadata
     TRAIL_PALETTE: tuple = ()
@@ -54,6 +54,9 @@ class CustomAnimal(Animal):
         speed_mult = float(self.meta.get("speed_multiplier", 1.0))
         self.BASE_SPEED = max(1, int(CustomAnimal.BASE_SPEED * speed_mult))
 
+        size_mult = float(self.meta.get("size_multiplier", 1.0))
+        size = max(30, int(size * size_mult))
+
         super().__init__(x, y, size, screen_w, screen_h,
                          direction=direction, perimeter_walker=perimeter_walker)
 
@@ -64,10 +67,20 @@ class CustomAnimal(Animal):
         if trail_style != "none" and self.PARTICLE_COLORS:
             self.LEAVES_TRAIL  = True
             self.TRAIL_PALETTE = self.PARTICLE_COLORS
-            self.TRAIL_RATE    = 15
-            self.TRAIL_SIZE    = 6
-            self.TRAIL_LIFE    = 0.9
-            self.TRAIL_STAR    = (trail_style == "stars")
+            # Map config style names → TrailParticle style + tuning params
+            _TRAIL_CONFIGS = {
+                "dots":     ("dot",     15, 6, 0.9),
+                "stars":    ("star",    15, 6, 0.9),
+                "sparkles": ("sparkle", 25, 4, 0.5),
+                "bubbles":  ("bubble",  12, 7, 1.4),
+                "glitter":  ("glitter", 40, 2, 0.25),
+                "hearts":   ("heart",   12, 6, 0.9),
+            }
+            particle_style, rate, size, life = _TRAIL_CONFIGS.get(trail_style, ("dot", 15, 6, 0.9))
+            self.TRAIL_STYLE = particle_style
+            self.TRAIL_RATE  = rate
+            self.TRAIL_SIZE  = size
+            self.TRAIL_LIFE  = life
 
         self._frame_count = len(self.frames)
         # Cache: (frame_idx, size, flip) -> pygame.Surface
@@ -137,13 +150,6 @@ class CustomAnimal(Animal):
         if 0 <= ix < mw and 0 <= iy < mh:
             return bool(mask[iy, ix])
         return False
-
-    # ------------------------------------------------------------------
-    # Trail — disabled in v1.8
-    # ------------------------------------------------------------------
-
-    def emit_trail(self, dt: float) -> list:
-        return []
 
     # ------------------------------------------------------------------
     # Helpers
