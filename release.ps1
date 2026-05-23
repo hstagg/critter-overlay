@@ -1,4 +1,4 @@
-# release.ps1 — Full release pipeline for Critter Overlay
+# release.ps1 - Full release pipeline for Critter Overlay
 #
 # Bumps version files, builds the installer, commits, pushes, and creates the
 # GitHub release in one command. build.ps1 handles the PyInstaller + Inno Setup
@@ -153,7 +153,7 @@ Ok "Installer ready: $installerPath"
 Step "[5] Committing version bump..."
 
 git add src\version.py installer\version_info.txt sounds\*.wav
-git commit -m "release: v$Version — $Title"
+git commit -m "release: v$Version - $Title"
 if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
 Ok "Committed"
 
