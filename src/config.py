@@ -12,16 +12,22 @@ from pathlib import Path
 # Default configuration
 # ---------------------------------------------------------------------------
 
+_SPECIES_PERSONALITY = {
+    "speed_multiplier": 1.0,
+    "idle_rate":        0.018,
+    "trail_style":      "none",
+}
+
 DEFAULT_CONFIG = {
     "animals": {
-        "kitten":   {"enabled": True, "weight": 3.0, "sound": True},
-        "turtle":   {"enabled": True, "weight": 1.0, "sound": True},
-        "duck":     {"enabled": True, "weight": 1.0, "sound": True},
-        "rabbit":   {"enabled": True, "weight": 1.0, "sound": True},
-        "hedgehog": {"enabled": True, "weight": 1.0, "sound": True},
-        "squirrel": {"enabled": True, "weight": 1.0, "sound": True},
-        "otter":    {"enabled": True, "weight": 1.0, "sound": True},
-        "panda":    {"enabled": True, "weight": 1.0, "sound": True},
+        "kitten":   {"enabled": True, "weight": 3.0, "sound": True, **_SPECIES_PERSONALITY},
+        "turtle":   {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "duck":     {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "rabbit":   {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "hedgehog": {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "squirrel": {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "otter":    {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
+        "panda":    {"enabled": True, "weight": 1.0, "sound": True, **_SPECIES_PERSONALITY},
     },
     "spawn": {
         "primary_interval_min": 5,    # minutes between group spawns

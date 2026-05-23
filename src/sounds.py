@@ -220,6 +220,74 @@ def _gen_unicorn(volume: float, rng: random.Random | None = None) -> pygame.mixe
     return _make_sound(wave * env * volume * 0.55)
 
 
+def _gen_squeak(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """High-pitched quick squeak."""
+    duration = _p(rng, 0.15, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    wave = _sweep(t, _p(rng, 1800, 0.05), _p(rng, 1400, 0.05))
+    env = _envelope(t, _p(rng, 0.005, 0.10), _p(rng, 0.03, 0.10),
+                    _p(rng, 0.04, 0.10), 0.5, _p(rng, 0.07, 0.10))
+    return _make_sound(wave * env * volume * 0.55)
+
+
+def _gen_chirp(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """Bird-like short trill: rapid frequency oscillation."""
+    duration = _p(rng, 0.20, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    trill = np.sin(2 * math.pi * _p(rng, 30, 0.05) * t)
+    base_freq = _p(rng, 1600, 0.05) + trill * _p(rng, 200, 0.05)
+    wave = np.sin(2 * math.pi * np.cumsum(base_freq) / SAMPLE_RATE)
+    env = _envelope(t, _p(rng, 0.005, 0.10), _p(rng, 0.04, 0.10),
+                    _p(rng, 0.08, 0.10), 0.55, _p(rng, 0.07, 0.10))
+    return _make_sound(wave * env * volume * 0.55)
+
+
+def _gen_bloop(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """Soft water drop: descending sine with quick decay."""
+    duration = _p(rng, 0.22, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    wave = _sweep(t, _p(rng, 520, 0.05), _p(rng, 180, 0.05))
+    env = _envelope(t, _p(rng, 0.005, 0.10), _p(rng, 0.05, 0.10),
+                    _p(rng, 0.06, 0.10), 0.35, _p(rng, 0.09, 0.10))
+    return _make_sound(wave * env * volume * 0.60)
+
+
+def _gen_pop(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """Light cartoon pop: brief noise burst with click."""
+    duration = _p(rng, 0.10, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    noise = np.random.uniform(-1, 1, len(t))
+    click = np.sin(2 * math.pi * _p(rng, 300, 0.05) * t) * 0.5
+    wave = noise * 0.7 + click
+    env = _envelope(t, _p(rng, 0.002, 0.10), _p(rng, 0.02, 0.10),
+                    _p(rng, 0.02, 0.10), 0.2, _p(rng, 0.06, 0.10))
+    return _make_sound(wave * env * volume * 0.55)
+
+
+def _gen_grunt(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """Low short grunt: deep FM pulse."""
+    duration = _p(rng, 0.18, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    wave = _sine_fm(t, carrier_hz=_p(rng, 120, 0.05),
+                    mod_hz=_p(rng, 40, 0.05), mod_depth=_p(rng, 2.0, 0.03))
+    env = _envelope(t, _p(rng, 0.01, 0.10), _p(rng, 0.04, 0.10),
+                    _p(rng, 0.05, 0.10), 0.45, _p(rng, 0.08, 0.10))
+    return _make_sound(wave * env * volume * 0.65)
+
+
+def _gen_bell(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
+    """Soft chime: clean high partial with long decay."""
+    duration = _p(rng, 0.60, 0.10)
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration))
+    fundamental = np.sin(2 * math.pi * _p(rng, 880, 0.05) * t)
+    second      = np.sin(2 * math.pi * _p(rng, 1760, 0.05) * t) * 0.35
+    third       = np.sin(2 * math.pi * _p(rng, 2640, 0.05) * t) * 0.15
+    wave = fundamental + second + third
+    env = _envelope(t, _p(rng, 0.005, 0.10), _p(rng, 0.05, 0.10),
+                    _p(rng, 0.05, 0.10), 0.4, _p(rng, 0.50, 0.10))
+    return _make_sound(wave * env * volume * 0.50)
+
+
 def _gen_golden_kitten(volume: float, rng: random.Random | None = None) -> pygame.mixer.Sound:
     """Sparkly meow: kitten-style sweep with a bell harmonic on top."""
     duration = _p(rng, 0.50, 0.10)
@@ -248,7 +316,18 @@ GENERATORS = {
     "panda":         _gen_panda,
     "unicorn":       _gen_unicorn,
     "golden_kitten": _gen_golden_kitten,
+    # Extra preset profiles for custom critters
+    "squeak":  _gen_squeak,
+    "chirp":   _gen_chirp,
+    "bloop":   _gen_bloop,
+    "pop":     _gen_pop,
+    "grunt":   _gen_grunt,
+    "bell":    _gen_bell,
 }
+
+# Profiles available for selection in the UI (species sounds + extra presets)
+EXTRA_PRESETS = ["squeak", "chirp", "bloop", "pop", "grunt", "bell"]
+ALL_PROFILES  = list(GENERATORS.keys())
 
 # ---------------------------------------------------------------------------
 # Sound manager
@@ -271,6 +350,7 @@ class SoundManager:
         self._volume: float = 0.5
         self._enabled: bool = True
         self._wav_mode: bool = False   # True when all sounds loaded from WAV files
+        self._preview_channel = None   # active preview Channel, stopped before next preview
 
     def init(self, config: dict) -> None:
         """Initialise pygame mixer and load or generate all sounds."""
@@ -337,18 +417,35 @@ class SoundManager:
             # Synthesised sounds bake in the volume — regenerate at new level.
             self._generate_all()
 
-    def register_custom(self, critter_id: str, profile: str, seed: int) -> None:
+    def register_custom(self, critter_id: str, profile: str, seed: int,
+                        sound_file: str = "") -> None:
         """
-        Generate and cache a seeded sound variant for a custom critter.
-        Key stored as 'custom:<critter_id>'. No-op if numpy unavailable.
+        Generate and cache a sound for a custom critter.
+        If sound_file is a non-empty path, loads from that file.
+        Otherwise synthesises from profile with seed perturbation.
+        Key stored as 'custom:<critter_id>'.
         """
-        if not _NUMPY_OK or not pygame.mixer.get_init():
+        if not pygame.mixer.get_init():
+            return
+        key = f"custom:{critter_id}"
+        # File takes priority over profile synthesis
+        if sound_file:
+            try:
+                sound = pygame.mixer.Sound(sound_file)
+                sound.set_volume(self._volume)
+                self._sounds[key] = sound
+                return
+            except Exception as e:
+                print(f"[sounds] Failed to load sound file '{sound_file}': {e}")
+                # Fall through to profile synthesis
+        if not _NUMPY_OK:
+            print(f"[sounds] No sound file and numpy unavailable — sound skipped for {critter_id}.")
             return
         gen_fn = GENERATORS.get(profile, GENERATORS["kitten"])
         rng = random.Random(seed) if seed else None
         try:
             sound = gen_fn(self._volume, rng)
-            self._sounds[f"custom:{critter_id}"] = sound
+            self._sounds[key] = sound
         except Exception as e:
             print(f"[sounds] register_custom failed for {critter_id}: {e}")
 
@@ -356,12 +453,50 @@ class SoundManager:
         """Remove a custom critter's sound from the cache."""
         self._sounds.pop(f"custom:{critter_id}", None)
 
+    def play_preview(self, profile_or_path: str) -> None:
+        """Play a sound once for preview purposes. Non-blocking, fire-and-forget."""
+        if not self._enabled or not pygame.mixer.get_init():
+            return
+        # Stop any in-progress preview
+        if self._preview_channel is not None:
+            try:
+                self._preview_channel.stop()
+            except Exception:
+                pass
+        sound = None
+        if os.path.isfile(profile_or_path):
+            try:
+                sound = pygame.mixer.Sound(profile_or_path)
+                sound.set_volume(self._volume)
+            except Exception as e:
+                print(f"[sounds] Preview load failed: {e}")
+        else:
+            gen_fn = GENERATORS.get(profile_or_path)
+            if gen_fn and _NUMPY_OK:
+                try:
+                    sound = gen_fn(self._volume)
+                except Exception as e:
+                    print(f"[sounds] Preview synthesis failed: {e}")
+            elif not gen_fn:
+                # Might be a cached custom sound key like "custom:abc"
+                sound = self._sounds.get(profile_or_path)
+        if sound:
+            try:
+                self._preview_channel = sound.play()
+            except Exception as e:
+                print(f"[sounds] Preview play failed: {e}")
+
     def play(self, species: str, config: dict) -> None:
         """Play the pop/throw sound for a species if enabled in config."""
         if not self._enabled:
             return
-        # Custom critters: check global sound toggle; no per-species config key.
-        if not species.startswith("custom:"):
+        if species.startswith("custom:"):
+            # Per-custom-critter sound toggle stored in config["custom_animals"]
+            critter_id = species[len("custom:"):]
+            custom_cfg = config.get("custom_animals", {}).get(critter_id, {})
+            if not custom_cfg.get("sound", True):
+                return
+        else:
             animal_cfg = config["animals"].get(species, {})
             if not animal_cfg.get("sound", True):
                 return

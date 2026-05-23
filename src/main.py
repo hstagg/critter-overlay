@@ -201,6 +201,7 @@ def main() -> None:
         registry             = registry,
         on_test_custom_spawn = overlay.spawn_custom,
         preview_frames       = _preview_frames,
+        sound_manager        = sound_mgr,
     )
 
     # Wire in pause toggle so the settings window can trigger it

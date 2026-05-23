@@ -111,10 +111,10 @@ Result: end users see a single double-clickable file. First launch shows the ins
 
 Right-click the tray paw → Settings (or open from the auto-shown window on first launch). All changes save immediately to `%APPDATA%\CritterOverlay\settings.json`.
 
-- **Animals** — toggle species on/off, adjust spawn weight.
-- **Custom** — import your own critters; manage, enable/disable, set weight, sound, and per-critter personality.
+- **Animals** — toggle species on/off, adjust spawn weight, and set per-species speed, idle rate, and trail style.
+- **Custom** — import your own critters; manage, enable/disable, set weight, size, sound, and per-critter personality.
 - **Spawning** — group spawn frequency and size, solo perimeter walker toggle.
-- **Audio** — master toggle, volume, per-animal sounds.
+- **Audio** — master toggle, volume, per-species and per-custom-critter sound on/off.
 - **System** — auto-launch on startup, hotkey reference.
 
 ### Custom critters
@@ -126,9 +126,11 @@ Two import modes in Settings → Custom:
 **Import from frames** — upload 2–8 hand-drawn PNG frames in walk-cycle order. Frames are used directly, giving full control over the animation. The app detects transparency per-frame and only runs background removal where needed.
 
 Per-critter settings (gear icon on each card):
+- **Size** — tiny / small / normal / large / huge
 - **Speed** — snail / slow / average / fast / rapid / supersonic
 - **Idle** — wired / active / normal / lazy / sleepy / narcoleptic
-- **Trail** — none / dots / stars (uses the critter's dominant colours)
+- **Trail** — none / dots / stars / sparkles / bubbles / glitter / hearts (uses the critter's dominant colours)
+- **Sound** — choose from 14 preset profiles or upload your own `.wav` / `.mp3`; preview any option with the ▶ button
 
 Custom critters inherit all built-in behaviour: elastic collision with other critters, perimeter walking, idle pauses, drag, throw, pop, particle burst, sound. They live in `%APPDATA%\CritterOverlay\custom\` — each in a self-contained folder that can be backed up or deleted manually.
 
@@ -157,6 +159,6 @@ All critters (built-in and custom) interact physically. Elastic equal-mass colli
 - **Transparency**: Win32 `SetLayeredWindowAttributes` with magenta `(255, 0, 255)` colour key. Magenta pixels are click-through, animal pixels are visible and clickable.
 - **No taskbar entry**: `WS_EX_TOOLWINDOW` extended style.
 - **Always on top**: `SetWindowPos(HWND_TOPMOST, ...)`.
-- **Sounds**: Generated at runtime with numpy sine-wave synthesis — no audio files bundled.
+- **Sounds**: Pre-generated WAV files bundled with the installer (16 profiles). Numpy synthesis used as fallback when running from source without pre-generated files.
 - **Settings UI**: Tkinter in a daemon thread (dark mode, tabbed layout).
 - **Single instance**: Windows named mutex.

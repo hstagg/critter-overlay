@@ -103,6 +103,16 @@ class SpawnManager:
         else:
             return float(self.screen_w - m), random.uniform(m, self.screen_h - m), -1
 
+    # Map config trail_style names → (TrailParticle style, rate, size, life)
+    _TRAIL_PRESETS = {
+        "dots":     ("dot",     15, 6, 0.9),
+        "stars":    ("star",    15, 6, 0.9),
+        "sparkles": ("sparkle", 25, 4, 0.5),
+        "bubbles":  ("bubble",  12, 7, 1.4),
+        "glitter":  ("glitter", 40, 2, 0.25),
+        "hearts":   ("heart",   12, 6, 0.9),
+    }
+
     def _make_animal(self, entry: str, x: float, y: float,
                      direction: int | None = None,
                      perimeter_walker: bool = False) -> Animal | None:
@@ -119,8 +129,36 @@ class SpawnManager:
             return CustomAnimal(x, y, sz, self.screen_w, self.screen_h,
                                 record=record, direction=direction,
                                 perimeter_walker=perimeter_walker)
-        return create_animal(entry, x, y, size, self.screen_w, self.screen_h,
-                             direction=direction, perimeter_walker=perimeter_walker)
+
+        animal = create_animal(entry, x, y, size, self.screen_w, self.screen_h,
+                               direction=direction, perimeter_walker=perimeter_walker)
+        if animal is None:
+            return None
+
+        # Apply per-species personality from config (v1.10)
+        species_cfg = self.config.get("animals", {}).get(entry, {})
+        speed_mult = float(species_cfg.get("speed_multiplier", 1.0))
+        if speed_mult != 1.0:
+            animal.vx *= speed_mult
+            animal.vy *= speed_mult
+
+        idle_rate = float(species_cfg.get("idle_rate", animal.IDLE_RATE))
+        animal.IDLE_RATE = idle_rate
+
+        trail_style = species_cfg.get("trail_style", "none")
+        # Super-rares manage their own trail config — don't override
+        if trail_style != "none" and entry not in ("unicorn", "golden_kitten"):
+            preset = self._TRAIL_PRESETS.get(trail_style)
+            if preset:
+                particle_style, rate, sz, life = preset
+                animal.LEAVES_TRAIL = True
+                animal.TRAIL_PALETTE = list(animal.PARTICLE_COLORS)
+                animal.TRAIL_STYLE   = particle_style
+                animal.TRAIL_RATE    = rate
+                animal.TRAIL_SIZE    = sz
+                animal.TRAIL_LIFE    = life
+
+        return animal
 
     # ------------------------------------------------------------------
     # Tick — call every frame with dt

@@ -26,9 +26,22 @@ This repo is public. Before committing anything, ask: "Could this embarrass the 
 
 - **Current branch:** `main` — this is where active development lives
 - **Last release:** v1.9.1 — fix custom critter import in .exe bundle (numpy excluded from PyInstaller by mistake)
-- **Uncommitted changes:** none
+- **Uncommitted changes:** v1.10.0 feature work — all 11 handoff items implemented, smoke-tested, not yet committed
 - **Next planning doc:** `v1.10.0 Dev Handoff.md`
 - **Release pipeline:** `release.ps1` — single command handles version bump, build, commit, push, and GitHub release creation
+
+### v1.10.0 changes (worktree: angry-khorana-467d3f)
+
+All implemented and smoke-tested:
+1. Fixed custom critter trail emission (removed stale `emit_trail()` override in `animals_custom.py`)
+2. Expanded `TrailParticle` with 6 draw styles: dot, star, sparkle, bubble, glitter, heart
+3. Added `speed_multiplier`, `idle_rate`, `trail_style` personality defaults to `DEFAULT_CONFIG` per species
+4. `spawn_manager.py` applies per-species personality (speed/idle/trail) to built-in animals at spawn
+5. Thrown critter momentum threshold: if collision drops speed below 80 px/s, transitions to SCATTERED
+6. 6 new preset sound generators: squeak, chirp, bloop, pop, grunt, bell
+7. `SoundManager`: `play_preview()` method, `sound_file` support in `register_custom`, per-custom-critter sound toggle in `play()`
+8. `CustomAnimal`: `size_multiplier` from meta applied to `self.size`
+9. `settings_window.py`: extracted `_labeled_slider` + `_trail_radio_row` as class methods; per-species personality sliders on Animals tab; 7 trail options; custom critters in Audio tab; size + sound-file-upload + sound-preview in gear panel; inline rename already present
 
 ---
 
