@@ -1575,6 +1575,24 @@ class SettingsWindow:
             section="spawn", key="solo_interval_min",
             from_=1, to=60, res=1, unit=" min")
 
+        self._section_label(inner, "Behaviour")
+
+        self._setting_toggle(inner,
+            label="Day / night cycle",
+            desc="Critters move slower and nap more at night; more active in the morning",
+            section="behaviour", key="day_night_enabled")
+
+        self._setting_toggle(inner,
+            label="Pair interactions",
+            desc="Two critters near each other may sniff, play, groom, or interact briefly",
+            section="behaviour", key="interactions_enabled")
+
+        self._setting_slider(inner,
+            label="Behaviour frequency",
+            desc="How often critters pause for idle animations and pair interactions",
+            section="behaviour", key="behaviour_frequency",
+            from_=0.3, to=2.0, res=0.1)
+
     # ── Page: Audio ───────────────────────────────────────────────────────────
 
     def _page_audio(self, parent: tk.Frame) -> None:

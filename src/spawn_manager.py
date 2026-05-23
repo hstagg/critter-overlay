@@ -8,6 +8,7 @@ from typing import Callable
 
 from animals import create_animal, Animal
 from animals_custom import CustomAnimal
+from behaviours import BehaviourEvaluator
 from config import get_animal_weights, save_config
 from constants import TRAIL_PRESETS
 from custom_critters.registry import CustomCritterRegistry
@@ -15,6 +16,7 @@ from rarity import (
     RarityTier, get_modifier, roll_tier,
     check_first_spawn_of_day, record_sighting,
 )
+from time_of_day import get_time_of_day_state
 
 # First spawn fires 30 seconds after launch so users see it's working immediately
 FIRST_SPAWN_DELAY = 30.0
@@ -34,6 +36,13 @@ class SpawnManager:
         now = time.monotonic()
         self._primary_next = now + FIRST_SPAWN_DELAY
         self._solo_next    = now + self._solo_interval()
+
+        # Behaviour evaluator and time-of-day state
+        self._behaviour_evaluator = BehaviourEvaluator()
+        self._time_state_acc      = 0.0   # seconds since last time-of-day refresh
+        self._activity_scalar     = 1.0
+        self._spawn_rate_scalar   = 1.0
+        self._sleep_bias          = 0.0
 
     # ------------------------------------------------------------------
     # Config helpers
@@ -195,7 +204,25 @@ class SpawnManager:
     # Tick — call every frame with dt
     # ------------------------------------------------------------------
 
-    def tick(self, dt: float, paused: bool = False) -> None:
+    def tick(self, dt: float, paused: bool = False,
+             animals: list | None = None) -> None:
+        # Update time-of-day state every second regardless of pause
+        self._time_state_acc += dt
+        if self._time_state_acc >= 1.0:
+            self._time_state_acc = 0.0
+            act, spn, slp = get_time_of_day_state(self.config)
+            self._activity_scalar   = act
+            self._spawn_rate_scalar = spn
+            self._sleep_bias        = slp
+
+        # Tick behaviour evaluator (always runs, even while paused — critters
+        # can still behave when spawning is paused)
+        if animals:
+            self._behaviour_evaluator.tick(
+                dt, animals,
+                self._activity_scalar, self._sleep_bias, self.config,
+            )
+
         if paused:
             self._primary_next += dt
             self._solo_next    += dt
@@ -203,9 +230,14 @@ class SpawnManager:
 
         now = time.monotonic()
 
+        # Apply spawn-rate scalar to the primary interval cap
+        # (scalar already embedded in _primary_interval via the next-event calc)
         if now >= self._primary_next:
             self._spawn_primary()
-            self._primary_next = now + self._primary_interval()
+            interval = self._primary_interval()
+            # Night/dawn slow down spawns; morning speeds them up
+            interval /= max(0.1, self._spawn_rate_scalar)
+            self._primary_next = now + interval
 
         if self.config["spawn"].get("solo_enabled", True) and now >= self._solo_next:
             self._spawn_solo()
