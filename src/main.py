@@ -173,12 +173,13 @@ def main() -> None:
     # ------------------------------------------------------------------
 
     overlay = Overlay(
-        config           = config,
-        sound_manager    = sound_mgr,
-        open_settings_fn = lambda: settings_win.open() if settings_win else None,
-        quit_event       = quit_event,
-        on_pause_changed = update_tray,
-        registry         = registry,
+        config             = config,
+        sound_manager      = sound_mgr,
+        open_settings_fn   = lambda: settings_win.open() if settings_win else None,
+        quit_event         = quit_event,
+        on_pause_changed   = update_tray,
+        registry           = registry,
+        file_drop_callback = lambda path: settings_win.handle_file_drop(path),
     )
 
     # pygame is now initialised inside Overlay — safe to load sprites/masks

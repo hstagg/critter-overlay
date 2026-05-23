@@ -29,7 +29,14 @@ from version import APP_VERSION
 from updater import RELEASES_URL, check_now
 from custom_critters.registry import CustomCritterRegistry
 from custom_critters.storage import delete_critter_folder, get_custom_dir, write_meta
-from custom_critters.import_pipeline import run_import, run_import_frames
+from custom_critters.import_pipeline import (
+    run_import, run_import_frames,
+    prepare_frames, run_import_from_prepared,
+)
+from custom_critters.sharing import (
+    export_critter, bulk_export,
+    import_critter_package, read_package_meta,
+)
 from sounds import EXTRA_PRESETS
 
 try:
@@ -138,6 +145,7 @@ class SettingsWindow:
         self._root: tk.Tk | None = None
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        self._pending_drop: str | None = None  # path queued before window opened
 
         # Animated preview frames: species -> list[ImageTk.PhotoImage]
         # Populated in _run() (tkinter thread) from _preview_frames_data.
@@ -181,6 +189,14 @@ class SettingsWindow:
     def update_config(self, config: dict) -> None:
         self._config = config
 
+    def handle_file_drop(self, path: str) -> None:
+        """Called from the overlay thread when a .critter file is dropped."""
+        if self._root is not None:
+            self._root.after(0, lambda: self._import_flow(path))
+        else:
+            self._pending_drop = path
+            self.open()
+
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _restore(self) -> None:
@@ -197,6 +213,10 @@ class SettingsWindow:
         self._poll_status()
         if not self._config.get("first_run_completed", False):
             self._root.after(400, self._show_welcome_modal)
+        if self._pending_drop:
+            path = self._pending_drop
+            self._pending_drop = None
+            self._root.after(600, lambda: self._import_flow(path))
         self._root.mainloop()
         self._root = None
         self._animal_frames.clear()
@@ -695,29 +715,47 @@ class SettingsWindow:
                           "Manage built-in species and custom critters.")
         _, inner = self._scrollable(parent)
 
-        # ── Import buttons ──
+        # ── Import / export buttons ──
         btn_row = tk.Frame(inner, bg=CONTENT_BG)
         btn_row.pack(fill="x", pady=(0, 16))
-        btn_row.grid_columnconfigure(0, weight=1)
-        btn_row.grid_columnconfigure(1, weight=1)
+        for col in range(4):
+            btn_row.grid_columnconfigure(col, weight=1)
 
         tk.Button(btn_row,
-            text="＋  Import critter",
+            text="＋  Import image",
             command=lambda: self._import_dialog(inner),
             bg="#1a0f35", fg=ACCENT,
             activebackground="#23154a", activeforeground=ACCENT,
-            relief="flat", font=(FF, 10, "bold"),
-            cursor="hand2", pady=12, padx=16, anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+            relief="flat", font=(FF, 9, "bold"),
+            cursor="hand2", pady=10, padx=10, anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 4))
 
         tk.Button(btn_row,
-            text="＋  Import from frames",
+            text="＋  Import frames",
             command=lambda: self._import_frames_dialog(inner),
             bg="#0f1a35", fg=ACCENT2,
             activebackground="#152545", activeforeground=ACCENT2,
-            relief="flat", font=(FF, 10, "bold"),
-            cursor="hand2", pady=12, padx=16, anchor="w",
-        ).grid(row=0, column=1, sticky="ew")
+            relief="flat", font=(FF, 9, "bold"),
+            cursor="hand2", pady=10, padx=10, anchor="w",
+        ).grid(row=0, column=1, sticky="ew", padx=(0, 4))
+
+        tk.Button(btn_row,
+            text="📦  Import .critter",
+            command=self._import_critter_file,
+            bg="#0f251a", fg=GREEN,
+            activebackground="#143020", activeforeground=GREEN,
+            relief="flat", font=(FF, 9, "bold"),
+            cursor="hand2", pady=10, padx=10, anchor="w",
+        ).grid(row=0, column=2, sticky="ew", padx=(0, 4))
+
+        tk.Button(btn_row,
+            text="⬆  Export all",
+            command=self._bulk_export,
+            bg=CARD_BG, fg=FG2,
+            activebackground=CARD_HOV, activeforeground=FG,
+            relief="flat", font=(FF, 9),
+            cursor="hand2", pady=10, padx=10, anchor="w",
+        ).grid(row=0, column=3, sticky="ew")
 
         # ── Built-in species ──
         self._section_label(inner, "Built-in species")
@@ -901,6 +939,13 @@ class SettingsWindow:
                   activebackground=SEL_BG, activeforeground=FG,
                   relief="flat", font=(FF, 8, "bold"),
                   cursor="hand2", padx=8, pady=4).pack(side="left")
+
+        tk.Button(act_row, text="⬆ Export",
+                  command=lambda _cid=cid: self._export_critter(_cid),
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 8),
+                  cursor="hand2", padx=8, pady=4).pack(side="left", padx=(4, 0))
 
         tk.Button(act_row, text="✕ Delete",
                   command=lambda _cid=cid: self._delete_custom(_cid),
@@ -1248,21 +1293,35 @@ class SettingsWindow:
             if not name:
                 status_lbl.configure(text="Please enter a name.", fg=RED)
                 return
-            import_btn.configure(state="disabled", text="Importing…")
+            import_btn.configure(state="disabled", text="Generating preview…")
             dlg.update()
-            try:
-                critter_id = run_import(path, name, get_custom_dir())
-            except ImportError as err:
-                status_lbl.configure(text=str(err), fg=RED)
-                import_btn.configure(state="normal", text="Import")
-                return
-            except Exception as err:
-                status_lbl.configure(text=f"Unexpected error: {err}", fg=RED)
-                import_btn.configure(state="normal", text="Import")
-                return
-            self._finish_import(critter_id)
-            dlg.destroy()
-            self._show_page("critters")
+
+            def run_prepare():
+                try:
+                    pil_frames, method = prepare_frames(path)
+                    dlg.after(0, lambda: show_preview(pil_frames, method, name))
+                except ImportError as err:
+                    dlg.after(0, lambda e=err: (
+                        status_lbl.configure(text=str(e), fg=RED),
+                        import_btn.configure(state="normal", text="Import"),
+                    ))
+                except Exception as err:
+                    dlg.after(0, lambda e=err: (
+                        status_lbl.configure(text=f"Unexpected error: {e}", fg=RED),
+                        import_btn.configure(state="normal", text="Import"),
+                    ))
+
+            def show_preview(pil_frames, method, name):
+                dlg.destroy()
+                self._show_import_preview(
+                    pil_frames, method, name,
+                    on_accept=lambda frames, meth, n: (
+                        self._commit_prepared_import(frames, meth, n),
+                        self._show_page("critters"),
+                    ),
+                )
+
+            threading.Thread(target=run_prepare, daemon=True).start()
 
         import_btn = tk.Button(btn_row, text="Import",
                                command=do_import,
@@ -1538,6 +1597,321 @@ class SettingsWindow:
 
         # Initialise strip with empty state hint
         _update_import_btn()
+
+    # ── Sharing: export ───────────────────────────────────────────────────────
+
+    def _export_critter(self, critter_id: str) -> None:
+        record = self._registry.get(critter_id)
+        name   = record.meta.get("name", critter_id) if record else critter_id
+        safe   = "".join(c for c in name if c.isalnum() or c in " _-").strip()
+        dest   = filedialog.asksaveasfilename(
+            title        = "Export critter",
+            defaultextension = ".critter",
+            initialfile  = f"{safe or critter_id}.critter",
+            filetypes    = [(".critter packages", "*.critter"), ("All files", "*")],
+            parent       = self._root,
+        )
+        if not dest:
+            return
+        try:
+            export_critter(critter_id, Path(dest))
+            messagebox.showinfo("Exported", f"Saved to:\n{dest}", parent=self._root)
+        except Exception as e:
+            messagebox.showerror("Export failed", str(e), parent=self._root)
+
+    def _bulk_export(self) -> None:
+        dest_dir = filedialog.askdirectory(
+            title="Choose export folder",
+            parent=self._root,
+        )
+        if not dest_dir:
+            return
+        try:
+            written = bulk_export(dest_dir=Path(dest_dir))
+        except Exception as e:
+            messagebox.showerror("Export failed", str(e), parent=self._root)
+            return
+        if written:
+            names = "\n".join(p.name for p in written)
+            messagebox.showinfo(
+                "Exported",
+                f"Exported {len(written)} critter(s) to:\n{dest_dir}\n\n{names}",
+                parent=self._root,
+            )
+        else:
+            messagebox.showinfo(
+                "Nothing to export",
+                "No custom critters found.",
+                parent=self._root,
+            )
+
+    # ── Sharing: .critter import ──────────────────────────────────────────────
+
+    def _import_critter_file(self) -> None:
+        path = filedialog.askopenfilename(
+            title     = "Import .critter package",
+            filetypes = [(".critter packages", "*.critter"), ("All files", "*")],
+            parent    = self._root,
+        )
+        if not path:
+            return
+        self._import_flow(path)
+
+    def _import_flow(self, path: str) -> None:
+        """Route a dropped or opened file to the right import handler."""
+        p = Path(path)
+        if p.suffix.lower() == ".critter":
+            self._import_critter_package_flow(p)
+        else:
+            self._import_dialog_with_path(str(p))
+
+    def _import_critter_package_flow(self, zip_path: Path) -> None:
+        try:
+            meta = read_package_meta(zip_path)
+        except ValueError as e:
+            messagebox.showerror("Invalid package", str(e), parent=self._root)
+            return
+        self._show_import_confirm(meta, zip_path)
+
+    def _show_import_confirm(self, meta: dict, zip_path: Path) -> None:
+        """Confirm dialog shown before committing a .critter import."""
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Install critter?")
+        dlg.configure(bg=CONTENT_BG)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        w, h = 440, 260
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        tk.Label(dlg, text="Install critter?",
+                 font=(FF, 14, "bold"), bg=CONTENT_BG, fg=FG
+                 ).pack(anchor="w", padx=24, pady=(20, 4))
+
+        info_frame = tk.Frame(dlg, bg=CARD_BG, padx=16, pady=12)
+        info_frame.pack(fill="x", padx=24, pady=(0, 12))
+
+        for label, key, fallback in [
+            ("Name",    "name",    "—"),
+            ("Author",  "author",  "anonymous"),
+            ("License", "license", "unknown"),
+        ]:
+            row = tk.Frame(info_frame, bg=CARD_BG)
+            row.pack(fill="x", pady=2)
+            tk.Label(row, text=f"{label}:", font=(FF, 8), bg=CARD_BG,
+                     fg=FG3, width=8, anchor="w").pack(side="left")
+            tk.Label(row, text=meta.get(key, fallback),
+                     font=(FF, 9, "bold"), bg=CARD_BG, fg=FG,
+                     anchor="w").pack(side="left")
+
+        status_lbl = tk.Label(dlg, text="", font=(FF, 8),
+                              bg=CONTENT_BG, fg=RED, wraplength=390)
+        status_lbl.pack(anchor="w", padx=24)
+
+        btn_row = tk.Frame(dlg, bg=CONTENT_BG)
+        btn_row.pack(fill="x", padx=24, pady=(4, 0))
+
+        def do_install():
+            install_btn.configure(state="disabled", text="Installing…")
+            dlg.update()
+            try:
+                critter_id = import_critter_package(zip_path)
+            except ValueError as e:
+                status_lbl.configure(text=str(e))
+                install_btn.configure(state="normal", text="Install")
+                return
+            except Exception as e:
+                status_lbl.configure(text=f"Unexpected error: {e}")
+                install_btn.configure(state="normal", text="Install")
+                return
+            self._finish_import(critter_id)
+            dlg.destroy()
+            self._show_page("critters")
+
+        install_btn = tk.Button(btn_row, text="Install",
+                                command=do_install,
+                                bg="#1a0f35", fg=ACCENT,
+                                activebackground="#23154a", activeforeground=ACCENT,
+                                relief="flat", font=(FF, 10, "bold"),
+                                cursor="hand2", padx=16, pady=8)
+        install_btn.pack(side="left")
+
+        tk.Button(btn_row, text="Cancel", command=dlg.destroy,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="left", padx=(8, 0))
+
+    # ── Preview-before-commit ─────────────────────────────────────────────────
+
+    def _import_dialog_with_path(self, path: str) -> None:
+        """Open the name dialog pre-filled with the given path (used by drag-drop)."""
+        default_name = Path(path).stem.replace("_", " ").replace("-", " ").title()
+
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Import critter")
+        dlg.configure(bg=CONTENT_BG)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        w, h = 420, 200
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        tk.Label(dlg, text="Name your critter",
+                 font=(FF, 13, "bold"), bg=CONTENT_BG, fg=FG).pack(anchor="w", padx=24, pady=(20, 4))
+        tk.Label(dlg, text=Path(path).name,
+                 font=(FF, 8), bg=CONTENT_BG, fg=FG3).pack(anchor="w", padx=24)
+
+        name_var = tk.StringVar(value=default_name)
+        entry = tk.Entry(dlg, textvariable=name_var,
+                         font=(FF, 11), bg=CARD_BG, fg=FG,
+                         insertbackground=FG, relief="flat", bd=0)
+        entry.pack(fill="x", padx=24, pady=(10, 0), ipady=8)
+        entry.select_range(0, "end")
+        entry.focus_set()
+
+        status_lbl = tk.Label(dlg, text="", font=(FF, 8),
+                              bg=CONTENT_BG, fg=AMBER, wraplength=370, justify="left")
+        status_lbl.pack(anchor="w", padx=24, pady=(6, 0))
+
+        btn_row = tk.Frame(dlg, bg=CONTENT_BG)
+        btn_row.pack(fill="x", padx=24, pady=(12, 0))
+
+        def do_import():
+            name = name_var.get().strip()
+            if not name:
+                status_lbl.configure(text="Please enter a name.", fg=RED)
+                return
+            import_btn.configure(state="disabled", text="Generating preview…")
+            dlg.update()
+
+            def run_prepare():
+                try:
+                    pil_frames, method = prepare_frames(path)
+                    dlg.after(0, lambda: _show(pil_frames, method, name))
+                except ImportError as err:
+                    dlg.after(0, lambda e=err: (
+                        status_lbl.configure(text=str(e), fg=RED),
+                        import_btn.configure(state="normal", text="Import"),
+                    ))
+                except Exception as err:
+                    dlg.after(0, lambda e=err: (
+                        status_lbl.configure(text=f"Unexpected error: {e}", fg=RED),
+                        import_btn.configure(state="normal", text="Import"),
+                    ))
+
+            def _show(pil_frames, method, name):
+                dlg.destroy()
+                self._show_import_preview(
+                    pil_frames, method, name,
+                    on_accept=lambda frames, meth, n: (
+                        self._commit_prepared_import(frames, meth, n),
+                        self._show_page("critters"),
+                    ),
+                )
+
+            threading.Thread(target=run_prepare, daemon=True).start()
+
+        import_btn = tk.Button(btn_row, text="Import", command=do_import,
+                               bg="#1a0f35", fg=ACCENT,
+                               activebackground="#23154a", activeforeground=ACCENT,
+                               relief="flat", font=(FF, 10, "bold"),
+                               cursor="hand2", padx=16, pady=8)
+        import_btn.pack(side="left")
+        tk.Button(btn_row, text="Cancel", command=dlg.destroy,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="left", padx=(8, 0))
+        entry.bind("<Return>", lambda e: do_import())
+
+    def _show_import_preview(self, pil_frames: list, method: str, name: str,
+                             on_accept) -> None:
+        """
+        Modal showing an animated preview of the critter before committing to disk.
+        on_accept(pil_frames, method, name) called if user clicks Accept.
+        """
+        dlg = tk.Toplevel(self._root)
+        dlg.title("Preview")
+        dlg.configure(bg=CONTENT_BG)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        w, h = 320, 340
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        tk.Label(dlg, text=f"Preview: {name}",
+                 font=(FF, 12, "bold"), bg=CONTENT_BG, fg=FG
+                 ).pack(pady=(16, 4))
+
+        canvas_size = 180
+        canvas = tk.Canvas(dlg, width=canvas_size, height=canvas_size,
+                           bg=CARD_BG, highlightthickness=0)
+        canvas.pack(pady=(0, 8))
+
+        # Convert PIL frames to PhotoImages (must happen in tkinter thread)
+        photos: list[ImageTk.PhotoImage] = []
+        for frame in pil_frames:
+            img = frame.copy().resize((canvas_size, canvas_size), Image.NEAREST)
+            photos.append(ImageTk.PhotoImage(img))
+
+        frame_idx = [0]
+        anim_job  = [None]
+
+        def animate():
+            if not dlg.winfo_exists():
+                return
+            canvas.delete("all")
+            canvas.create_image(canvas_size // 2, canvas_size // 2,
+                                anchor="center", image=photos[frame_idx[0]])
+            frame_idx[0] = (frame_idx[0] + 1) % len(photos)
+            anim_job[0] = dlg.after(120, animate)
+
+        animate()
+
+        badge = {
+            "static_png":   "procedural animation",
+            "static_jpg":   "procedural animation",
+            "animated_gif": "animated gif",
+            "frame_strip":  "drawn frames",
+        }.get(method, method)
+        tk.Label(dlg, text=f"{len(pil_frames)} frames  ·  {badge}",
+                 font=(FF, 8), bg=CONTENT_BG, fg=FG3).pack()
+
+        btn_row = tk.Frame(dlg, bg=CONTENT_BG)
+        btn_row.pack(pady=(12, 0))
+
+        def do_accept():
+            if anim_job[0]:
+                dlg.after_cancel(anim_job[0])
+            dlg.destroy()
+            on_accept(pil_frames, method, name)
+
+        tk.Button(btn_row, text="✓  Add critter", command=do_accept,
+                  bg="#1a0f35", fg=ACCENT,
+                  activebackground="#23154a", activeforeground=ACCENT,
+                  relief="flat", font=(FF, 10, "bold"),
+                  cursor="hand2", padx=16, pady=8).pack(side="left")
+
+        def do_cancel():
+            if anim_job[0]:
+                dlg.after_cancel(anim_job[0])
+            dlg.destroy()
+
+        tk.Button(btn_row, text="Cancel", command=do_cancel,
+                  bg=CARD_BG, fg=FG2,
+                  activebackground=CARD_HOV, activeforeground=FG,
+                  relief="flat", font=(FF, 9),
+                  cursor="hand2", padx=12, pady=8).pack(side="left", padx=(8, 0))
+
+    def _commit_prepared_import(self, pil_frames: list, method: str, name: str) -> None:
+        try:
+            critter_id = run_import_from_prepared(
+                pil_frames, method, name, get_custom_dir()
+            )
+            self._finish_import(critter_id)
+        except Exception as e:
+            messagebox.showerror("Import failed", str(e), parent=self._root)
 
     def _finish_import(self, critter_id: str) -> None:
         """Register a newly imported critter in config and reload the registry."""
