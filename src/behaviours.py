@@ -41,6 +41,7 @@ class BehaviourDef:
     pair_species_a: frozenset = field(default_factory=frozenset)
     pair_species_b: frozenset = field(default_factory=frozenset)
     sleep_bias_weight: float = 0.0   # extra weight when sleep_bias is high
+    base_weight: float = 1.0         # baseline selection weight (raise to bias toward this behaviour)
     cooldown: float = 30.0           # per-critter cooldown before same behaviour repeats
     particles: bool = False          # emit a small puff particle on entry
 
@@ -75,12 +76,12 @@ REGISTRY: dict[str, BehaviourDef] = {
     "nose_twitch":   BehaviourDef("nose_twitch", (0.3, 0.6),  species_whitelist=frozenset({"rabbit"}), cooldown=5.0),
     "stand_lookout": BehaviourDef("stand_lookout",(1.5, 3.0), species_whitelist=frozenset({"rabbit","squirrel"}), cooldown=40.0),
     "snuffle_pause": BehaviourDef("snuffle_pause",(1.0, 2.0), species_whitelist=frozenset({"hedgehog"}), cooldown=30.0),
-    "ball_up":       BehaviourDef("ball_up",     (2.0, 4.0),  species_whitelist=frozenset({"hedgehog"}), sleep_bias_weight=0.5, cooldown=120.0),
+    "ball_up":       BehaviourDef("ball_up",     (1.5, 2.5),  species_whitelist=frozenset({"hedgehog"}), sleep_bias_weight=0.5, base_weight=3.5, cooldown=45.0),
     "chitter":       BehaviourDef("chitter",     (0.8, 1.5),  species_whitelist=frozenset({"squirrel"}), particles=True, cooldown=35.0),
     "belly_roll":    BehaviourDef("belly_roll",  (2.0, 3.5),  species_whitelist=frozenset({"otter"}),    cooldown=90.0),
     "head_tuck":     BehaviourDef("head_tuck",   (2.0, 4.0),  species_whitelist=frozenset({"turtle"}),   sleep_bias_weight=0.4, cooldown=120.0),
     "bamboo_sit":    BehaviourDef("bamboo_sit",  (3.0, 6.0),  species_whitelist=frozenset({"panda"}),    sleep_bias_weight=0.3, cooldown=90.0),
-    "panda_roll":    BehaviourDef("panda_roll",  (2.0, 3.5),  species_whitelist=frozenset({"panda"}),    cooldown=180.0),
+    "panda_roll":    BehaviourDef("panda_roll",  (1.5, 2.5),  species_whitelist=frozenset({"panda"}),    base_weight=3.5, cooldown=60.0),
 
     # ── Two-critter pair interactions (generic) ────────────────────────────
     "sniff":         BehaviourDef("sniff",        (0.8, 1.5),  is_pair=True, cooldown=25.0),
@@ -147,7 +148,7 @@ def _eligible_solo(animal: "Animal", sleep_bias: float) -> list[tuple[str, float
         # Cooldown
         if animal._behaviour_cooldowns.get(name, 0.0) > 0.0:
             continue
-        weight = 1.0 + bdef.sleep_bias_weight * sleep_bias
+        weight = bdef.base_weight + bdef.sleep_bias_weight * sleep_bias
         out.append((name, weight))
     return out
 
