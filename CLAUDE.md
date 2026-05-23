@@ -152,10 +152,21 @@ For changes to `__main__.py` or the venv bootstrap: test on a machine where the 
 
 ## Release checklist
 
-1. Bump `APP_VERSION` in `src/version.py`
-2. Update `README.md` with what changed
-3. `python build.py` → confirm `.pyzw` produced
-4. Manual test checklist above
-5. `git add -A && git commit -m "release: vX.Y — <one-line summary>"`
-6. `git push origin main`
-7. `python make_zip.py` for distribution archive if needed
+The full pipeline is automated by `release.ps1`. For any release:
+
+```powershell
+# Patch / hotfix
+.\release.ps1 -Version 1.9.1 -Title "fix startup mutex lockout"
+
+# Minor / major (write release notes first, then pass the file)
+.\release.ps1 -Version 2.0.0 -Title "critter sharing" -NotesFile release-notes-v2.0.md
+```
+
+The script: validates inputs → checks git is clean on main → bumps `src/version.py` and `installer/version_info.txt` → runs `build.ps1` → commits and pushes → creates the GitHub release with the installer attached.
+
+**Before running for a minor/major release:**
+1. Update `README.md` with what changed
+2. Write `release-notes-vX.Y.md` for the GitHub release body
+3. Ensure manual test checklist passes (see Testing section above)
+
+For patch releases, `--generate-notes` is used automatically (GitHub generates release notes from commits since the last tag).
