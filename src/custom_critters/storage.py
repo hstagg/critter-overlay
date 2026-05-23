@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -88,15 +88,42 @@ def default_meta(critter_id: str, name: str) -> dict:
         "idle_rate": 0.018,
         "trail_style": "none",
         "notes": "",
+        # v2.0 fields — auto-migrated for v1 critters
+        "rarity_strategy": "auto",   # "auto"|"fixed:<tier>"|"common_only"
+        "locomotion": "classic",     # locomotion profile (Phase 2)
+        "size_multiplier": 1.0,
+        "author": "anonymous",
+        "license": "unknown",
+        "attribution_url": None,
+        "app_min_version": "2.0.0",
     }
 
 
+def migrate_meta(meta: dict) -> dict:
+    """
+    Upgrade a loaded meta dict to the current schema in-memory.
+    Missing fields are filled with defaults; schema_version is normalised.
+    Does not write to disk — caller decides when to persist.
+    """
+    result = dict(meta)
+    # Files predating schema_version (created before v1.9)
+    if "schema_version" not in result:
+        result["schema_version"] = 1
+    # Back-fill any fields added after this critter was first saved
+    defaults = default_meta(result.get("id", ""), result.get("name", ""))
+    for key, val in defaults.items():
+        result.setdefault(key, val)
+    result["schema_version"] = SCHEMA_VERSION
+    return result
+
+
 def read_meta(critter_path: Path) -> dict | None:
-    """Load meta.json from a critter folder. Returns None on failure."""
+    """Load meta.json from a critter folder, migrating to current schema. Returns None on failure."""
     meta_path = critter_path / "meta.json"
     try:
         with open(meta_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
+        return migrate_meta(raw)
     except Exception as e:
         print(f"[custom] Failed to read meta.json in {critter_path}: {e}")
         return None

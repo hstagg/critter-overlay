@@ -23,7 +23,11 @@ import time
 
 import pygame
 
+import importlib
+import events as _events
+import auras as _auras_mod
 from animals import Animal, Particle, TrailParticle, create_animal
+from rarity import RarityTier
 from spawn_manager import SpawnManager
 from sounds import SoundManager
 from config import save_config
@@ -116,13 +120,15 @@ class Overlay:
 
     def __init__(self, config: dict, sound_manager: SoundManager,
                  open_settings_fn, quit_event, on_pause_changed=None,
-                 registry: CustomCritterRegistry | None = None):
+                 registry: CustomCritterRegistry | None = None,
+                 file_drop_callback=None):
         self.config = config
         self.sound_manager = sound_manager
         self.open_settings_fn = open_settings_fn
         self.quit_event = quit_event
         self._on_pause_changed = on_pause_changed  # callback → updates tray icon
         self._registry = registry or CustomCritterRegistry()
+        self._file_drop_callback = file_drop_callback  # called with path str on DROPFILE
 
         self.paused: bool = False  # always start unpaused
 
@@ -141,6 +147,10 @@ class Overlay:
 
         # Settings change detection
         self._config_dirty: bool = False
+
+        # Dev hot-reload: watch auras.py for changes during design iteration
+        self._dev_reload_timer: float = 0.0
+        self._dev_auras_mtime: float  = self._auras_mtime()
 
         # Initialise display
         pygame.init()
@@ -199,11 +209,13 @@ class Overlay:
     def spawn_custom(self, critter_id: str) -> None:
         """Spawn a specific custom critter for UI test button."""
         x, y, direction = self._spawn_manager._edge_pos()
+        entry = f"custom:{critter_id}"
         a = self._spawn_manager._make_animal(
-            f"custom:{critter_id}", x, y,
-            direction=direction, perimeter_walker=True,
+            entry, x, y, direction=direction, perimeter_walker=True,
         )
         if a is not None:
+            tier = self._spawn_manager._roll_tier_for_entry(entry)
+            self._spawn_manager._apply_rarity(a, tier)
             self._on_spawn([a])
 
     def request_quit(self) -> None:
@@ -221,18 +233,13 @@ class Overlay:
 
     def _on_spawn(self, animals: list[Animal]) -> None:
         self._animals.extend(animals)
-        # Surface a notification when something rare appears.
+        # Show a brief notification for Legendary spawns.
         for a in animals:
-            if a.SPECIES == "unicorn":
+            if getattr(a, "rarity", None) == RarityTier.LEGENDARY:
+                raw = getattr(a, "meta", {}).get("name", "") or \
+                      a.SPECIES.replace("custom:", "").replace("_", " ").title()
                 self._notifications.append(Notification(
-                    "Magical Unicorn appeared!",
-                    int(a.x), int(a.y - a.size * 0.7),
-                    color=(255, 200, 250),
-                ))
-                self._notifications[-1].life = 3.0
-            elif a.SPECIES == "golden_kitten":
-                self._notifications.append(Notification(
-                    "✨ Legendary Golden Kitten! ✨",
+                    f"✨ Legendary {raw}! ✨",
                     int(a.x), int(a.y - a.size * 0.7),
                     color=(255, 230, 100),
                 ))
@@ -262,6 +269,14 @@ class Overlay:
     # ------------------------------------------------------------------
 
     def _handle_events(self) -> None:
+        for ev, payload in _events.drain():
+            if ev == _events.Event.TOGGLE_PAUSE:
+                self.toggle_pause()
+            elif ev == _events.Event.APPLY_CONFIG:
+                self.apply_new_config(payload)
+            elif ev == _events.Event.SPAWN_NOW:
+                self.force_spawn()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.quit_event.set()
@@ -280,6 +295,10 @@ class Overlay:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.quit_event.set()
+
+            elif event.type == pygame.DROPFILE:
+                if self._file_drop_callback and event.file.endswith(".critter"):
+                    self._file_drop_callback(event.file)
 
     # ------------------------------------------------------------------
     # Mouse: press → potentially grab, release → click=pop or drag=throw
@@ -390,9 +409,35 @@ class Overlay:
     # Update
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _auras_mtime() -> float:
+        try:
+            path = _auras_mod.__file__
+            if path.endswith(".pyc"):
+                path = path[:-1]  # prefer .py source
+            return os.path.getmtime(path)
+        except Exception:
+            return 0.0
+
+    def _hot_reload_auras(self) -> None:
+        mtime = self._auras_mtime()
+        if mtime != self._dev_auras_mtime:
+            self._dev_auras_mtime = mtime
+            try:
+                importlib.reload(_auras_mod)
+                print("[dev] auras.py reloaded")
+            except Exception as e:
+                print(f"[dev] auras reload failed: {e}")
+
     def _update(self, dt: float) -> None:
-        # Tick spawn manager — pass dt so it can freeze countdown while paused
-        self._spawn_manager.tick(dt=dt, paused=self.paused)
+        # Dev hot-reload check (once per second)
+        self._dev_reload_timer += dt
+        if self._dev_reload_timer >= 1.0:
+            self._dev_reload_timer = 0.0
+            self._hot_reload_auras()
+
+        # Tick spawn manager — pass dt and live animal list for behaviour evaluation
+        self._spawn_manager.tick(dt=dt, paused=self.paused, animals=self._animals)
 
         # Update animals + harvest trail particles from rares
         for animal in list(self._animals):
@@ -428,11 +473,14 @@ class Overlay:
         for p in self._trail_particles:
             p.draw(self.screen)
 
-        # Draw all animals (thrown ones get rotated by their spin angle)
+        # Draw all animals (aura behind sprite; thrown ones get rotated)
         for animal in self._animals:
             if animal.thrown and abs(animal.spin_angle) > 0.01:
                 self._draw_thrown_animal(animal)
             else:
+                if getattr(animal, "rarity", None) not in (None, RarityTier.COMMON):
+                    _auras_mod.draw_aura(self.screen, int(animal.x), int(animal.y),
+                              animal.size, animal.rarity, animal.anim_t)
                 animal.draw(self.screen, animal.anim_t)
 
         # Draw pop-burst particles in front of animals
@@ -458,6 +506,9 @@ class Overlay:
         animal.x = bs / 2.0
         animal.y = bs / 2.0
         try:
+            if getattr(animal, "rarity", None) not in (None, RarityTier.COMMON):
+                _auras_mod.draw_aura(tmp, bs // 2, bs // 2,
+                          animal.size, animal.rarity, animal.anim_t)
             animal.draw(tmp, animal.anim_t)
         finally:
             animal.x, animal.y = real_x, real_y

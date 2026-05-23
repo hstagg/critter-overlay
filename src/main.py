@@ -19,6 +19,8 @@ import winreg
 import threading
 from pathlib import Path
 
+import events
+
 # ---------------------------------------------------------------------------
 # Single instance check
 # ---------------------------------------------------------------------------
@@ -159,7 +161,7 @@ def main() -> None:
         nonlocal config
         config = new_config
         if overlay:
-            overlay.apply_new_config(new_config)
+            events.dispatch(events.Event.APPLY_CONFIG, new_config)
         _set_autostart(new_config["system"].get("auto_launch", True))
         _refresh_custom_sounds()
 
@@ -171,12 +173,13 @@ def main() -> None:
     # ------------------------------------------------------------------
 
     overlay = Overlay(
-        config           = config,
-        sound_manager    = sound_mgr,
-        open_settings_fn = lambda: settings_win.open() if settings_win else None,
-        quit_event       = quit_event,
-        on_pause_changed = update_tray,
-        registry         = registry,
+        config             = config,
+        sound_manager      = sound_mgr,
+        open_settings_fn   = lambda: settings_win.open() if settings_win else None,
+        quit_event         = quit_event,
+        on_pause_changed   = update_tray,
+        registry           = registry,
+        file_drop_callback = lambda path: settings_win.handle_file_drop(path),
     )
 
     # pygame is now initialised inside Overlay — safe to load sprites/masks
@@ -205,7 +208,7 @@ def main() -> None:
     )
 
     # Wire in pause toggle so the settings window can trigger it
-    settings_win.set_toggle_pause(lambda: (overlay.toggle_pause(), update_tray()))
+    settings_win.set_toggle_pause(lambda: events.dispatch(events.Event.TOGGLE_PAUSE))
 
     # Open the control window at launch — user can minimise it
     settings_win.open()
@@ -223,11 +226,10 @@ def main() -> None:
         settings_win.open()
 
     def tray_spawn_now(icon, item):
-        overlay.force_spawn()
+        events.dispatch(events.Event.SPAWN_NOW)
 
     def tray_toggle_pause(icon, item):
-        overlay.toggle_pause()
-        update_tray()
+        events.dispatch(events.Event.TOGGLE_PAUSE)
 
     def tray_quit(icon, item):
         quit_event.set()
@@ -258,7 +260,7 @@ def main() -> None:
     try:
         keyboard.add_hotkey(
             "ctrl+shift+p",
-            lambda: (overlay.toggle_pause(), update_tray()),
+            lambda: events.dispatch(events.Event.TOGGLE_PAUSE),
             suppress=False,
         )
     except Exception as e:

@@ -15,6 +15,8 @@ import math
 import random
 import pygame
 
+from locomotion import update_locomotion
+
 # ---------------------------------------------------------------------------
 # Global style constants
 # ---------------------------------------------------------------------------
@@ -265,11 +267,22 @@ class Animal:
 
     IDLE_RATE = 0.018   # chance per second to enter idle while walking
 
-    WALKING  = "walking"
-    IDLE     = "idle"
-    TURNING  = "turning"
-    POPPING  = "popping"
+    LOCO_PROFILE   = "classic"   # overridden per species; picked up in __init__
+    IDLE_WHITELIST = None        # frozenset | None — solo idles this species can do
+
+    # Intermittent burst locomotion (kitten pounce, squirrel dart).
+    # None = disabled. When triggered, loco_profile temporarily becomes BURST_PROFILE
+    # for BURST_DURATION seconds, then reverts to LOCO_PROFILE.
+    BURST_PROFILE  = None        # str | None
+    BURST_RATE     = 0.0         # chance per second while WALKING
+    BURST_DURATION = 1.0         # seconds (should cover ≥1 complete profile cycle)
+
+    WALKING   = "walking"
+    IDLE      = "idle"
+    TURNING   = "turning"
+    POPPING   = "popping"
     SCATTERED = "scattered"
+    BEHAVING  = "behaving"
 
     # Throw/drag physics
     THROW_GRAVITY = 520.0
@@ -312,10 +325,58 @@ class Animal:
         # Trail emission accumulator
         self._trail_acc     = 0.0
 
+        # Set by spawn_manager after construction; drives aura rendering
+        self.rarity         = None   # RarityTier | None
+
+        # Locomotion profile state (updated every frame by update_locomotion)
+        self.loco_profile       = self.LOCO_PROFILE
+        self.loco_phase         = 0.0
+        self._loco_speed_scalar = 1.0
+        self._loco_y_offset     = 0.0
+        self._loco_x_offset     = 0.0
+
+        # Burst locomotion state
+        self._burst_remaining = 0.0
+
+        # Behaviour state machine
+        self.behaviour_name         = None   # str | None
+        self.behaviour_timer        = 0.0
+        self.behaviour_partner      = None   # Animal | None  (pair interactions)
+        self._behaviour_exit_cd     = 0.0   # cooldown to apply on exit
+        self._behaviour_cooldowns: dict = {}  # name → seconds_remaining
+
     # ------------------------------------------------------------------ throw/drag
+
+    def enter_behaviour(self, name: str, duration: float,
+                        partner=None, cooldown: float = 30.0) -> None:
+        """Put this animal into a named behaviour state. Movement stops."""
+        self.state              = self.BEHAVING
+        self.behaviour_name     = name
+        self.behaviour_timer    = duration
+        self.behaviour_partner  = partner
+        self._behaviour_exit_cd = cooldown
+        self.vx = 0.0
+        self.vy = 0.0
+
+    def _exit_behaviour(self) -> None:
+        """Return from BEHAVING to WALKING, applying cooldown."""
+        if self.behaviour_name and self._behaviour_exit_cd > 0:
+            self._behaviour_cooldowns[self.behaviour_name] = self._behaviour_exit_cd
+        self.behaviour_name    = None
+        self.behaviour_timer   = 0.0
+        self.behaviour_partner = None
+        self._behaviour_exit_cd = 0.0
+        self.state = self.WALKING
+        # Resume at base speed
+        spd = self.BASE_SPEED * (1 + random.uniform(-self.SPEED_VARIANCE, self.SPEED_VARIANCE))
+        ang = random.uniform(-15, 15) * math.pi / 180
+        self.vx = spd * self.direction * math.cos(ang)
+        self.vy = spd * random.choice([-1, 1]) * abs(math.sin(ang)) * 0.4
 
     def scatter(self, vx: float, vy: float) -> None:
         """Enter scatter state after a collision impulse."""
+        if self.behaviour_name is not None:
+            self._exit_behaviour()
         self.vx = vx
         self.vy = vy
         self.state = self.SCATTERED
@@ -378,6 +439,8 @@ class Animal:
         # Held by the user — animate but don't move under AI; position is
         # set externally by the overlay's drag handler.
         if self.being_dragged:
+            if self.behaviour_name is not None:
+                self._exit_behaviour()
             self.anim_t     += dt
             self.walk_phase += dt * 50 * 0.055
             return
@@ -395,8 +458,23 @@ class Animal:
                 self.alive = False
             return
 
-        self.anim_t     += dt
-        self.walk_phase += dt * (abs(self.vx) + abs(self.vy)) * 0.055
+        self.anim_t += dt
+
+        # Update locomotion first so this frame's scalar feeds walk_phase
+        update_locomotion(self, dt)
+        self.walk_phase += dt * (abs(self.vx) + abs(self.vy)) * self._loco_speed_scalar * 0.055
+
+        # Intermittent burst locomotion (e.g. kitten pounce, squirrel dart)
+        if self.BURST_PROFILE and self.state == self.WALKING:
+            if self._burst_remaining > 0:
+                self._burst_remaining -= dt
+                if self._burst_remaining <= 0:
+                    self.loco_profile = self.LOCO_PROFILE
+                    self.loco_phase   = 0.0
+            elif random.random() < dt * self.BURST_RATE:
+                self.loco_profile     = self.BURST_PROFILE
+                self.loco_phase       = 0.0
+                self._burst_remaining = self.BURST_DURATION
 
         if self.state == self.TURNING:
             self.turn_timer -= dt
@@ -432,6 +510,19 @@ class Animal:
                 else:
                     self.vx = self.direction * self.BASE_SPEED
                     self.vy = 0.0
+        elif self.state == self.BEHAVING:
+            self.behaviour_timer -= dt
+            if self.behaviour_timer <= 0:
+                self._exit_behaviour()
+            elif self.behaviour_name in ("ball_up", "panda_roll"):
+                # Rolling behaviours propel the animal forward at a fixed speed
+                roll_spd = self.BASE_SPEED * 1.2
+                nx = self.x + self.direction * roll_spd * dt
+                m  = self.size // 2
+                if m < nx < self.screen_w - m:
+                    self.x = nx
+                else:
+                    self._exit_behaviour()   # hit a wall, abort roll
         elif self.state == self.WALKING:
             if self.perimeter_walker:
                 self._update_perimeter(dt)
@@ -442,8 +533,9 @@ class Animal:
                 self.idle_timer = random.uniform(0.8, 2.5)
 
     def _update_free(self, dt, all_animals):
-        nx = self.x + self.vx * dt
-        ny = self.y + self.vy * dt
+        scalar = self._loco_speed_scalar
+        nx = self.x + self.vx * scalar * dt
+        ny = self.y + self.vy * scalar * dt
         m  = self.size // 2
         bounced = False
 
@@ -472,7 +564,7 @@ class Animal:
         ]
         sx, sy, ex, ey = segs[self.peri_segment]
         seg_len = math.hypot(ex-sx, ey-sy)
-        self.peri_progress += spd * dt / max(seg_len, 1)
+        self.peri_progress += spd * self._loco_speed_scalar * dt / max(seg_len, 1)
         if self.peri_progress >= 1.0:
             self.peri_progress = 0.0
             self.peri_segment  = (self.peri_segment + 1) % 4
@@ -494,12 +586,22 @@ class Animal:
         return math.sin(self.anim_t * 0.85 + self.blink_offset) > 0.96
 
     def _bob(self):
-        if self.state == self.WALKING:
-            return math.sin(self.walk_phase * 2) * self.size * 0.04
-        return 0.0
+        base = math.sin(self.walk_phase * 2) * self.size * 0.04 if self.state == self.WALKING else 0.0
+        return base + self._loco_y_offset
 
     def draw(self, surface, anim_t):
         raise NotImplementedError
+
+
+# ---------------------------------------------------------------------------
+# Shared idle whitelist base — universal behaviours any species can perform
+# ---------------------------------------------------------------------------
+
+_UNIVERSAL_IDLES = frozenset({
+    "stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom_self",
+    "scratch", "ear_flick", "tail_swish", "sneeze", "shake_off",
+    "look_at_cursor", "listen",
+})
 
 
 # ===========================================================================
@@ -507,10 +609,15 @@ class Animal:
 # ===========================================================================
 
 class Kitten(Animal):
-    SPECIES    = "kitten"
-    BASE_SPEED = 52
-    SIZE_SCALE = 1.0
+    SPECIES        = "kitten"
+    BASE_SPEED     = 52
+    SIZE_SCALE     = 1.0
     PARTICLE_COLORS = [(230, 165, 105), (245, 190, 130), (255, 160, 160)]
+    LOCO_PROFILE   = "classic"   # walks normally; pounces are intermittent bursts
+    BURST_PROFILE  = "pounce"
+    BURST_RATE     = 0.050       # ~1 pounce per 20s per kitten
+    BURST_DURATION = 1.2         # slightly longer than one pounce cycle (1.0s)
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"hunt_pose", "chase_tail"})
 
     # colour palette
     C_BODY   = (228, 168, 105)
@@ -521,7 +628,7 @@ class Kitten(Animal):
     C_NOSE   = (255, 140, 148)
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob())
         blink = self._blink()
 
@@ -613,10 +720,12 @@ class Kitten(Animal):
 # ===========================================================================
 
 class Turtle(Animal):
-    SPECIES    = "turtle"
-    BASE_SPEED = 28
-    SIZE_SCALE = 0.95
+    SPECIES        = "turtle"
+    BASE_SPEED     = 28
+    SIZE_SCALE     = 0.95
     PARTICLE_COLORS = [(75, 148, 75), (100, 175, 90), (180, 220, 100)]
+    LOCO_PROFILE   = "plod"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"head_tuck"})
 
     C_SHELL  = (78, 148, 72)
     C_LIGHT  = (108, 182, 95)
@@ -626,7 +735,7 @@ class Turtle(Animal):
     C_LINE   = (55, 108, 52)
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob() * 0.5)
         blink = self._blink()
 
@@ -689,9 +798,11 @@ class Turtle(Animal):
 # ===========================================================================
 
 class Duck(Animal):
-    SPECIES    = "duck"
-    BASE_SPEED = 46
+    SPECIES        = "duck"
+    BASE_SPEED     = 46
     PARTICLE_COLORS = [(248, 230, 80), (255, 200, 50), (240, 245, 220)]
+    LOCO_PROFILE   = "waddle"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"preen", "peck_ground"})
 
     C_BODY  = (248, 245, 228)
     C_WING  = (228, 224, 205)
@@ -700,31 +811,37 @@ class Duck(Animal):
     C_FOOT  = (215, 115, 32)
 
     def draw(self, surface, anim_t):
+        # x is the base (unshifted); waddle offsets applied selectively per part
         x, y, s, d = int(self.x), int(self.y), self.size, self.direction
-        bob = int(self._bob())
+        bob   = int(self._bob())   # includes _loco_y_offset (body dips at rock extremes)
         blink = self._blink()
 
-        # --- body (very round and fluffy) ---
-        bw, bh = int(s*0.72), int(s*0.60)
-        _ec_o(surface, self.C_BODY, x, y+bob, bw, bh, s)
+        # _loco_x_offset drives the rock; head follows at ~28% (stays relatively stable)
+        wx     = int(self._loco_x_offset)          # full body rock
+        hx_off = int(self._loco_x_offset * 0.28)   # head barely sways
 
-        # --- wing detail ---
-        wx = _mir(x, -s*0.06, d)
-        _ec_o(surface, self.C_WING, wx, y+bob+int(s*0.06), int(s*0.44), int(s*0.32), s)
-        # feather lines
+        bx = x + wx   # body centre (rocks with waddle)
+        bw, bh = int(s*0.72), int(s*0.60)
+
+        # --- body (rocks fully) ---
+        _ec_o(surface, self.C_BODY, bx, y+bob, bw, bh, s)
+
+        # --- wing detail (follows body) ---
+        wng = _mir(bx, -s*0.06, d)
+        _ec_o(surface, self.C_WING, wng, y+bob+int(s*0.06), int(s*0.44), int(s*0.32), s)
         for i in range(3):
             fy = y+bob+int(s*0.01)+i*int(s*0.06)
             pygame.draw.arc(surface, OUTLINE,
-                            (wx-int(s*0.18), fy, int(s*0.36), int(s*0.06)),
+                            (wng-int(s*0.18), fy, int(s*0.36), int(s*0.06)),
                             math.pi, 2*math.pi, max(1, int(s*0.020)))
 
-        # --- tail feathers ---
-        tx = _mir(x, -s*0.35, d)
+        # --- tail feathers (follows body) ---
+        tx = _mir(bx, -s*0.35, d)
         tpts = [(tx,y+bob),(tx-int(d*s*0.20),y+bob-int(s*0.22)),(tx-int(d*s*0.08),y+bob-int(s*0.08))]
         _poly_o(surface, self.C_WING, tpts, s)
 
-        # --- head (big round ball) ---
-        hx = _mir(x, s*0.26, d)
+        # --- head (barely follows — stable during waddle) ---
+        hx = _mir(x + hx_off, s*0.26, d)
         hy = y - int(s*0.30) + bob
         hr = int(s*0.26)
         _circ_o(surface, self.C_HEAD, hx, hy, hr, s)
@@ -744,11 +861,13 @@ class Duck(Animal):
         # --- blush ---
         _blush(surface, hx - int(d*s*0.14), hy + int(s*0.08), s)
 
-        # --- feet ---
-        sw2 = math.sin(self.walk_phase*2)*int(s*0.04) if self.state==self.WALKING else 0
+        # --- feet (x fixed; foot on the lean-side lifts proportionally) ---
+        # When leaning right (+wx) right foot (i=1) lifts; leaning left, left foot (i=0) lifts
         for i, ox in enumerate([-0.14, 0.14]):
-            lb = sw2 if i==0 else -sw2
-            _ec_o(surface, self.C_FOOT, x+int(s*ox), y+int(bh*0.52)+lb+bob, int(s*0.18), int(s*0.09), s)
+            side_lifts = (i == 0 and wx < 0) or (i == 1 and wx > 0)
+            lift = int(abs(wx) * 0.55) if side_lifts else 0
+            _ec_o(surface, self.C_FOOT, x + int(s*ox),
+                  y + int(bh*0.52) + bob - lift, int(s*0.18), int(s*0.09), s)
 
 
 # ===========================================================================
@@ -756,10 +875,12 @@ class Duck(Animal):
 # ===========================================================================
 
 class Rabbit(Animal):
-    SPECIES    = "rabbit"
-    BASE_SPEED = 62
+    SPECIES        = "rabbit"
+    BASE_SPEED     = 62
     SPEED_VARIANCE = 0.30
     PARTICLE_COLORS = [(205, 198, 212), (242, 180, 185), (250, 248, 252)]
+    LOCO_PROFILE   = "hop"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"nose_twitch", "stand_lookout"})
 
     C_BODY  = (205, 198, 215)
     C_HEAD  = (220, 215, 228)
@@ -769,9 +890,9 @@ class Rabbit(Animal):
     C_TAIL  = (250, 250, 254)
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob())
-        hop = abs(math.sin(self.walk_phase*2)) * int(s*0.05) if self.state==self.WALKING else 0
+        hop = abs(math.sin(self.walk_phase*2)) * int(s*0.10) if self.state==self.WALKING else 0
         blink = self._blink()
 
         # --- tail ---
@@ -834,10 +955,12 @@ class Rabbit(Animal):
 # ===========================================================================
 
 class Hedgehog(Animal):
-    SPECIES    = "hedgehog"
-    BASE_SPEED = 38
-    SIZE_SCALE = 0.92
+    SPECIES        = "hedgehog"
+    BASE_SPEED     = 38
+    SIZE_SCALE     = 0.92
     PARTICLE_COLORS = [(135, 92, 60), (205, 165, 122), (245, 220, 180)]
+    LOCO_PROFILE   = "snuffle"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"snuffle_pause", "ball_up"})
 
     C_BACK  = (135, 92, 60)
     C_BELLY = (205, 162, 118)
@@ -845,8 +968,40 @@ class Hedgehog(Animal):
     C_SPIKE = (112, 75, 45)
     C_NOSE  = (88, 55, 42)
 
-    def draw(self, surface, anim_t):
+    def _draw_ball_form(self, surface):
+        """Compressed spiky ball drawn when curled up / rolling."""
         x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        r = int(s * 0.34)
+        # Rotation angle advances in the movement direction for a rolling feel
+        roll_angle = self.anim_t * d * 8.0
+
+        # Spine ball (fills the whole circle when fully curled)
+        _circ_o(surface, self.C_BACK, x, y, r, s)
+
+        # Spikes radiate all around (16 total, rotating with roll)
+        n_spikes  = 16
+        spike_len = int(s * 0.16)
+        for i in range(n_spikes):
+            ang    = roll_angle + (2 * math.pi * i / n_spikes)
+            cos_a  = math.cos(ang)
+            sin_a  = math.sin(ang)
+            bx2    = x + int(cos_a * r * 0.88)
+            by2    = y + int(sin_a * r * 0.88)
+            ex2    = x + int(cos_a * (r * 0.88 + spike_len))
+            ey2    = y + int(sin_a * (r * 0.88 + spike_len))
+            pygame.draw.line(surface, self.C_SPIKE, (bx2, by2), (ex2, ey2),
+                             max(2, int(s*0.038)))
+            mid_x = bx2 + int(cos_a * spike_len * 0.65)
+            mid_y = by2 + int(sin_a * spike_len * 0.65)
+            pygame.draw.line(surface, self.C_BACK, (mid_x, mid_y), (ex2, ey2),
+                             max(1, int(s*0.022)))
+
+    def draw(self, surface, anim_t):
+        if self.behaviour_name == "ball_up":
+            self._draw_ball_form(surface)
+            return
+
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob() * 0.55)
         blink = self._blink()
 
@@ -906,10 +1061,15 @@ class Hedgehog(Animal):
 # ===========================================================================
 
 class Squirrel(Animal):
-    SPECIES    = "squirrel"
-    BASE_SPEED = 65
+    SPECIES        = "squirrel"
+    BASE_SPEED     = 65
     SPEED_VARIANCE = 0.35
     PARTICLE_COLORS = [(178, 138, 95), (165, 108, 60), (200, 185, 150)]
+    LOCO_PROFILE   = "classic"   # walks normally; darts are intermittent bursts
+    BURST_PROFILE  = "dart"
+    BURST_RATE     = 0.060       # ~1 dart per 17s per squirrel
+    BURST_DURATION = 0.70        # slightly longer than one dart cycle (0.65s)
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"stand_lookout", "chitter"})
 
     C_BODY  = (178, 138, 95)
     C_BELLY = (215, 188, 148)
@@ -918,7 +1078,7 @@ class Squirrel(Animal):
     C_EAR   = (158, 118, 75)
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob())
         blink = self._blink()
         tail_wave = math.sin(self.anim_t * 2.0) * int(s * 0.10)
@@ -982,10 +1142,12 @@ class Squirrel(Animal):
 # ===========================================================================
 
 class Otter(Animal):
-    SPECIES    = "otter"
-    BASE_SPEED = 55
-    SIZE_SCALE = 1.05
+    SPECIES        = "otter"
+    BASE_SPEED     = 55
+    SIZE_SCALE     = 1.05
     PARTICLE_COLORS = [(125, 85, 55), (192, 158, 125), (215, 195, 168)]
+    LOCO_PROFILE   = "slide"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"belly_roll"})
 
     C_BODY  = (125, 85, 55)
     C_BELLY = (192, 158, 125)
@@ -993,7 +1155,7 @@ class Otter(Animal):
     C_NOSE  = (75, 48, 35)
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob())
         blink = self._blink()
 
@@ -1049,18 +1211,42 @@ class Otter(Animal):
 # ===========================================================================
 
 class Panda(Animal):
-    SPECIES    = "panda"
-    BASE_SPEED = 34
-    SIZE_SCALE = 1.10
+    SPECIES        = "panda"
+    BASE_SPEED     = 34
+    SIZE_SCALE     = 1.10
     PARTICLE_COLORS = [(242, 242, 242), (42, 42, 42), (160, 160, 160)]
+    LOCO_PROFILE   = "lumber"
+    IDLE_WHITELIST = _UNIVERSAL_IDLES | frozenset({"bamboo_sit", "panda_roll"})
 
     C_WHITE = (242, 242, 242)
     C_BLACK = (42, 42, 42)
     C_GREY  = (180, 180, 185)
     C_NOSE  = (55, 42, 40)
 
-    def draw(self, surface, anim_t):
+    def _draw_roll_form(self, surface):
+        """Compressed round ball drawn when doing a panda_roll."""
         x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        r = int(s * 0.40)
+        # Rotation angle — slower and more dignified than hedgehog
+        roll_angle = self.anim_t * d * 5.0
+
+        # White ball body
+        _circ_o(surface, self.C_WHITE, x, y, r, s)
+
+        # Three black patches orbit the ball (~120° apart)
+        patch_r = max(3, int(s * 0.10))
+        for a_off in (0.0, 2.094, 4.189):   # 0°, 120°, 240°
+            ang   = roll_angle + a_off
+            px    = x + int(math.cos(ang) * r * 0.72)
+            py    = y + int(math.sin(ang) * r * 0.72)
+            _circ_o(surface, self.C_BLACK, px, py, patch_r, s)
+
+    def draw(self, surface, anim_t):
+        if self.behaviour_name == "panda_roll":
+            self._draw_roll_form(surface)
+            return
+
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob() * 0.65)
         blink = self._blink()
 
@@ -1127,9 +1313,11 @@ class Panda(Animal):
 # ===========================================================================
 
 class Unicorn(Animal):
-    SPECIES    = "unicorn"
-    BASE_SPEED = 50
-    SIZE_SCALE = 1.05
+    SPECIES        = "unicorn"
+    BASE_SPEED     = 50
+    SIZE_SCALE     = 1.05
+    LOCO_PROFILE   = "classic"   # glides smoothly
+    IDLE_WHITELIST = _UNIVERSAL_IDLES
     PARTICLE_COLORS = [
         (255, 130, 180), (200, 130, 255), (130, 180, 255),
         (130, 255, 180), (255, 240, 130), (255, 180, 130),
@@ -1160,7 +1348,7 @@ class Unicorn(Animal):
     ]
 
     def draw(self, surface, anim_t):
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob() * 0.7)
         blink = self._blink()
 
@@ -1317,7 +1505,7 @@ class GoldenKitten(Kitten):
         # Draw the kitten with golden palette
         super().draw(surface, anim_t)
 
-        x, y, s, d = int(self.x), int(self.y), self.size, self.direction
+        x, y, s, d = int(self.x + self._loco_x_offset), int(self.y), self.size, self.direction
         bob = int(self._bob())
 
         # ----- CROWN above the head -----
