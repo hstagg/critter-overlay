@@ -25,9 +25,9 @@ This repo is public. Before committing anything, ask: "Could this embarrass the 
 ## State of play (as of 2026-05-23)
 
 - **Current branch:** `main` — this is where active development lives
-- **Last release:** v1.9.0 — elastic critter collision, per-critter personality sliders, frame-strip import, hover-animated critter cards; shipped as `CritterOverlaySetup-1.9.0.exe` via GitHub Releases
+- **Last release:** v1.9.1 — fix custom critter import in .exe bundle (numpy excluded from PyInstaller by mistake)
 - **Uncommitted changes:** none
-- **Next planning doc:** `v1.9-v2.0 Dev Handoff.md`
+- **Next planning doc:** `v1.10.0 Dev Handoff.md`
 - **Release pipeline:** `release.ps1` — single command handles version bump, build, commit, push, and GitHub release creation
 
 ---
