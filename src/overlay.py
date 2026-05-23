@@ -430,8 +430,8 @@ class Overlay:
             self._dev_reload_timer = 0.0
             self._hot_reload_auras()
 
-        # Tick spawn manager — pass dt so it can freeze countdown while paused
-        self._spawn_manager.tick(dt=dt, paused=self.paused)
+        # Tick spawn manager — pass dt and live animal list for behaviour evaluation
+        self._spawn_manager.tick(dt=dt, paused=self.paused, animals=self._animals)
 
         # Update animals + harvest trail particles from rares
         for animal in list(self._animals):

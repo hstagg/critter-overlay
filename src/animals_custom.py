@@ -62,7 +62,8 @@ class CustomAnimal(Animal):
                          direction=direction, perimeter_walker=perimeter_walker)
 
         # Instance-level overrides set after super().__init__
-        self.IDLE_RATE = float(self.meta.get("idle_rate", 0.018))
+        self.IDLE_RATE    = float(self.meta.get("idle_rate", 0.018))
+        self.loco_profile = self.meta.get("locomotion", "classic")
 
         trail_style = self.meta.get("trail_style", "none")
         if trail_style != "none" and self.PARTICLE_COLORS:
@@ -91,7 +92,7 @@ class CustomAnimal(Animal):
         sprite = self._get_scaled(idx, flip)
 
         bob = int(self._bob())
-        rect = sprite.get_rect(center=(int(self.x), int(self.y) + bob))
+        rect = sprite.get_rect(center=(int(self.x + self._loco_x_offset), int(self.y) + bob))
         surface.blit(sprite, rect)
 
     def _get_scaled(self, idx: int, flip: bool) -> pygame.Surface:

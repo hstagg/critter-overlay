@@ -71,6 +71,11 @@ DEFAULT_CONFIG = {
         "seen_log_enabled": True,
         "seen_log":         {},
     },
+    "behaviour": {
+        "day_night_enabled":    True,
+        "behaviour_frequency":  1.0,     # multiplier 0.3–2.0 on behaviour chance
+        "interactions_enabled": True,    # enable two-critter pair interactions
+    },
     "first_run_completed": False,
     "custom_animals": {},   # keyed by critter_id; entries added by import pipeline
 }
