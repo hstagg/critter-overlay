@@ -8,4 +8,5 @@ installer/output/
 _README.md
 Sprite Images/assets/
 Sprite Images/*.gif
+.claude/worktrees/
 
