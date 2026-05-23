@@ -26,6 +26,7 @@ import random
 # Pounce constants
 _POUNCE_CYCLE   = 1.0   # seconds
 _POUNCE_BURST   = 0.40  # burst phase duration
+_POUNCE_DECEL   = 0.08  # deceleration ramp at burst→hold boundary
 
 # Hop constants
 _HOP_CYCLE  = 0.80
@@ -36,6 +37,7 @@ _HOP_HOLD   = 0.30   # ground hold
 _DART_CYCLE = 0.65
 _DART_RUN   = 0.25
 _DART_HOLD  = 0.40
+_DART_DECEL = 0.08  # deceleration ramp at run→freeze boundary
 
 # Slide constants (otter)
 _SLIDE_CYCLE  = 5.0
@@ -48,14 +50,19 @@ _LUMBER_PAUSE_CYCLE = 8.0   # average time between pauses
 
 def _pounce(phase: float, size: float) -> tuple[float, float, float]:
     if phase < _POUNCE_BURST:
-        t = phase / _POUNCE_BURST
-        spd  = 1.6
-        yoff = -size * 0.04 * math.sin(math.pi * t)   # small vertical bob
-        return spd, yoff, 0.0
+        t    = phase / _POUNCE_BURST
+        yoff = -size * 0.04 * math.sin(math.pi * t)   # small bob during burst
+        return 1.6, yoff, 0.0
     else:
-        t = (phase - _POUNCE_BURST) / (_POUNCE_CYCLE - _POUNCE_BURST)
-        spd  = 0.12 + 0.08 * t   # slowly accelerating out of hold
-        return spd, 0.0, 0.0
+        hold_t = phase - _POUNCE_BURST
+        if hold_t < _POUNCE_DECEL:
+            # Smooth deceleration ramp: 1.6 → 0 over 0.08s
+            spd = 1.6 * (1.0 - hold_t / _POUNCE_DECEL)
+            return spd, 0.0, 0.0
+        # Creeping/slinking phase (not frozen — cat is sneaking)
+        t    = min(1.0, (hold_t - _POUNCE_DECEL) / 0.15)
+        yoff = -size * 0.03 * t   # slight head-down crouch
+        return 0.35, yoff, 0.0
 
 
 def _hop(phase: float, size: float) -> tuple[float, float, float]:
@@ -85,8 +92,13 @@ def _dart(phase: float, size: float) -> tuple[float, float, float]:
     if phase < _DART_RUN:
         return 2.0, 0.0, 0.0
     else:
-        # Freeze — slight lean during freeze (head-looking pose via y tuck)
-        t    = min(1.0, (phase - _DART_RUN) / 0.15)
+        hold_t = phase - _DART_RUN
+        if hold_t < _DART_DECEL:
+            # Smooth deceleration ramp: 2.0 → 0 over 0.08s
+            spd = 2.0 * (1.0 - hold_t / _DART_DECEL)
+            return spd, 0.0, 0.0
+        # Freeze-and-look — slight alert tuck
+        t    = min(1.0, (hold_t - _DART_DECEL) / 0.15)
         yoff = -size * 0.03 * t
         return 0.0, yoff, 0.0
 
