@@ -170,7 +170,7 @@ Step "[6] Creating GitHub release v$Version..."
 $releaseArgs = @(
     "release", "create", "v$Version",
     $installerPath,
-    "--title", "v$Version — $Title"
+    "--title", "v$Version - $Title"
 )
 
 if ($NotesFile) {
