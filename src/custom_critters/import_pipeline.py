@@ -6,7 +6,11 @@ populated critter folder under custom_dir. Returns the critter ID on
 success, or raises ImportError with a plain-English message on failure.
 
 Call flow:
-  run_import(path, name, custom_dir) -> critter_id
+  run_import(path, name, custom_dir) -> critter_id          (one-shot)
+
+Preview-before-commit flow:
+  pil_frames, method = prepare_frames(path)                 (no disk I/O)
+  critter_id = run_import_from_prepared(pil_frames, method, name, custom_dir)
 """
 
 from __future__ import annotations
@@ -38,7 +42,77 @@ MAX_GIF_FRAMES = 30
 
 
 # ---------------------------------------------------------------------------
-# Public entry point
+# Preview-before-commit entry points
+# ---------------------------------------------------------------------------
+
+def prepare_frames(src_path: str | Path) -> tuple[list, str]:
+    """
+    Run the image-processing pipeline without writing anything to disk.
+    Returns (pil_frames, method) ready to pass to run_import_from_prepared().
+    Raises ImportError with a user-facing message on failure.
+    """
+    src_path = Path(src_path)
+    _validate_file(src_path)
+    ext = src_path.suffix.lower()
+    if ext == ".gif":
+        pil_frames, method = _load_gif(src_path)
+    else:
+        pil_frames, method = _load_static(src_path)
+    pil_frames = _crop_and_fit(pil_frames)
+    _validate_content(pil_frames[0])
+    return pil_frames, method
+
+
+def run_import_from_prepared(pil_frames: list, method: str,
+                             name: str, custom_dir: Path) -> str:
+    """
+    Commit already-processed frames to disk.  Call after prepare_frames()
+    and optional user preview/confirmation.  Returns critter_id.
+    """
+    import hashlib
+    critter_id   = generate_critter_id(name)
+    critter_path = create_critter_folder(custom_dir, critter_id)
+
+    fd = frames_dir(custom_dir, critter_id)
+    for i, frame in enumerate(pil_frames):
+        frame.save(str(fd / f"frame_{i}.png"), format="PNG")
+
+    from custom_critters.storage import masks_dir as _masks_dir
+    md = _masks_dir(custom_dir, critter_id)
+    generate_and_save_masks(pil_frames, md)
+
+    thumb = pil_frames[0].copy()
+    thumb.thumbnail((64, 64), Image.LANCZOS)
+    thumb64 = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    ox = (64 - thumb.width) // 2
+    oy = (64 - thumb.height) // 2
+    thumb64.paste(thumb, (ox, oy), thumb)
+    thumb64.save(str(critter_path / "thumb.png"), format="PNG")
+
+    palette = extract_palette(pil_frames[0])
+    _PRESETS = ["kitten", "turtle", "duck", "rabbit",
+                "hedgehog", "squirrel", "otter", "panda"]
+    name_hash     = int(hashlib.md5(name.encode()).hexdigest()[:8], 16)
+    sound_profile = _PRESETS[name_hash % len(_PRESETS)]
+    sound_seed    = name_hash & 0xFFFF
+
+    meta = default_meta(critter_id, name)
+    meta.update({
+        "frame_count":        len(pil_frames),
+        "frame_size":         [CANONICAL_SIZE, CANONICAL_SIZE],
+        "import_method":      method,
+        "procedural_animation": (method != "animated_gif"),
+        "trail_palette":      palette,
+        "sound_profile":      sound_profile,
+        "sound_seed":         sound_seed,
+        "hit_radius_fallback": int(CANONICAL_SIZE * 0.46),
+    })
+    write_meta(critter_path, meta)
+    return critter_id
+
+
+# ---------------------------------------------------------------------------
+# Public entry point (one-shot)
 # ---------------------------------------------------------------------------
 
 def run_import(src_path: str | Path, name: str,
@@ -240,8 +314,9 @@ def _load_static(path: Path) -> tuple[list[Image.Image], str]:
 
     if meaningful_transparency:
         method = "static_png"
+        rgba = _strip_exif(rgba)
     else:
-        rgba = remove_background(img)
+        rgba = remove_background(_strip_exif(img))
         method = "static_jpg"
 
     return generate_frames(rgba), method
@@ -299,6 +374,7 @@ def _crop_and_fit(frames: list[Image.Image]) -> list[Image.Image]:
             frame = frame.crop(bbox)
         fitted = _fit_to_canvas(frame, CANONICAL_SIZE)
         fitted = _threshold_alpha(fitted)
+        fitted = _feather_alpha(fitted)
         result.append(fitted)
     return result
 
@@ -311,6 +387,21 @@ def _threshold_alpha(img: Image.Image, threshold: int = 180) -> Image.Image:
     r, g, b, a = img.split()
     a = a.point(lambda v: 255 if v >= threshold else 0)
     return Image.merge("RGBA", (r, g, b, a))
+
+
+def _feather_alpha(img: Image.Image, radius: float = 1.0) -> Image.Image:
+    """Apply a small Gaussian blur to the alpha channel to smooth hard edges."""
+    from PIL import ImageFilter
+    r, g, b, a = img.split()
+    a = a.filter(ImageFilter.GaussianBlur(radius=radius))
+    return Image.merge("RGBA", (r, g, b, a))
+
+
+def _strip_exif(img: Image.Image) -> Image.Image:
+    """Return a clean copy of img with no EXIF/metadata."""
+    clean = Image.new(img.mode, img.size)
+    clean.putdata(list(img.getdata()))
+    return clean
 
 
 def _fit_to_canvas(img: Image.Image, size: int) -> Image.Image:

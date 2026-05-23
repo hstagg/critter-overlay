@@ -16,6 +16,7 @@ import numpy as np
 import pygame
 
 from animals import Animal
+from constants import TRAIL_PRESETS
 from custom_critters.registry import CustomCritterRecord
 
 
@@ -61,22 +62,14 @@ class CustomAnimal(Animal):
                          direction=direction, perimeter_walker=perimeter_walker)
 
         # Instance-level overrides set after super().__init__
-        self.IDLE_RATE = float(self.meta.get("idle_rate", 0.018))
+        self.IDLE_RATE    = float(self.meta.get("idle_rate", 0.018))
+        self.loco_profile = self.meta.get("locomotion", "classic")
 
         trail_style = self.meta.get("trail_style", "none")
         if trail_style != "none" and self.PARTICLE_COLORS:
             self.LEAVES_TRAIL  = True
             self.TRAIL_PALETTE = self.PARTICLE_COLORS
-            # Map config style names → TrailParticle style + tuning params
-            _TRAIL_CONFIGS = {
-                "dots":     ("dot",     15, 6, 0.9),
-                "stars":    ("star",    15, 6, 0.9),
-                "sparkles": ("sparkle", 25, 4, 0.5),
-                "bubbles":  ("bubble",  12, 7, 1.4),
-                "glitter":  ("glitter", 40, 2, 0.25),
-                "hearts":   ("heart",   12, 6, 0.9),
-            }
-            particle_style, rate, size, life = _TRAIL_CONFIGS.get(trail_style, ("dot", 15, 6, 0.9))
+            particle_style, rate, size, life = TRAIL_PRESETS.get(trail_style, ("dot", 15, 6, 0.9))
             self.TRAIL_STYLE = particle_style
             self.TRAIL_RATE  = rate
             self.TRAIL_SIZE  = size
@@ -99,7 +92,7 @@ class CustomAnimal(Animal):
         sprite = self._get_scaled(idx, flip)
 
         bob = int(self._bob())
-        rect = sprite.get_rect(center=(int(self.x), int(self.y) + bob))
+        rect = sprite.get_rect(center=(int(self.x + self._loco_x_offset), int(self.y) + bob))
         surface.blit(sprite, rect)
 
     def _get_scaled(self, idx: int, flip: bool) -> pygame.Surface:
