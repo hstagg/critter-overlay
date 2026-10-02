@@ -72,6 +72,7 @@ const GRAVITY := 1800.0        # px/s^2, for hops and pounces
 const SPRING_DT := 1.0 / 120.0
 
 static var _textures := {}
+static var zoom := 1.0           # draws everything bigger, for close-up demo captures
 
 var world: Node                # main.gd: floor_y, left_x, right_x, mouse_local()
 var rng := RandomNumberGenerator.new()
@@ -150,7 +151,7 @@ var ears_sv := 0.0
 var spring_acc := 0.0
 var prev_vx := 0.0
 var prev_vy := 0.0
-var cycle_px := 4.0 * LEG_LEN * sin(deg_to_rad(STRIDE_DEG)) * PX
+var cycle_px := 4.0 * LEG_LEN * sin(deg_to_rad(STRIDE_DEG)) * PX * zoom
 
 
 static func load_textures() -> void:
@@ -171,7 +172,7 @@ func setup(world_ref: Node, x: float, face: int, start_mode: String) -> void:
 	want_facing = face
 	phase = rng.randf() * TAU
 	gait = rng.randf()
-	cruise = rng.randf_range(38.0, 62.0)
+	cruise = rng.randf_range(38.0, 62.0) * zoom
 	blink_in = rng.randf_range(1.0, 5.0)
 	twitch_in = rng.randf_range(3.0, 9.0)
 	shift_in = rng.randf_range(2.0, 6.0)
@@ -423,7 +424,7 @@ func poke() -> void:
 	if act == "hunt":
 		return
 	if not airborne:
-		_launch(-420.0)
+		_launch(-420.0 * zoom)
 
 
 func _launch(vy: float) -> void:
@@ -493,13 +494,13 @@ func _update_motion(delta: float) -> void:
 	position.x += vx * delta
 
 	if airborne:
-		air_vy += GRAVITY * delta
+		air_vy += GRAVITY * zoom * delta
 		air_y -= air_vy * delta
 		if air_y <= 0.0:
 			# Landing: squash in proportion to how hard it came down.
 			air_y = 0.0
 			airborne = false
-			_kick_squash(-clampf(air_vy / 140.0, 0.5, 3.5))
+			_kick_squash(-clampf(air_vy / (140.0 * zoom), 0.5, 3.5))
 			air_vy = 0.0
 
 	if pose == "walk":
@@ -544,8 +545,8 @@ func _step_springs(delta: float) -> void:
 	var ax := 0.0
 	var ay := 0.0
 	if delta > 0.0:
-		ax = (vx - prev_vx) / delta * facing   # positive: speeding up forwards
-		ay = (air_vy - prev_vy) / delta
+		ax = (vx - prev_vx) / delta * facing / zoom   # positive: speeding up forwards
+		ay = (air_vy - prev_vy) / delta / zoom
 	prev_vx = vx
 	prev_vy = air_vy
 	spring_acc += minf(delta, 0.1)
@@ -606,7 +607,7 @@ func _behaviour_params(p: Dictionary) -> void:
 			p.head_off = p.head_off + Vector2(look * 0.4, 0)
 		"look_at_cursor":
 			var m: Vector2 = world.mouse_local()
-			var head_px := position + Vector2(0, -60)
+			var head_px := position + Vector2(0, -60) * zoom
 			var d := (m - head_px)
 			d.x *= -facing   # into the drawn (left-facing) frame
 			var dir := d.normalized() if d.length() > 1.0 else Vector2.ZERO
@@ -705,8 +706,8 @@ func _hunt_params(p: Dictionary, u: float) -> void:
 	else:
 		if not pounced:
 			pounced = true
-			_launch(-380.0)
-			vx = facing * 190.0
+			_launch(-380.0 * zoom)
+			vx = facing * 190.0 * zoom
 		p.legs = "leap"
 		p.torso_rot = 10.0 if air_vy < 0.0 else -6.0
 		p.tail_rot = TAIL_REST_DEG["walk"] + 20.0
@@ -721,7 +722,7 @@ func _apply(p: Dictionary) -> void:
 
 	position.y = world.floor_y - air_y
 	var sq := squash
-	scale = Vector2(CRITTER_SCALE * (1.0 + (1.0 - sq) * 0.6) * (1.0 if facing < 0 else -1.0), CRITTER_SCALE * sq)
+	scale = Vector2(CRITTER_SCALE * zoom * (1.0 + (1.0 - sq) * 0.6) * (1.0 if facing < 0 else -1.0), CRITTER_SCALE * zoom * sq)
 
 	var pivot: Vector2 = p.torso_pivot
 	torso.position = (pivot - BASE + Vector2(0, p.torso_dy)) * PART_SCALE
@@ -820,11 +821,11 @@ func hit_rect() -> Rect2:
 	# The pose's hit box in window pixels, mirrored when facing right, with a
 	# few pixels of slack below the feet.
 	var b: Rect2 = HIT_BOUNDS[pose]
-	var x0 := (b.position.x - BASE.x) * PX
-	var w := b.size.x * PX
+	var x0 := (b.position.x - BASE.x) * PX * zoom
+	var w := b.size.x * PX * zoom
 	if facing > 0:
 		x0 = -x0 - w
-	return Rect2(position + Vector2(x0, (b.position.y - BASE.y) * PX), Vector2(w, b.size.y * PX + 4.0))
+	return Rect2(position + Vector2(x0, (b.position.y - BASE.y) * PX * zoom), Vector2(w, b.size.y * PX * zoom + 4.0))
 
 
 # --- Helpers ------------------------------------------------------------------
