@@ -1,81 +1,51 @@
 extends Node2D
-## Critter Overlay v3 engine spike: rigged kittens on a transparent,
-## click-through, always-on-top window.
+## Critter Overlay v3: kittens on a transparent, click-through, always-on-top
+## window along the bottom of the screen.
 ##
-## Each kitten is built from the SVG parts in art/kitten/, rasterised at
-## runtime, and animated by rotating and scaling pivots in code. A kitten has
-## three poses, each a set of parts shown or hidden on the same rig:
-##   sit   front-facing, breathing, blinking, tail sway
-##   walk  side-on body, four legs in a diagonal trot, head bob, tail up
-##   loaf  paws tucked, tail wrapped round the front, dozes off with eyes shut
+## This file owns the window, the kittens' arrival, the behaviour evaluator,
+## the presence layer and the click-through area. Each kitten's rig, movement
+## and behaviours live in critters/kitten.gd.
 ##
-## Unattended run: `godot --path godot -- --seconds=20 --report=PATH`
-## quits after N seconds and writes timings to PATH, and streams live critter
-## positions on stdout every half second for an external hit test.
-## `--pose=sit|walk|loaf` holds every kitten in one pose; `--kittens=N` sets
-## the count; `--grab=PATH` saves one frame after two seconds, and a PATH
-## containing %d saves a short burst of frames instead.
+## The focus layer: two kittens to start; while you keep working another
+## wanders in every few minutes, up to a cap. Step away and they settle into
+## loaves and doze; come back and they wake, most with a stretch.
+##
+## Flags (after `--`):
+##   --seconds=N        quit after N seconds; with --report=PATH write timings
+##   --report=PATH      timings as JSON; live positions stream on stdout
+##   --kittens=N        a fixed number of kittens (no gathering)
+##   --demo=NAME        one kitten in the middle doing NAME on a loop: any
+##                      behaviour, or walk, sit, loaf
+##   --gather-every=S   seconds of focus per new kitten (default 300)
+##   --away-after=S     seconds idle before they nap (default 180)
+##   --idle-sim=P,A     fake presence: P seconds present, A away, repeating
+##   --grab=PATH        save a frame after two seconds; a PATH with %d saves a
+##                      burst of frames instead (--grab-start, --grab-frames,
+##                      --grab-fps)
+##   --no-passthrough   leave the whole window clickable
+##   --selftest         check the click-through polygon and quit
 
-const PART_SCALE := 0.75       # SVG units -> texture pixels
-const CRITTER_SCALE := 0.45    # node scale: a kitten is about 95 px tall
-const PX := PART_SCALE * CRITTER_SCALE   # SVG units -> screen pixels
-const N_KITTENS := 12
+const Kitten := preload("res://critters/kitten.gd")
+const Behaviours := preload("res://behaviours.gd")
+const Presence := preload("res://presence.gd")
 
-# The kitten's origin: between its feet, on the ground.
-const BASE := Vector2(150, 262)
-const LEG_HIP := Vector2(118, 224)
+const START_KITTENS := 2
+const MAX_KITTENS := 8
 
-# Pivot of each part in SVG units, where it is drawn in its own file.
-const PIVOTS := {
-	"tail": Vector2(200, 226),
-	"body": BASE, "feet": BASE, "paws": BASE,
-	"walk-body": BASE,
-	"leg-front": LEG_HIP, "leg-front-far": LEG_HIP,
-	"leg-back": LEG_HIP, "leg-back-far": LEG_HIP,
-	"loaf-body": BASE, "loaf-paws": BASE,
-	"loaf-tail": Vector2(232, 246),
-	"ear-l": Vector2(100, 76),
-	"ear-r": Vector2(200, 76),
-	"head": Vector2(150, 190),
-	"eyes": Vector2(150, 124),
-	"eyes-closed": Vector2(150, 124),
-}
-
-# Where the shared parts sit in each pose (SVG units). The art faces left.
-const HEAD_AT := {"sit": Vector2(150, 190), "walk": Vector2(112, 198), "loaf": Vector2(150, 212)}
-const TAIL_AT := {"sit": Vector2(200, 226), "walk": Vector2(226, 192)}
-const TAIL_REST_DEG := {"sit": 0.0, "walk": -10.0}
-
-# Walking legs, back to front: part, where its hip sits, diagonal pair.
-# Front-near steps with back-far, front-far with back-near: a trot.
-const WALK_LEGS := [
-	["leg-front-far", Vector2(134, 224), 1],
-	["leg-back-far", Vector2(214, 224), 0],
-	["leg-front", Vector2(116, 224), 0],
-	["leg-back", Vector2(196, 224), 1],
-]
-const LEG_LEN := 38.0          # hip to sole, SVG units
-const STRIDE_DEG := 18.0       # leg swing either side of straight down
-const LEG_LIFT := 6.0          # how high a foot lifts mid-swing, SVG units
-# Ground covered per gait cycle. The planted foot sweeps back 2 L sin(a) in
-# half a cycle, so tying the cycle to distance keeps the feet from skating.
-var cycle_px := 4.0 * LEG_LEN * sin(deg_to_rad(STRIDE_DEG)) * PX
-
-# Hit box per pose, SVG units: left, top, width, height.
-const HIT_BOUNDS := {
-	"sit": Rect2(58, 28, 204, 234),
-	"walk": Rect2(18, 36, 272, 226),
-	"loaf": Rect2(58, 52, 194, 211),
-}
-
-const SETTLE_S := 0.2          # squash-and-settle when changing pose
-
-var textures := {}
-var kittens := []
 var floor_y := 0.0
 var left_x := 0.0
 var right_x := 0.0
 var t := 0.0
+
+var kittens := []
+var evaluator := Behaviours.new()
+var presence: Node
+var gather_every := 300.0
+var focus_s := 0.0
+var fixed_count := -1
+var demo := ""
+var demo_wait := 0.5
+var queued := []             # [kitten, seconds left, "sleep" | "wake"]
 
 var seconds := 0.0
 var report_path := ""
@@ -87,25 +57,42 @@ var live_timer := 0.0
 var no_passthrough := false
 var grab_path := ""
 var grab_count := 0
+var grab_frames := 16
+var grab_fps := 15.0
 var grab_next := 2.0
-var fixed_pose := ""
-var n_kittens := N_KITTENS
 
 
 func _ready() -> void:
+	presence = Presence.new()
+	var selftest := false
 	for arg in OS.get_cmdline_user_args():
+		var v := arg.get_slice("=", 1)
 		if arg.begins_with("--seconds="):
-			seconds = float(arg.get_slice("=", 1))
+			seconds = float(v)
+		elif arg.begins_with("--report="):
+			report_path = v
+		elif arg.begins_with("--kittens="):
+			fixed_count = int(v)
+		elif arg.begins_with("--demo="):
+			demo = v
+		elif arg.begins_with("--gather-every="):
+			gather_every = float(v)
+		elif arg.begins_with("--away-after="):
+			presence.away_after = float(v)
+		elif arg.begins_with("--idle-sim="):
+			presence.sim = PackedFloat32Array([float(v.get_slice(",", 0)), float(v.get_slice(",", 1))])
 		elif arg.begins_with("--grab="):
-			grab_path = arg.get_slice("=", 1)
+			grab_path = v
+		elif arg.begins_with("--grab-frames="):
+			grab_frames = int(v)
+		elif arg.begins_with("--grab-start="):
+			grab_next = float(v)
+		elif arg.begins_with("--grab-fps="):
+			grab_fps = float(v)
 		elif arg == "--no-passthrough":
 			no_passthrough = true
-		elif arg.begins_with("--report="):
-			report_path = arg.get_slice("=", 1)
-		elif arg.begins_with("--pose="):
-			fixed_pose = arg.get_slice("=", 1)
-		elif arg.begins_with("--kittens="):
-			n_kittens = int(arg.get_slice("=", 1))
+		elif arg == "--selftest":
+			selftest = true
 
 	# Godot numbers the whole desktop from the top-left of all screens, so with
 	# more than one monitor the primary does not start at (0, 0). Place the
@@ -123,152 +110,105 @@ func _ready() -> void:
 	left_x = usable.position.x - origin.x + 50
 	right_x = usable.end.x - origin.x - 50
 
-	for part in PIVOTS.keys():
-		var img := Image.new()
-		img.load_svg_from_string(FileAccess.get_file_as_string("res://art/kitten/%s.svg" % part), PART_SCALE)
-		img.generate_mipmaps()
-		textures[part] = ImageTexture.create_from_image(img)
-
+	Kitten.load_textures()
 	randomize()
-	for i in n_kittens:
-		kittens.append(_make_kitten())
+
+	if selftest:
+		presence.free()
+		_selftest()
+		return
+
+	add_child(presence)
+	presence.went_away.connect(_on_went_away)
+	presence.came_back.connect(_on_came_back)
+
+	if demo != "":
+		var k = _spawn((left_x + right_x) * 0.5, -1, "walk" if demo == "walk" else "sit")
+		k.mode_left = INF
+	else:
+		presence.start()
+		var n := fixed_count if fixed_count > 0 else START_KITTENS
+		for i in n:
+			_spawn(randf_range(left_x, right_x), [-1, 1].pick_random(), ["sit", "walk", "walk", "loaf"].pick_random())
 
 
-func _sprite(part: String) -> Sprite2D:
-	var s := Sprite2D.new()
-	s.texture = textures[part]
-	s.centered = false
-	s.position = -PIVOTS[part] * PART_SCALE
-	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	return s
-
-
-func _pivot(at_svg: Vector2, parent_at_svg: Vector2) -> Node2D:
-	var n := Node2D.new()
-	n.position = (at_svg - parent_at_svg) * PART_SCALE
-	return n
-
-
-func _make_kitten() -> Dictionary:
-	# Draw order, back to front: tail, walking legs, body, head, loaf front.
-	var root := Node2D.new()
-	add_child(root)
-
-	var tail := _pivot(TAIL_AT["sit"], BASE)
-	tail.add_child(_sprite("tail"))
-	root.add_child(tail)
-
-	var legs_node := Node2D.new()
-	var legs := []
-	for spec in WALK_LEGS:
-		var hip := _pivot(spec[1], BASE)
-		hip.add_child(_sprite(spec[0]))
-		legs_node.add_child(hip)
-		legs.append({"node": hip, "at": hip.position, "pair": spec[2]})
-	root.add_child(legs_node)
-
-	var body := _pivot(BASE, BASE)
-	var sit_body := Node2D.new()
-	for p in ["body", "feet", "paws"]:
-		sit_body.add_child(_sprite(p))
-	var walk_body := _sprite("walk-body")
-	var loaf_body := _sprite("loaf-body")
-	body.add_child(sit_body)
-	body.add_child(walk_body)
-	body.add_child(loaf_body)
-	root.add_child(body)
-
-	var head := _pivot(HEAD_AT["sit"], BASE)
-	var ear_l := _pivot(PIVOTS["ear-l"], PIVOTS["head"])
-	ear_l.add_child(_sprite("ear-l"))
-	var ear_r := _pivot(PIVOTS["ear-r"], PIVOTS["head"])
-	ear_r.add_child(_sprite("ear-r"))
-	head.add_child(ear_l)
-	head.add_child(ear_r)
-	head.add_child(_sprite("head"))
-	var eyes := _pivot(PIVOTS["eyes"], PIVOTS["head"])
-	var eyes_open := _sprite("eyes")
-	var eyes_shut := _sprite("eyes-closed")
-	eyes.add_child(eyes_open)
-	eyes.add_child(eyes_shut)
-	head.add_child(eyes)
-	root.add_child(head)
-
-	var loaf_front := Node2D.new()
-	loaf_front.add_child(_sprite("loaf-paws"))
-	var loaf_tail := _pivot(PIVOTS["loaf-tail"], BASE)
-	loaf_tail.add_child(_sprite("loaf-tail"))
-	loaf_front.add_child(loaf_tail)
-	root.add_child(loaf_front)
-
-	var k := {
-		"root": root, "tail": tail, "legs_node": legs_node, "legs": legs,
-		"body": body, "sit_body": sit_body, "walk_body": walk_body, "loaf_body": loaf_body,
-		"head": head, "head_base": head.position, "ear_l": ear_l, "ear_r": ear_r,
-		"eyes": eyes, "eyes_base": eyes.position, "eyes_open": eyes_open, "eyes_shut": eyes_shut,
-		"loaf_front": loaf_front, "loaf_tail": loaf_tail,
-		"pose": "", "x": randf_range(left_x, right_x), "dir": [-1, 1].pick_random(),
-		"speed": randf_range(35.0, 70.0), "phase": randf() * TAU, "gait": randf(),
-		"state_left": 0.0, "settle": 0.0, "dozing": false, "doze_in": 0.0,
-		"blink_in": randf_range(1.0, 5.0), "blink_left": 0.0, "blink_len": 0.14,
-		"twitch_in": randf_range(3.0, 9.0), "twitch_left": 0.0,
-		"jump_left": 0.0,
-	}
-	_set_pose(k, fixed_pose if fixed_pose != "" else ["sit", "walk", "walk", "loaf"].pick_random())
-	k.settle = 0.0
+func _spawn(x: float, face: int, start_mode: String):
+	var k = Kitten.new()
+	add_child(k)
+	k.setup(self, x, face, start_mode)
+	kittens.append(k)
 	return k
 
 
-func _set_pose(k: Dictionary, pose: String) -> void:
-	k.pose = pose
-	(k.tail as Node2D).visible = pose != "loaf"
-	if pose != "loaf":
-		(k.tail as Node2D).position = (TAIL_AT[pose] - BASE) * PART_SCALE
-	(k.legs_node as Node2D).visible = pose == "walk"
-	(k.sit_body as Node2D).visible = pose == "sit"
-	(k.walk_body as Node2D).visible = pose == "walk"
-	(k.loaf_body as Node2D).visible = pose == "loaf"
-	(k.loaf_front as Node2D).visible = pose == "loaf"
-	k.head_base = (HEAD_AT[pose] - BASE) * PART_SCALE
-	k.dozing = false
-	k.doze_in = randf_range(2.0, 5.0)
-	k.settle = SETTLE_S
-	match pose:
-		"walk":
-			k.state_left = randf_range(3.0, 8.0)
-			if randf() < 0.3:
-				k.dir = -k.dir
-		"sit":
-			k.state_left = randf_range(2.0, 6.0)
-		"loaf":
-			k.state_left = randf_range(8.0, 16.0)
-	_show_eyes(k)
+func _arrive() -> void:
+	# A new kitten wanders in from whichever edge is further from the others.
+	var mean := 0.0
+	for k in kittens:
+		mean += k.position.x
+	mean /= maxf(1.0, kittens.size())
+	var from_left := mean > (left_x + right_x) * 0.5
+	var x := left_x - 110.0 if from_left else right_x + 110.0
+	var k = _spawn(x, 1 if from_left else -1, "walk")
+	k.entering = true
+	k.want_facing = k.facing
+	k.mode_left = 6.0 + randf() * 4.0
 
 
-func _next_pose(pose: String) -> String:
-	match pose:
-		"walk":
-			return "sit" if randf() < 0.65 else "loaf"
-		"sit":
-			return "walk" if randf() < 0.6 else "loaf"
-	return "sit"   # a loafing kitten wakes up by sitting
+func mouse_local() -> Vector2:
+	return Vector2(DisplayServer.mouse_get_position() - get_window().position)
 
 
-func _show_eyes(k: Dictionary) -> void:
-	(k.eyes_open as Node2D).visible = not k.dozing
-	(k.eyes_shut as Node2D).visible = k.dozing
+# --- Presence ---------------------------------------------------------------
 
+func _on_went_away() -> void:
+	# Settle down over the next few seconds, not all at once.
+	queued.clear()
+	for k in kittens:
+		queued.append([k, randf_range(0.0, 6.0), "sleep"])
+
+
+func _on_came_back() -> void:
+	queued.clear()
+	for k in kittens:
+		queued.append([k, randf_range(0.3, 2.5), "wake"])
+
+
+func _run_queue(delta: float) -> void:
+	for q in queued:
+		q[1] -= delta
+		if q[1] <= 0.0:
+			if q[2] == "sleep":
+				q[0].go_to_sleep()
+			else:
+				q[0].wake_up()
+	queued = queued.filter(func(q): return q[1] > 0.0)
+
+
+# --- Frame -----------------------------------------------------------------
 
 func _process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
 	t += delta
+
+	if demo != "":
+		_run_demo(delta)
+	else:
+		_run_queue(delta)
+		if not presence.away:
+			evaluator.tick(delta, kittens, presence.sleep_bias())
+			if fixed_count <= 0:
+				focus_s += delta
+				var want := mini(MAX_KITTENS, START_KITTENS + int(focus_s / gather_every))
+				if kittens.size() < want:
+					_arrive()
+
 	for k in kittens:
-		_animate(k, delta)
+		k.tick(delta)
 	process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
 
 	var t1 := Time.get_ticks_usec()
 	if not no_passthrough:
-		_update_passthrough()
+		DisplayServer.window_set_mouse_passthrough(passthrough_polygon(_hit_rects()))
 	passthrough_ms.append((Time.get_ticks_usec() - t1) / 1000.0)
 	fps.append(Engine.get_frames_per_second())
 
@@ -284,161 +224,157 @@ func _process(delta: float) -> void:
 		get_tree().quit()
 
 
+func _run_demo(delta: float) -> void:
+	var k = kittens[0]
+	match demo:
+		"walk", "sit":
+			k.mode_left = INF
+			return
+		"loaf":
+			if not k.is_napping():
+				k.go_to_sleep()
+			return
+	if Behaviours.REGISTRY.has(demo) and k.can_start_behaviour():
+		demo_wait -= delta
+		if demo_wait <= 0.0:
+			demo_wait = 1.2
+			k.start_behaviour(demo, evaluator.duration_of(demo))
+	if k.mode == "sit":
+		k.mode_left = INF   # stay sitting between repeats
+
+
 func _grab() -> void:
 	var img := get_viewport().get_texture().get_image()
 	if "%d" in grab_path:
 		img.save_png(grab_path % grab_count)
 		grab_count += 1
-		grab_next = t + 1.0 / 15.0 if grab_count < 16 else INF
+		grab_next = t + 1.0 / grab_fps if grab_count < grab_frames else INF
 	else:
-		print("GRAB size=", img.get_size(), " format=", img.get_format(), " corner=", img.get_pixel(5, 5))
 		img.save_png(grab_path)
 		grab_next = INF
 
 
-func _animate(k: Dictionary, delta: float) -> void:
-	var ph: float = k.phase
-	if fixed_pose == "":
-		k.state_left -= delta
-		if k.state_left <= 0.0:
-			_set_pose(k, _next_pose(k.pose))
+# --- Click-through -------------------------------------------------------------
 
-	var walking: bool = k.pose == "walk"
-	var drop := 0.0   # SVG units the whole kitten sits lower, from the gait
-	if walking:
-		k.x += k.dir * k.speed * delta
-		if k.x < left_x or k.x > right_x:
-			k.dir = -k.dir
-			k.x = clamp(k.x, left_x, right_x)
-		k.gait = fmod(k.gait + k.speed * delta / cycle_px, 1.0)
-		var stance_deg := 0.0
-		for leg in k.legs:
-			var p: float = fmod(k.gait + 0.5 * leg.pair, 1.0)
-			var a: float
-			var lift := 0.0
-			if p < 0.5:
-				# Stance: the foot is planted and sweeps back at the body's speed.
-				a = lerpf(STRIDE_DEG, -STRIDE_DEG, p / 0.5)
-				stance_deg = a
-			else:
-				# Swing: the foot lifts and eases forward to the next step.
-				var s := (p - 0.5) / 0.5
-				a = lerpf(-STRIDE_DEG, STRIDE_DEG, smoothstep(0.0, 1.0, s))
-				lift = sin(s * PI) * LEG_LIFT
-			(leg.node as Node2D).rotation = deg_to_rad(a)
-			(leg.node as Node2D).position = leg.at + Vector2(0, -lift * PART_SCALE)
-		# A swung leg is shorter vertically, so the body dips at each footfall
-		# and rises over the planted foot: the bob comes from the legs.
-		drop = LEG_LEN * (1.0 - cos(deg_to_rad(stance_deg)))
-
-	var hop := 0.0
-	if k.jump_left > 0.0:
-		k.jump_left -= delta
-		var j: float = 1.0 - k.jump_left / 0.5
-		hop += sin(j * PI) * 40.0
-
-	# Squash on a pose change, then ease back: wider and shorter, same volume.
-	var squash := 1.0
-	if k.settle > 0.0:
-		k.settle = maxf(0.0, k.settle - delta)
-		squash = 1.0 - 0.08 * ease(k.settle / SETTLE_S, 2.0)
-
-	var root: Node2D = k.root
-	root.position = Vector2(k.x, floor_y - hop + drop * PX)
-	# The art faces left, so mirror to face right.
-	root.scale = Vector2(CRITTER_SCALE * (2.0 - squash) * (-1.0 if k.dir > 0 else 1.0), CRITTER_SCALE * squash)
-
-	var loafing: bool = k.pose == "loaf"
-	var breath_period := 4.6 if loafing else 3.4
-	var breath := (sin(t * TAU / breath_period + ph) + 1.0) * 0.5
-	var breath_y := 0.05 if loafing else 0.035
-	(k.body as Node2D).scale = Vector2(1.0 + 0.018 * breath, 1.0 + breath_y * breath)
-	var head_off := Vector2(0, 2.5 * breath)
-	if walking:
-		head_off.y += sin(k.gait * TAU * 2.0 - 0.8) * 1.5   # a beat behind the body
-	(k.head as Node2D).position = k.head_base + head_off * PART_SCALE
-	# Walking, the eyes look a little ahead.
-	(k.eyes as Node2D).position = k.eyes_base + Vector2(-6.0 * PART_SCALE if walking else 0.0, 0)
-
-	if not loafing:
-		var sway_speed: float = 4.0 if walking else 2.2
-		var rest: float = TAIL_REST_DEG[k.pose]
-		(k.tail as Node2D).rotation = deg_to_rad(rest - (6.0 if walking else 9.0) * (sin(t * sway_speed + ph) + 1.0) * 0.5)
-	else:
-		# The wrapped tail's tip lifts now and then, and stops once asleep.
-		var flick := 0.0 if k.dozing else maxf(0.0, sin(t * 0.9 + ph)) ** 4
-		(k.loaf_tail as Node2D).rotation = deg_to_rad(-5.0 * flick)
-		k.doze_in -= delta
-		if not k.dozing and k.doze_in <= 0.0:
-			k.dozing = true
-			_show_eyes(k)
-
-	# Blinks; slow, heavy ones while settling into a loaf.
-	k.blink_in -= delta
-	if k.blink_in <= 0.0 and not k.dozing:
-		k.blink_len = 0.35 if loafing else 0.14
-		k.blink_left = k.blink_len
-		k.blink_in = randf_range(1.5, 3.0) if loafing else randf_range(2.5, 6.0)
-	if k.blink_left > 0.0:
-		k.blink_left -= delta
-	var closed: float = 1.0 - sin(clamp(1.0 - k.blink_left / k.blink_len, 0.0, 1.0) * PI) if k.blink_left > 0.0 else 1.0
-	(k.eyes_open as Node2D).scale = Vector2(1.0, max(0.08, closed))
-
-	k.twitch_in -= delta
-	if k.twitch_in <= 0.0:
-		k.twitch_left = 0.25
-		k.twitch_in = randf_range(4.0, 10.0)
-	var twitch := 0.0
-	if k.twitch_left > 0.0:
-		k.twitch_left -= delta
-		twitch = sin((1.0 - k.twitch_left / 0.25) * TAU) * deg_to_rad(-10.0)
-	(k.ear_r as Node2D).rotation = twitch
+func _hit_rects() -> Array:
+	var rects := []
+	for k in kittens:
+		rects.append(k.hit_rect())
+	return rects
 
 
-func _hit_rect(k: Dictionary) -> Rect2:
-	# The pose's hit box in window pixels, mirrored when facing right, with a
-	# few pixels of slack below the feet.
-	var b: Rect2 = HIT_BOUNDS[k.pose]
-	var x0 := (b.position.x - BASE.x) * PX
-	var w := b.size.x * PX
-	if k.dir > 0:
-		x0 = -x0 - w
-	var c: Vector2 = (k.root as Node2D).position
-	return Rect2(c + Vector2(x0, (b.position.y - BASE.y) * PX), Vector2(w, b.size.y * PX + 4.0))
+static func _shape(r: Rect2) -> PackedVector2Array:
+	# A hit box with its top corners cut, roughly the kitten's outline.
+	return PackedVector2Array([
+		r.position + Vector2(12, 0), Vector2(r.end.x - 12, r.position.y),
+		Vector2(r.end.x, r.position.y + 24), r.end,
+		Vector2(r.position.x, r.end.y), r.position + Vector2(0, 24),
+	])
 
 
-func _update_passthrough() -> void:
-	# One polygon for all kittens: each outline, joined by zero-width bridges.
+static func passthrough_polygon(rects: Array) -> PackedVector2Array:
+	# Windows fills the passthrough polygon even-odd, so two kittens whose
+	# boxes overlap would cancel each other out where they meet. Merge
+	# overlapping shapes first, then join the separate outlines into one
+	# polygon with zero-width bridges back to a common start.
+	var shapes := []
+	for r in rects:
+		var merged := _shape(r)
+		var rest := []
+		for s in shapes:
+			if Geometry2D.intersect_polygons(merged, s).is_empty():
+				rest.append(s)
+				continue
+			merged = _largest(Geometry2D.merge_polygons(merged, s))
+		rest.append(merged)
+		shapes = rest
+
 	var poly := PackedVector2Array()
 	var starts := []
-	for k in kittens:
-		var r := _hit_rect(k)
-		var shape := [
-			r.position + Vector2(12, 0), Vector2(r.end.x - 12, r.position.y),
-			Vector2(r.end.x, r.position.y + 24), r.end,
-			Vector2(r.position.x, r.end.y), r.position + Vector2(0, 24),
-		]
-		for p in shape:
-			poly.append(p)
-		poly.append(shape[0])
-		starts.append(shape[0])
+	for s in shapes:
+		poly.append_array(s)
+		poly.append(s[0])
+		starts.append(s[0])
 	starts.reverse()
 	for p in starts:
 		poly.append(p)
-	DisplayServer.window_set_mouse_passthrough(poly)
+	return poly
+
+
+static func _largest(polys: Array) -> PackedVector2Array:
+	# merge_polygons returns the outline plus any holes; keep the outline.
+	var best := PackedVector2Array()
+	var best_area := -1.0
+	for p in polys:
+		var a := absf(_area(p))
+		if a > best_area:
+			best_area = a
+			best = p
+	return best
+
+
+static func _area(p: PackedVector2Array) -> float:
+	var a := 0.0
+	for i in p.size():
+		var j := (i + 1) % p.size()
+		a += p[i].x * p[j].y - p[j].x * p[i].y
+	return a * 0.5
+
+
+static func inside_even_odd(poly: PackedVector2Array, pt: Vector2) -> bool:
+	# The fill rule Windows applies to the passthrough region.
+	var inside := false
+	var j := poly.size() - 1
+	for i in poly.size():
+		var a := poly[i]
+		var b := poly[j]
+		if (a.y > pt.y) != (b.y > pt.y) and pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x:
+			inside = not inside
+		j = i
+	return inside
+
+
+func _selftest() -> void:
+	# Overlapping boxes (a pair, and a chain of three) plus one apart: every
+	# point inside any box must be inside the polygon, and no point outside.
+	var rects := [
+		Rect2(100, 100, 70, 80), Rect2(140, 110, 70, 80),
+		Rect2(300, 100, 70, 80), Rect2(340, 100, 70, 80), Rect2(380, 104, 70, 80),
+		Rect2(600, 100, 70, 80),
+	]
+	var poly := passthrough_polygon(rects)
+	var fails := 0
+	var checks := 0
+	for x in range(80, 700, 3):
+		for y in range(90, 200, 3):
+			var pt := Vector2(x + 0.5, y + 0.5)
+			var want := false
+			var near_edge := false
+			for r in rects:
+				if Geometry2D.is_point_in_polygon(pt, _shape(r)):
+					want = true
+				if r.grow(2.0).has_point(pt) and not r.grow(-2.0).has_point(pt):
+					near_edge = true
+			if near_edge:
+				continue
+			checks += 1
+			if inside_even_odd(poly, pt) != want:
+				fails += 1
+	print("SELFTEST passthrough: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
+	get_tree().quit(0 if fails == 0 else 1)
 
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		for k in kittens:
-			if _hit_rect(k).has_point(event.position):
+			if k.hit_rect().has_point(event.position):
 				clicks += 1
-				if k.pose == "loaf":
-					_set_pose(k, "sit")   # a napping kitten wakes up first
-				k.jump_left = 0.5
-				print("click on kitten at ", (k.root as Node2D).position)
+				k.poke()
+				print("click on kitten at ", k.position)
 				break
 
+
+# --- Reporting -----------------------------------------------------------------
 
 func _stats(xs: Array) -> Dictionary:
 	var s := xs.duplicate()
@@ -452,10 +388,12 @@ func _write_live() -> void:
 	# Streamed on stdout rather than written to a file, so a watcher sees it
 	# while the run is going.
 	var pts := []
+	var states := []
 	for k in kittens:
-		var c: Vector2 = (k.root as Node2D).position
-		pts.append([c.x, c.y])
-	print("LIVE ", JSON.stringify({"t": t, "feet": pts, "pid": OS.get_process_id()}))
+		pts.append([k.position.x, k.position.y])
+		states.append(k.act if k.act != "" else k.mode)
+	print("LIVE ", JSON.stringify({"t": t, "feet": pts, "states": states, "idle": presence.idle_s,
+		"away": presence.away, "source": presence.source, "pid": OS.get_process_id()}))
 
 
 func _write_report() -> void:
@@ -466,12 +404,13 @@ func _write_report() -> void:
 		"godot": Engine.get_version_info().string,
 		"renderer": RenderingServer.get_video_adapter_name(),
 		"screen": [DisplayServer.screen_get_size().x, DisplayServer.screen_get_size().y],
-		"kittens": n_kittens,
+		"kittens": kittens.size(),
 		"seconds": t,
 		"fps": _stats(trimmed),
 		"animate_ms": _stats(process_ms),
 		"passthrough_ms": _stats(passthrough_ms),
 		"clicks_seen": clicks,
+		"presence_source": presence.source,
 		"transparent_bg": get_viewport().transparent_bg,
 	}
 	var f := FileAccess.open(report_path, FileAccess.WRITE)
