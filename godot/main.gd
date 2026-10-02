@@ -22,6 +22,7 @@ extends Node2D
 ##   --grab=PATH        save a frame after two seconds; a PATH with %d saves a
 ##                      burst of frames instead (--grab-start, --grab-frames,
 ##                      --grab-fps)
+##   --zoom=Z           draw the kittens Z times larger (for demo captures)
 ##   --no-passthrough   leave the whole window clickable
 ##   --selftest         check the click-through polygon and quit
 
@@ -89,6 +90,8 @@ func _ready() -> void:
 			grab_next = float(v)
 		elif arg.begins_with("--grab-fps="):
 			grab_fps = float(v)
+		elif arg.begins_with("--zoom="):
+			Kitten.zoom = float(v)
 		elif arg == "--no-passthrough":
 			no_passthrough = true
 		elif arg == "--selftest":
