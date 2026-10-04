@@ -97,6 +97,11 @@ func setup(main_ref: Node, kitten_scene, zoom: float, how: String, start_mode: S
 	win.always_on_top = true
 	win.unfocusable = true
 	win.size = Vector2i(size, size)
+	# Created hidden and shown once it is in place (end of setup), so no
+	# window flashes up in the middle of the screen, and shown without taking
+	# the keyboard from whatever the user is typing in.
+	win.visible = false
+	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
 	add_child(win)
 	# One window paces the frame; more vsyncs only cost frames.
 	if not main.vsync_taken:
@@ -137,6 +142,7 @@ func setup(main_ref: Node, kitten_scene, zoom: float, how: String, start_mode: S
 		vy = randf_range(-35.0, 35.0)
 	kitten.setup(world, x0, face, start_mode)
 	_place()
+	win.show()
 
 
 # --- Where it is ----------------------------------------------------------------
