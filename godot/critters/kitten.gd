@@ -69,6 +69,7 @@ const HIT_BOUNDS := {
 
 const ACCEL := 4.0             # how quickly walking speed eases to its target, 1/s
 const GRAVITY := 1800.0        # px/s^2, for hops and pounces
+const REGION_SLACK := 6.0      # px kept clear around a drawn kitten
 const SPRING_DT := 1.0 / 120.0
 
 static var _textures := {}
@@ -125,6 +126,7 @@ var pounced := false
 var act_after := ""            # a behaviour chained to start when this one ends
 var cooldowns := {}
 var hold_nap := false          # nap until told to wake (the user is away)
+var _sprites: Array[Sprite2D] = []   # every part, for region_rect()
 
 # Ambient life.
 var phase := 0.0
@@ -196,6 +198,7 @@ func _sprite(part: String) -> Sprite2D:
 	s.centered = false
 	s.position = -PIVOTS[part] * PART_SCALE
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_sprites.append(s)
 	return s
 
 
@@ -826,6 +829,17 @@ func hit_rect() -> Rect2:
 	if facing > 0:
 		x0 = -x0 - w
 	return Rect2(position + Vector2(x0, (b.position.y - BASE.y) * PX * zoom), Vector2(w, b.size.y * PX * zoom + 4.0))
+
+
+func region_rect() -> Rect2:
+	# Everything drawn this frame, in window pixels, wherever springs, squash
+	# and stretches have put the parts. main.gd keeps the click-through hole
+	# off it, since nothing inside the hole is drawn.
+	var r := hit_rect()
+	for s in _sprites:
+		if s.is_visible_in_tree():
+			r = r.merge(s.get_global_transform() * s.get_rect())
+	return r.grow(REGION_SLACK)
 
 
 # --- Helpers ------------------------------------------------------------------
