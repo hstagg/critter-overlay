@@ -32,6 +32,7 @@ const Presence := preload("res://presence.gd")
 
 const START_KITTENS := 2
 const MAX_KITTENS := 8
+const STRIP_H := 260           # window height in px: a kitten (~95) plus hops and pounces
 
 var floor_y := 0.0
 var left_x := 0.0
@@ -105,11 +106,15 @@ func _ready() -> void:
 	var screen := DisplayServer.screen_get_size(scr)
 	var usable := DisplayServer.screen_get_usable_rect(scr)
 	var win := get_window()
-	win.position = origin
-	# A borderless window exactly the screen's size can be promoted to
-	# exclusive fullscreen and lose transparency; one pixel short avoids it.
-	win.size = Vector2i(screen.x, screen.y - 1)
-	floor_y = usable.end.y - origin.y - 2
+	# A strip along the bottom of the usable area, not the whole screen. A
+	# borderless window covering (or one pixel short of) the monitor gets
+	# promoted to fullscreen flip by the compositor, which drops the alpha
+	# channel and turns the whole screen black until another window takes
+	# focus. The kittens only live along the floor, so they need no more.
+	var strip_h := mini(int(STRIP_H * Kitten.zoom), usable.size.y)
+	win.position = Vector2i(origin.x, usable.end.y - strip_h)
+	win.size = Vector2i(screen.x, strip_h)
+	floor_y = strip_h - 2
 	left_x = usable.position.x - origin.x + 50
 	right_x = usable.end.x - origin.x - 50
 
@@ -118,6 +123,7 @@ func _ready() -> void:
 
 	if selftest:
 		presence.free()
+		set_process(false)   # _process reads presence, which is gone
 		_selftest()
 		return
 
