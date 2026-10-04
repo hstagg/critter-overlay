@@ -126,6 +126,7 @@ var pounced := false
 var act_after := ""            # a behaviour chained to start when this one ends
 var cooldowns := {}
 var hold_nap := false          # nap until told to wake (the user is away)
+var held := false              # picked up by the pointer: no walking
 var _sprites: Array[Sprite2D] = []   # every part, for region_rect()
 
 # Ambient life.
@@ -345,7 +346,7 @@ func _wake() -> void:
 
 func can_start_behaviour() -> bool:
 	return act == "" and act_pending == "" and not airborne and not entering \
-		and mode != "loaf" and not hold_nap
+		and mode != "loaf" and not hold_nap and not held
 
 
 func is_napping() -> bool:
@@ -459,6 +460,8 @@ func tick(delta: float) -> void:
 
 
 func _update_mode(delta: float) -> void:
+	if held:
+		return
 	if act != "":
 		act_t += delta
 		if act_t >= act_len:
@@ -476,6 +479,9 @@ func _update_mode(delta: float) -> void:
 
 
 func _update_motion(delta: float) -> void:
+	if held:
+		vx = 0.0
+		return
 	var left: float = world.left_x
 	var right: float = world.right_x
 	var target := 0.0
