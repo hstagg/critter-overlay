@@ -24,6 +24,8 @@ extends Node2D
 ##                      --grab-fps)
 ##   --zoom=Z           draw the kittens Z times larger (for demo captures)
 ##   --no-passthrough   leave the whole window clickable
+##   --fake-pointer     sweep a pretend pointer along the strip, so the
+##                      click-through hole moves every frame (exit-crash test)
 ##   --selftest         check the click-through polygon and quit
 
 const Kitten := preload("res://critters/kitten.gd")
@@ -32,12 +34,17 @@ const Presence := preload("res://presence.gd")
 
 const START_KITTENS := 2
 const MAX_KITTENS := 8
+const HOLE_FROM := Vector2(-4, -4)   # the click-through hole about the pointer's tip,
+const HOLE_TO := Vector2(12, 14)      # mostly under the arrow so its edges stay hidden
 const STRIP_H := 260           # window height in px: a kitten (~95) plus hops and pounces
 
 var floor_y := 0.0
 var left_x := 0.0
 var right_x := 0.0
 var t := 0.0
+var fake_pointer := false
+var _hole := Rect2(-1, -1, 0, 0)
+var _region_size := Vector2.ZERO
 
 var kittens := []
 var evaluator := Behaviours.new()
@@ -95,6 +102,8 @@ func _ready() -> void:
 			Kitten.zoom = float(v)
 		elif arg == "--no-passthrough":
 			no_passthrough = true
+		elif arg == "--fake-pointer":
+			fake_pointer = true
 		elif arg == "--selftest":
 			selftest = true
 
@@ -217,7 +226,7 @@ func _process(delta: float) -> void:
 
 	var t1 := Time.get_ticks_usec()
 	if not no_passthrough:
-		DisplayServer.window_set_mouse_passthrough(passthrough_polygon(_hit_rects()))
+		_update_passthrough()
 	passthrough_ms.append((Time.get_ticks_usec() - t1) / 1000.0)
 	fps.append(Engine.get_frames_per_second())
 
@@ -230,7 +239,7 @@ func _process(delta: float) -> void:
 		_grab()
 	if seconds > 0.0 and t >= seconds:
 		_write_report()
-		get_tree().quit()
+		_quit(0)
 
 
 func _run_demo(delta: float) -> void:
@@ -264,70 +273,50 @@ func _grab() -> void:
 
 
 # --- Click-through -------------------------------------------------------------
+#
+# On Windows the passthrough polygon is a window region: clicks outside it
+# reach the window below, and nothing outside it is drawn. Every change to the
+# region makes the compositor redraw the window, and for a frame the newly
+# covered area shows as an edge or a box. So the region is not shaped to the
+# kittens. It is the whole strip, with a small hole under the mouse pointer
+# when the pointer is in the strip but not on a kitten. Clicks through the hole
+# land on whatever is below; the only part that changes from frame to frame is
+# the hole, which the pointer covers, and nothing changes at all while the
+# pointer is elsewhere.
 
-func _hit_rects() -> Array:
-	var rects := []
+func _update_passthrough() -> void:
+	var size := Vector2(get_window().size)
+	var m := Vector2(fmod(t * 400.0, size.x), size.y * 0.6) if fake_pointer else mouse_local()
+	var hole := Rect2()
+	if Rect2(Vector2.ZERO, size).has_point(m) and not _over_kitten(m):
+		hole = Rect2(m + HOLE_FROM, HOLE_TO - HOLE_FROM)
+		for k in kittens:
+			if hole.intersects(k.region_rect()):
+				hole = Rect2(m - Vector2(1, 1), Vector2(3, 3))   # don't clip a kitten
+				break
+		hole = hole.intersection(Rect2(Vector2.ZERO, size))
+	if hole == _hole and size == _region_size:
+		return
+	_hole = hole
+	_region_size = size
+	DisplayServer.window_set_mouse_passthrough(region_polygon(size, hole))
+
+
+func _over_kitten(m: Vector2) -> bool:
 	for k in kittens:
-		rects.append(k.hit_rect())
-	return rects
+		if k.hit_rect().grow(4.0).has_point(m):
+			return true
+	return false
 
 
-static func _shape(r: Rect2) -> PackedVector2Array:
-	# A hit box with its top corners cut, roughly the kitten's outline.
-	return PackedVector2Array([
-		r.position + Vector2(12, 0), Vector2(r.end.x - 12, r.position.y),
-		Vector2(r.end.x, r.position.y + 24), r.end,
-		Vector2(r.position.x, r.end.y), r.position + Vector2(0, 24),
-	])
-
-
-static func passthrough_polygon(rects: Array) -> PackedVector2Array:
-	# Windows fills the passthrough polygon even-odd, so two kittens whose
-	# boxes overlap would cancel each other out where they meet. Merge
-	# overlapping shapes first, then join the separate outlines into one
-	# polygon with zero-width bridges back to a common start.
-	var shapes := []
-	for r in rects:
-		var merged := _shape(r)
-		var rest := []
-		for s in shapes:
-			if Geometry2D.intersect_polygons(merged, s).is_empty():
-				rest.append(s)
-				continue
-			merged = _largest(Geometry2D.merge_polygons(merged, s))
-		rest.append(merged)
-		shapes = rest
-
-	var poly := PackedVector2Array()
-	var starts := []
-	for s in shapes:
-		poly.append_array(s)
-		poly.append(s[0])
-		starts.append(s[0])
-	starts.reverse()
-	for p in starts:
-		poly.append(p)
+static func region_polygon(size: Vector2, hole: Rect2) -> PackedVector2Array:
+	# The strip's outline, then a zero-width bridge to the hole and round it.
+	# Windows fills the region even-odd, so the hole, inside both, is left out.
+	var poly := PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y), Vector2.ZERO])
+	if hole.has_area():
+		poly.append_array([hole.position, Vector2(hole.end.x, hole.position.y), hole.end,
+			Vector2(hole.position.x, hole.end.y), hole.position, Vector2.ZERO])
 	return poly
-
-
-static func _largest(polys: Array) -> PackedVector2Array:
-	# merge_polygons returns the outline plus any holes; keep the outline.
-	var best := PackedVector2Array()
-	var best_area := -1.0
-	for p in polys:
-		var a := absf(_area(p))
-		if a > best_area:
-			best_area = a
-			best = p
-	return best
-
-
-static func _area(p: PackedVector2Array) -> float:
-	var a := 0.0
-	for i in p.size():
-		var j := (i + 1) % p.size()
-		a += p[i].x * p[j].y - p[j].x * p[i].y
-	return a * 0.5
 
 
 static func inside_even_odd(poly: PackedVector2Array, pt: Vector2) -> bool:
@@ -344,33 +333,40 @@ static func inside_even_odd(poly: PackedVector2Array, pt: Vector2) -> bool:
 
 
 func _selftest() -> void:
-	# Overlapping boxes (a pair, and a chain of three) plus one apart: every
-	# point inside any box must be inside the polygon, and no point outside.
-	var rects := [
-		Rect2(100, 100, 70, 80), Rect2(140, 110, 70, 80),
-		Rect2(300, 100, 70, 80), Rect2(340, 100, 70, 80), Rect2(380, 104, 70, 80),
-		Rect2(600, 100, 70, 80),
-	]
-	var poly := passthrough_polygon(rects)
+	# Holes in the middle and against each edge, and no hole: every point in
+	# the strip outside the hole must be in the region, and none inside it.
+	var size := Vector2(1920, 260)
+	var holes := [Rect2(), Rect2(500, 100, 16, 18), Rect2(0, 0, 12, 14), Rect2(1908, 246, 12, 14), Rect2(900, 0, 3, 3)]
 	var fails := 0
 	var checks := 0
-	for x in range(80, 700, 3):
-		for y in range(90, 200, 3):
-			var pt := Vector2(x + 0.5, y + 0.5)
-			var want := false
-			var near_edge := false
-			for r in rects:
-				if Geometry2D.is_point_in_polygon(pt, _shape(r)):
-					want = true
-				if r.grow(2.0).has_point(pt) and not r.grow(-2.0).has_point(pt):
-					near_edge = true
-			if near_edge:
-				continue
-			checks += 1
-			if inside_even_odd(poly, pt) != want:
-				fails += 1
+	for hole in holes:
+		var poly := region_polygon(size, hole)
+		for x in range(0, 1920, 7):
+			for y in range(0, 260, 3):
+				var pt := Vector2(x + 0.5, y + 0.5)
+				checks += 1
+				if inside_even_odd(poly, pt) == hole.has_point(pt):
+					fails += 1
+		for x in range(int(hole.position.x), int(hole.end.x)):
+			for y in range(int(hole.position.y), int(hole.end.y)):
+				checks += 1
+				if inside_even_odd(poly, Vector2(x + 0.5, y + 0.5)):
+					fails += 1
 	print("SELFTEST passthrough: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	get_tree().quit(0 if fails == 0 else 1)
+
+
+func _quit(code: int) -> void:
+	# Intel's OpenGL driver (igxelpicd64.dll) crashes with 0xC0000005 while
+	# Godot tears down the GL context, after the window region has changed:
+	# about one exit in three, more with the pointer moving. Nothing is left to
+	# do by then, so stop the poller, then end the process without the
+	# teardown. Anything that must be saved is saved before this.
+	if presence != null and is_instance_valid(presence):
+		presence.stop()
+	if OS.get_name() == "Windows" and not no_passthrough:
+		OS.kill(OS.get_process_id())
+	get_tree().quit(code)
 
 
 func _input(event: InputEvent) -> void:

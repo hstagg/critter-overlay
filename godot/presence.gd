@@ -120,8 +120,14 @@ func sleep_bias() -> float:
 
 
 func _exit_tree() -> void:
+	stop()
+
+
+func stop() -> void:
+	# Kill the poller and join its reader. Safe to call twice.
 	_running = false
 	if _ps_pid > 0:
 		OS.kill(_ps_pid)
+		_ps_pid = -1
 	if _ps_thread != null and _ps_thread.is_started():
 		_ps_thread.wait_to_finish()
