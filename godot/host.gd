@@ -14,6 +14,7 @@ extends Node
 signal gone(host)
 
 const Region := preload("res://region.gd")
+const Species := preload("res://species.gd")
 
 const FOOT_DROP := 40.0        # feet sit this far below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
@@ -22,10 +23,10 @@ const MIN_THROW := 380.0       # px/s: a gentle release still flies
 const THROW_GRAVITY := 1400.0  # px/s^2
 const THROW_DRAG := 0.35       # 1/s, horizontal air drag
 const POP_TIME := 0.7          # s of particles before the window closes
-const POP_COLOURS := [Color8(230, 165, 105), Color8(245, 190, 130), Color8(255, 160, 160)]
 
 var main: Node                 # main.gd: the screen, the sound, the pointer
-var kitten: Node2D
+var species := ""
+var critter: Node2D
 var win: Window
 var spin: Node2D               # rotated to the edge being walked on
 var track: Node2D              # slides the critter's track under the window
@@ -57,7 +58,7 @@ var _hole := Rect2(-1, -1, 0, 0)
 
 
 class World extends Node:
-	## What a kitten reads from its world: the floor, the ends of its track,
+	## What a critter reads from its world: the floor, the ends of its track,
 	## and the pointer in its own coordinates.
 	var floor_y := 0.0
 	var left_x := -INF
@@ -85,8 +86,9 @@ class Particle extends Node2D:
 		draw_circle(Vector2.ZERO, r * (0.4 + 0.6 * a), Color(colour, a))
 
 
-func setup(main_ref: Node, kitten_scene, zoom: float, how: String, start_mode: String, at := Vector2(-1, -1)) -> void:
+func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_mode: String, at := Vector2(-1, -1)) -> void:
 	main = main_ref
+	species = species_id
 	kind = how
 	size = int(200 * zoom)
 
@@ -124,8 +126,9 @@ func setup(main_ref: Node, kitten_scene, zoom: float, how: String, start_mode: S
 		world.left_x = r.position.x + size * 0.3
 		world.right_x = r.end.x - size * 0.3
 
-	kitten = kitten_scene.new()
-	track.add_child(kitten)
+	critter = Species.row(species)["script"].new()
+	critter.idles = Species.row(species)["idles"]
+	track.add_child(critter)
 	var face: int = [-1, 1].pick_random()
 	var x0: float
 	if kind == "perimeter":
@@ -135,7 +138,7 @@ func setup(main_ref: Node, kitten_scene, zoom: float, how: String, start_mode: S
 		x0 = randf_range(world.left_x, world.right_x) if at.x < 0 else at.x
 		y = randf_range(r.position.y + size, r.end.y) if at.y < 0 else at.y
 		vy = randf_range(-35.0, 35.0)
-	kitten.setup(world, x0, face, start_mode)
+	critter.setup(world, x0, face, start_mode)
 	_place()
 
 
@@ -175,16 +178,16 @@ func _place() -> void:
 			mirror = spin.scale.x < 0.0 and state == "popping"
 		_:
 			if kind == "perimeter":
-				var p := _edge_pose(kitten.position.x)
+				var p := _edge_pose(critter.position.x)
 				feet = p[0]
 				rot = p[1]
 				mirror = p[2]
 			else:
-				feet = Vector2(kitten.position.x, y)
+				feet = Vector2(critter.position.x, y)
 	spin.rotation = rot
 	spin.scale = Vector2(-1.0 if mirror else 1.0, 1.0)
 	# The critter's track slides under the window so it stays in the middle.
-	track.position = Vector2(-kitten.position.x, FOOT_DROP)
+	track.position = Vector2(-critter.position.x, FOOT_DROP)
 	var centre := feet - Vector2(0, FOOT_DROP).rotated(rot)
 	win.position = Vector2i((centre - Vector2(size, size) * 0.5).round())
 
@@ -201,7 +204,7 @@ func to_critter(screen_pt: Vector2) -> Vector2:
 
 func _critter_box() -> Rect2:
 	# The critter's hit box in window pixels.
-	return track.get_global_transform() * kitten.hit_rect()
+	return track.get_global_transform() * critter.hit_rect()
 
 
 # --- Per frame ------------------------------------------------------------------
@@ -209,18 +212,18 @@ func _critter_box() -> Rect2:
 func tick(delta: float) -> void:
 	match state:
 		"live":
-			kitten.tick(delta)
-			if kind == "roam" and kitten.mode == "walk" and not kitten.airborne:
+			critter.tick(delta)
+			if kind == "roam" and critter.mode == "walk" and not critter.airborne:
 				# Drift up or down the screen in step with the walk.
 				if randf() < delta * 0.25:
 					vy = randf_range(-40.0, 40.0)
 				var r: Rect2 = main.area
-				y += vy * delta * clampf(absf(kitten.vx) / maxf(kitten.cruise, 1.0), 0.0, 1.0)
+				y += vy * delta * clampf(absf(critter.vx) / maxf(critter.cruise, 1.0), 0.0, 1.0)
 				if y < r.position.y + size * 0.6 or y > r.end.y:
 					vy = -vy
 					y = clampf(y, r.position.y + size * 0.6, r.end.y)
 		"held":
-			kitten.tick(delta)
+			critter.tick(delta)
 			var m := Vector2(DisplayServer.mouse_get_position())
 			foot = m + grab_offset
 			moved = maxf(moved, m.distance_to(grab_from))
@@ -228,11 +231,11 @@ func tick(delta: float) -> void:
 			while history.size() > 2 and history[-1][0] - history[0][0] > 0.12:
 				history.pop_front()
 		"thrown":
-			kitten.tick(delta)
+			critter.tick(delta)
 			throw_v.y += THROW_GRAVITY * delta
 			throw_v.x -= throw_v.x * THROW_DRAG * delta
 			foot += throw_v * delta
-			kitten.rotation += spin_v * delta
+			critter.rotation += spin_v * delta
 			var bounds := Rect2(main.screen_rect).grow(size)
 			if not bounds.has_point(foot):
 				_close()
@@ -253,10 +256,10 @@ func _on_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and state == "live" and _critter_box().has_point(event.position):
 			if spin.scale.x < 0.0:
-				kitten.facing = -kitten.facing
-				kitten.want_facing = kitten.facing
+				critter.facing = -critter.facing
+				critter.want_facing = critter.facing
 			state = "held"
-			kitten.held = true
+			critter.held = true
 			grab_from = Vector2(DisplayServer.mouse_get_position())
 			foot = feet_on_screen()
 			grab_offset = foot - grab_from
@@ -275,7 +278,7 @@ func release_if_up() -> void:
 
 
 func _release() -> void:
-	kitten.held = false
+	critter.held = false
 	if moved < DRAG_THRESHOLD:
 		pop()
 		return
@@ -291,27 +294,27 @@ func _release() -> void:
 	spin_v = clampf(v.x / 120.0, -9.0, 9.0)
 	state = "thrown"
 	main.note_throw()
-	main.play_sound("kitten")
+	main.play_sound(Species.row(species)["sound"])
 
 
 func pop() -> void:
 	# v2.0's click: a burst of particles, the species sound, and gone.
 	state = "popping"
 	foot = feet_on_screen()
-	kitten.visible = false
+	critter.visible = false
 	pop_left = POP_TIME
 	var at := Vector2(size, size) * 0.5
 	for i in randi_range(10, 16):
 		var p := Particle.new()
 		p.position = at
 		p.v = Vector2.from_angle(randf() * TAU) * randf_range(60.0, 170.0) - Vector2(0, 60)
-		p.colour = POP_COLOURS.pick_random()
+		p.colour = Species.row(species)["pop"].pick_random()
 		p.life = randf_range(0.4, POP_TIME)
 		p.r = randf_range(3.0, 6.0)
 		win.add_child(p)
 		particles.append(p)
 	main.note_pop()
-	main.play_sound("kitten")
+	main.play_sound(Species.row(species)["sound"])
 
 
 func _close() -> void:
@@ -330,7 +333,7 @@ func _update_hole() -> void:
 	var hole := Rect2()
 	if state == "live" and Rect2(Vector2.ZERO, s).has_point(m) and not _critter_box().grow(4.0).has_point(m):
 		hole = Rect2(m + Region.HOLE_FROM, Region.HOLE_TO - Region.HOLE_FROM)
-		if hole.intersects(kitten.region_rect()):
+		if hole.intersects(critter.region_rect()):
 			hole = Rect2(m - Vector2(1, 1), Vector2(3, 3))   # nothing inside a hole is drawn
 		hole = hole.intersection(Rect2(Vector2.ZERO, s))
 	if hole == _hole:
