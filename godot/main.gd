@@ -4,7 +4,8 @@ extends Node2D
 ##
 ## This file owns the screen, arrivals, the behaviour evaluator, the presence
 ## layer and sound. Each critter's window, place on screen, drag, throw and
-## pop live in host.gd; its rig, walking and behaviours in critters/kitten.gd.
+## pop live in host.gd; its rig, walking and behaviours in critters/ (the
+## shared rig in critter.gd, each species in its own file, listed in species.gd).
 ##
 ## As in v2.0, most critters roam the whole screen and some walk round its
 ## edges; a click pops one, a drag throws it. The focus layer is new: two
@@ -15,9 +16,10 @@ extends Node2D
 ## Flags (after `--`):
 ##   --seconds=N        quit after N seconds; with --report=PATH write timings
 ##   --report=PATH      timings as JSON; live positions stream on stdout
-##   --kittens=N        a fixed number of roaming kittens (no gathering)
+##   --species=NAME     which critter to spawn (default kitten; see species.gd)
+##   --kittens=N        a fixed number of roaming critters (no gathering)
 ##   --perimeter=N      and N more walking the screen's edges
-##   --demo=NAME        one kitten in the middle doing NAME on a loop: any
+##   --demo=NAME        one critter in the middle doing NAME on a loop: any
 ##                      behaviour, or walk, sit, loaf
 ##   --gather-every=S   seconds of focus per new kitten (default 300)
 ##   --away-after=S     seconds idle before they nap (default 180)
@@ -25,11 +27,12 @@ extends Node2D
 ##   --grab=PATH        save the first critter's window after two seconds; a
 ##                      PATH with %d saves a burst (--grab-start, --grab-frames,
 ##                      --grab-fps)
-##   --zoom=Z           draw the kittens Z times larger (for demo captures)
+##   --zoom=Z           draw the critters Z times larger (for demo captures)
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --selftest         check the click-through polygon and quit
 
-const Kitten := preload("res://critters/kitten.gd")
+const Critter := preload("res://critters/critter.gd")
+const Species := preload("res://species.gd")
 const Behaviours := preload("res://behaviours.gd")
 const Presence := preload("res://presence.gd")
 const Host := preload("res://host.gd")
@@ -52,6 +55,7 @@ var focus_s := 0.0
 var next_arrival := 0.0
 var fixed_count := -1
 var fixed_perimeter := 0
+var species := Species.DEFAULT
 var demo := ""
 var demo_wait := 0.5
 var queued := []             # [kitten, seconds left, "sleep" | "wake"]
@@ -82,6 +86,11 @@ func _ready() -> void:
 			seconds = float(v)
 		elif arg.begins_with("--report="):
 			report_path = v
+		elif arg.begins_with("--species="):
+			if Species.has(v):
+				species = v
+			else:
+				printerr("Unknown species '%s'; known: %s" % [v, ", ".join(Species.DATA.keys())])
 		elif arg.begins_with("--kittens="):
 			fixed_count = int(v)
 		elif arg.begins_with("--perimeter="):
@@ -103,7 +112,7 @@ func _ready() -> void:
 		elif arg.begins_with("--grab-fps="):
 			grab_fps = float(v)
 		elif arg.begins_with("--zoom="):
-			Kitten.zoom = float(v)
+			Critter.zoom = float(v)
 		elif arg == "--no-passthrough":
 			no_passthrough = true
 		elif arg == "--selftest":
@@ -128,11 +137,10 @@ func _ready() -> void:
 	main_win.size = Vector2i(1, 1)
 	main_win.position = screen_rect.position + Vector2i(0, screen_rect.size.y - 1)
 
-	Kitten.load_textures()
 	randomize()
 	player = AudioStreamPlayer.new()
 	add_child(player)
-	_load_sound("kitten")
+	_load_sound(Species.row(species)["sound"])
 
 	add_child(presence)
 	presence.went_away.connect(_on_went_away)
@@ -140,7 +148,7 @@ func _ready() -> void:
 
 	if demo != "":
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
-		h.kitten.mode_left = INF
+		h.critter.mode_left = INF
 		return
 	presence.start()
 	if fixed_count > 0 or fixed_perimeter > 0:
@@ -157,7 +165,7 @@ func _ready() -> void:
 func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
 	var h = Host.new()
 	add_child(h)
-	h.setup(self, Kitten, Kitten.zoom, kind, start_mode, at)
+	h.setup(self, species, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	return h
@@ -176,7 +184,7 @@ func _arrive() -> void:
 	var from_left := randf() < 0.5
 	var x := area.position.x - 80.0 if from_left else area.end.x + 80.0
 	var h = _spawn("roam", "walk", Vector2(x, randf_range(area.position.y + 260.0, area.end.y)))
-	var k = h.kitten
+	var k = h.critter
 	k.facing = 1 if from_left else -1
 	k.want_facing = k.facing
 	k.vx = k.facing * k.cruise
@@ -189,7 +197,7 @@ func kittens() -> Array:
 	var out := []
 	for h in hosts:
 		if h.state == "live":
-			out.append(h.kitten)
+			out.append(h.critter)
 	return out
 
 
@@ -272,7 +280,7 @@ func _process(delta: float) -> void:
 func _run_demo(delta: float) -> void:
 	if hosts.is_empty():
 		return
-	var k = hosts[0].kitten
+	var k = hosts[0].critter
 	match demo:
 		"walk", "sit":
 			k.mode_left = INF
@@ -281,7 +289,7 @@ func _run_demo(delta: float) -> void:
 			if not k.is_napping():
 				k.go_to_sleep()
 			return
-	if Behaviours.REGISTRY.has(demo) and k.can_start_behaviour():
+	if Behaviours.REGISTRY.has(demo) and k.can_do(demo) and k.can_start_behaviour():
 		demo_wait -= delta
 		if demo_wait <= 0.0:
 			demo_wait = 1.2
@@ -340,7 +348,7 @@ func _write_live() -> void:
 	for h in hosts:
 		var f: Vector2 = h.feet_on_screen()
 		pts.append([snappedf(f.x, 0.1), snappedf(f.y, 0.1)])
-		var k = h.kitten
+		var k = h.critter
 		states.append("%s:%s" % [h.kind, h.state if h.state != "live" else (k.act if k.act != "" else k.mode)])
 	print("LIVE ", JSON.stringify({"t": snappedf(t, 0.01), "feet": pts, "states": states, "idle": presence.idle_s,
 		"away": presence.away, "source": presence.source}))
@@ -354,6 +362,7 @@ func _write_report() -> void:
 		"renderer": RenderingServer.get_video_adapter_name(),
 		"screen": [screen_rect.size.x, screen_rect.size.y],
 		"area": [area.position.x, area.position.y, area.size.x, area.size.y],
+		"species": species,
 		"critters": hosts.size(),
 		"seconds": t,
 		"fps": _stats(fps.slice(int(fps.size() * 0.2))),   # skip the warm-up
