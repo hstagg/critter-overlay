@@ -31,6 +31,7 @@ extends Node2D
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
+##   --open=collection  open the Collection at start (testing)
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -41,6 +42,7 @@ const Host := preload("res://host.gd")
 const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
 const Tray := preload("res://gui/tray.gd")
+const Collection := preload("res://gui/collection.gd")
 
 const START_KITTENS := 2
 const MAX_KITTENS := 8
@@ -68,10 +70,12 @@ var species := Species.DEFAULT
 var species_fixed := false
 var economy: Node
 var tray: Node
+var collection: Window
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var save_path := ""
 var tray_in := 0.0
+var open_on_start := ""
 var native: RefCounted = null   # CritterNative (native/), when built
 var demo := ""
 var demo_wait := 0.5
@@ -137,6 +141,8 @@ func _ready() -> void:
 			stay_scale = float(v) / STAY_MAX
 		elif arg.begins_with("--save="):
 			save_path = v
+		elif arg == "--open=collection":
+			open_on_start = "collection"
 		elif arg == "--selftest":
 			selftest = true
 
@@ -200,9 +206,11 @@ func _ready() -> void:
 		if hosts.size() < MAX_KITTENS:
 			_arrive())
 	tray.pause_pressed.connect(func(): _set_paused(not paused))
-	tray.collection_pressed.connect(func(): print("TRAY collection (not built yet)"))
+	tray.collection_pressed.connect(open_collection)
 	tray.settings_pressed.connect(func(): print("TRAY settings (not built yet)"))
 	tray.quit_pressed.connect(func(): _quit(0))
+	if open_on_start == "collection":
+		open_collection.call_deferred()
 
 	add_child(presence)
 	presence.went_away.connect(_on_went_away)
@@ -406,6 +414,13 @@ func _grab() -> void:
 	else:
 		img.save_png(grab_path)
 		grab_next = INF
+
+
+func open_collection() -> void:
+	if collection == null:
+		collection = Collection.new()
+		add_child(collection)
+	collection.open(economy)
 
 
 func _set_paused(p: bool) -> void:
