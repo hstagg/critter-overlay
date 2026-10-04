@@ -10,3 +10,12 @@ Sprite Images/assets/
 Sprite Images/*.gif
 .claude/worktrees/
 
+
+# Native build outputs (build with native/SConstruct)
+godot/bin/*.dll
+godot/bin/*.lib
+godot/bin/*.exp
+godot/bin/*.pdb
+native/extension_api.json
+native/.sconsign*
+native/src/*.obj

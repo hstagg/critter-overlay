@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+# Builds godot/bin/critter_native.<platform>.<target>.<arch>.dll from src/.
+# Needs godot-cpp checked out beside this repo (or GODOT_CPP set to it), and
+# extension_api.json from the Godot that runs the game:
+#   godot --headless --dump-extension-api   (run in native/)
+#   python -m SCons custom_api_file=extension_api.json target=template_debug
+import os
+
+env = SConscript(os.environ.get("GODOT_CPP", "../../godot-cpp") + "/SConstruct")
+env.Append(CPPPATH=["src/"])
+if env["platform"] == "windows":
+    env.Append(LIBS=["user32", "advapi32"])
+library = env.SharedLibrary(
+    "../godot/bin/critter_native{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+    source=Glob("src/*.cpp"),
+)
+Default(library)

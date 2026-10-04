@@ -48,6 +48,8 @@ const PERIMETER_SHARE := 0.3   # of arrivals, how many walk the edges
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
+const MOD_CTRL_SHIFT := 0x0002 | 0x0004   # Win32 MOD_CONTROL | MOD_SHIFT
+const VK_P := 0x50
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
@@ -70,6 +72,7 @@ var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var save_path := ""
 var tray_in := 0.0
+var native: RefCounted = null   # CritterNative (native/), when built
 var demo := ""
 var demo_wait := 0.5
 var queued := []             # [kitten, seconds left, "sleep" | "wake"]
@@ -155,6 +158,21 @@ func _ready() -> void:
 	main_win.gui_embed_subwindows = false
 	main_win.size = Vector2i(1, 1)
 	main_win.position = screen_rect.position + Vector2i(0, screen_rect.size.y - 1)
+
+	# The Windows layer, when built: one copy at a time, the global pause
+	# shortcut, no taskbar button, and idle time from real devices only.
+	# Without it the game still runs, on the PowerShell idle poller.
+	if ClassDB.class_exists("CritterNative"):
+		native = ClassDB.instantiate("CritterNative")
+		var test_run := seconds > 0.0 or demo != ""
+		if not test_run and not native.single_instance("CritterOverlay.v3"):
+			print("Critter Overlay is already running")
+			set_process(false)
+			get_tree().quit()
+			return
+		native.start(MOD_CTRL_SHIFT, VK_P)
+		native.hide_from_taskbar(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, 0))
+		presence.native = native
 
 	randomize()
 	player = AudioStreamPlayer.new()
@@ -332,6 +350,8 @@ func _process(delta: float) -> void:
 						h.stay_left -= delta
 						if h.stay_left <= 0.0:
 							h.leave()
+		if native != null and native.poll_hotkey() == 1:
+			_set_paused(not paused)
 		tray_in -= delta
 		if tray_in <= 0.0:
 			tray_in = TRAY_EVERY
@@ -479,6 +499,7 @@ func _write_report() -> void:
 		"luck": snappedf(economy.luck(), 0.01) if economy != null else 1.0,
 		"throws": throws,
 		"presence_source": presence.source,
+		"injected_events": native.injected_events() if native != null else -1,
 	}
 	var f := FileAccess.open(report_path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(r, " "))
