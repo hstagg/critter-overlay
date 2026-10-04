@@ -9,6 +9,16 @@ const LINE := {
 	"pause": '<path d="M9 6v12M15 6v12"/>',
 	"sparkle": '<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/><path d="M18.5 16v4M16.5 18h4"/>',
 	"power": '<path d="M12 4v8"/><path d="M7.2 7.2a7 7 0 1 0 9.6 0"/>',
+	"lock": '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+}
+
+# Each tier has its own shape as well as its colour, so tiers read without colour.
+const TIER_SHAPE := {
+	"common": '<circle cx="10" cy="10" r="6.5"/>',
+	"uncommon": '<path d="M10 3c4 3.2 5.6 6.2 5.6 8.6a5.6 5.6 0 0 1-11.2 0C4.4 9.2 6 6.2 10 3z"/>',
+	"rare": '<path d="M10 2.5 16.8 10 10 17.5 3.2 10z"/>',
+	"epic": '<path d="M10 2.4l2.3 4.8 5.2.6-3.9 3.6 1.1 5.2L10 14l-4.7 2.6 1.1-5.2-3.9-3.6 5.2-.6z"/>',
+	"legendary": '<path d="M3 15.5h14l1.2-9.2-4.6 3.6L10 3.8 6.4 9.9 1.8 6.3z"/>',
 }
 
 static var _cache := {}
@@ -30,6 +40,14 @@ static func line(name: String, size: int, colour: Color) -> ImageTexture:
 	var body: String = LINE[name].replace("currentColor", hex)
 	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">%s</svg>' % [hex, body]
 	return _texture(svg, size / 24.0)
+
+
+static func badge(tier: String, size: int, fill: Color, line: Color, ghost := false) -> ImageTexture:
+	# A tier badge; `ghost` is the dashed outline of one not yet found.
+	var g := '<g fill="#%s" stroke="#%s" stroke-width="1.6" stroke-linejoin="round"%s>%s</g>' % [
+		fill.to_html(false), line.to_html(false), ' stroke-dasharray="2.2 2"' if ghost else "", TIER_SHAPE[tier]]
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20">%s</svg>' % g
+	return _texture(svg, size / 20.0)
 
 
 static func tray(state: String, size: int) -> ImageTexture:
