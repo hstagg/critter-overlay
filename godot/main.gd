@@ -21,7 +21,7 @@ extends Node2D
 ##   --perimeter=N      and N more walking the screen's edges
 ##   --demo=NAME        one critter in the middle doing NAME on a loop: any
 ##                      behaviour, or walk, sit, loaf
-##   --gather-every=S   seconds of focus per new kitten (default 300)
+##   --gather-every=S   seconds of focus per new visitor (default 720)
 ##   --away-after=S     seconds idle before they nap (default 180)
 ##   --idle-sim=P,A     fake presence: P seconds present, A away, repeating
 ##   --grab=PATH        save the first critter's window after two seconds; a
@@ -29,6 +29,8 @@ extends Node2D
 ##                      --grab-fps)
 ##   --zoom=Z           draw the critters Z times larger (for demo captures)
 ##   --no-passthrough   leave the critter windows wholly clickable
+##   --stay=S           visits last up to S seconds of focus (testing)
+##   --save=PATH        the economy save (timed runs use a throwaway one)
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -37,10 +39,15 @@ const Behaviours := preload("res://behaviours.gd")
 const Presence := preload("res://presence.gd")
 const Host := preload("res://host.gd")
 const Region := preload("res://region.gd")
+const Economy := preload("res://economy.gd")
+const Tray := preload("res://gui/tray.gd")
 
 const START_KITTENS := 2
 const MAX_KITTENS := 8
 const PERIMETER_SHARE := 0.3   # of arrivals, how many walk the edges
+const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
+const STAY_MAX := 50.0 * 60.0
+const TRAY_EVERY := 0.5
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
@@ -50,12 +57,19 @@ var t := 0.0
 var hosts := []
 var evaluator := Behaviours.new()
 var presence: Node
-var gather_every := 300.0
+var gather_every := 720.0     # a new visitor every 12 minutes of focus
 var focus_s := 0.0
 var next_arrival := 0.0
 var fixed_count := -1
 var fixed_perimeter := 0
 var species := Species.DEFAULT
+var species_fixed := false
+var economy: Node
+var tray: Node
+var paused := false
+var stay_scale := 1.0           # --stay: shorter visits for testing
+var save_path := ""
+var tray_in := 0.0
 var demo := ""
 var demo_wait := 0.5
 var queued := []             # [kitten, seconds left, "sleep" | "wake"]
@@ -89,6 +103,7 @@ func _ready() -> void:
 		elif arg.begins_with("--species="):
 			if Species.has(v):
 				species = v
+				species_fixed = true
 			else:
 				printerr("Unknown species '%s'; known: %s" % [v, ", ".join(Species.DATA.keys())])
 		elif arg.begins_with("--kittens="):
@@ -115,6 +130,10 @@ func _ready() -> void:
 			Critter.zoom = float(v)
 		elif arg == "--no-passthrough":
 			no_passthrough = true
+		elif arg.begins_with("--stay="):
+			stay_scale = float(v) / STAY_MAX
+		elif arg.begins_with("--save="):
+			save_path = v
 		elif arg == "--selftest":
 			selftest = true
 
@@ -140,7 +159,32 @@ func _ready() -> void:
 	randomize()
 	player = AudioStreamPlayer.new()
 	add_child(player)
-	_load_sound(Species.row(species)["sound"])
+	for sp in Species.DATA:
+		_load_sound(Species.row(sp)["sound"])
+
+	# The economy. A timed test run never touches the real save.
+	economy = Economy.new()
+	if save_path != "":
+		economy.save_path = save_path
+	elif seconds > 0.0:
+		economy.save_path = OS.get_temp_dir().path_join("critter_test_economy.json")
+	add_child(economy)
+	economy.load_save()
+	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
+	economy.gift_opened.connect(func(i, b, item): print("GIFT ", i, " +", b, " ", item))
+	economy.welcome_back.connect(func(b): print("WELCOME BACK +", b))
+
+	tray = Tray.new()
+	add_child(tray)
+	tray.spawn_pressed.connect(func():
+		if paused:
+			_set_paused(false)
+		if hosts.size() < MAX_KITTENS:
+			_arrive())
+	tray.pause_pressed.connect(func(): _set_paused(not paused))
+	tray.collection_pressed.connect(func(): print("TRAY collection (not built yet)"))
+	tray.settings_pressed.connect(func(): print("TRAY settings (not built yet)"))
+	tray.quit_pressed.connect(func(): _quit(0))
 
 	add_child(presence)
 	presence.went_away.connect(_on_went_away)
@@ -163,12 +207,32 @@ func _ready() -> void:
 
 
 func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
+	var sp := _pick_species()
 	var h = Host.new()
 	add_child(h)
-	h.setup(self, species, Critter.zoom, kind, start_mode, at)
+	h.setup(self, sp, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
 	hosts.append(h)
+	# Every visitor rolls its rarity, with the session's luck, and goes in
+	# the Collection. A visit lasts a while, then it leaves.
+	if economy != null and demo == "":
+		h.tier = economy.roll_tier(Species.row(sp).get("rarity_max", "legendary"))
+		economy.record_sighting(sp, h.tier)
+		if fixed_count <= 0 and fixed_perimeter <= 0:
+			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	return h
+
+
+func _pick_species() -> String:
+	# Any built species that is not a special visitor, unless one was asked
+	# for. Per-species weights come with the settings.
+	if species_fixed:
+		return species
+	var pool := []
+	for sp in Species.DATA:
+		if not Species.row(sp).get("special", false):
+			pool.append(sp)
+	return pool.pick_random() if not pool.is_empty() else species
 
 
 func _on_gone(h) -> void:
@@ -219,12 +283,16 @@ func play_sound(species: String) -> void:
 
 func _on_went_away() -> void:
 	# Settle down over the next few seconds, not all at once.
+	if economy != null:
+		economy.went_away()
 	queued.clear()
 	for k in kittens():
 		queued.append([k, randf_range(0.0, 6.0), "sleep"])
 
 
 func _on_came_back() -> void:
+	if economy != null:
+		economy.came_back(presence.away_after)
 	queued.clear()
 	for k in kittens():
 		queued.append([k, randf_range(0.3, 2.5), "wake"])
@@ -251,17 +319,28 @@ func _process(delta: float) -> void:
 		_run_demo(delta)
 	else:
 		_run_queue(delta)
-		if not presence.away:
+		economy.tick(delta, not presence.away)
+		if not presence.away and not paused:
 			evaluator.tick(delta, kittens(), presence.sleep_bias())
 			if fixed_count <= 0 and fixed_perimeter <= 0:
 				focus_s += delta
 				if focus_s >= next_arrival and hosts.size() < MAX_KITTENS:
 					_arrive()
 					next_arrival = focus_s + gather_every
+				for h in hosts:
+					if h.state == "live" and not h.leaving:
+						h.stay_left -= delta
+						if h.stay_left <= 0.0:
+							h.leave()
+		tray_in -= delta
+		if tray_in <= 0.0:
+			tray_in = TRAY_EVERY
+			_update_tray()
 
-	for h in hosts.duplicate():
-		h.release_if_up()
-		h.tick(delta)
+	if not paused:
+		for h in hosts.duplicate():
+			h.release_if_up()
+			h.tick(delta)
 	process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
 	fps.append(Engine.get_frames_per_second())
 
@@ -309,6 +388,31 @@ func _grab() -> void:
 		grab_next = INF
 
 
+func _set_paused(p: bool) -> void:
+	# Paused: the critters hide and no one arrives or leaves. Focus time
+	# keeps counting.
+	paused = p
+	for h in hosts:
+		h.win.visible = not p
+	_update_tray()
+
+
+func _update_tray() -> void:
+	if tray == null or economy == null:
+		return
+	var mode := "paused" if paused else ("napping" if presence.away else "running")
+	var gift_min := -1.0
+	if economy.next_gift < Economy.GIFTS.size():
+		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
+	var total := 0
+	for sp in Species.DATA:
+		total += Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary")) + 1
+	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
+		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
+		"away_min": presence.idle_s / 60.0, "found": economy.collection.size(),
+		"found_total": total, "berries": economy.berries})
+
+
 func note_pop() -> void:
 	pops += 1
 
@@ -323,6 +427,8 @@ func _quit(code: int) -> void:
 	# about one exit in three. Nothing is left to do by then, so stop the
 	# poller, then end the process without the teardown. Anything that must be
 	# saved is saved before this.
+	if economy != null and is_instance_valid(economy):
+		economy.save()
 	if presence != null and is_instance_valid(presence):
 		presence.stop()
 	if OS.get_name() == "Windows":
@@ -368,6 +474,9 @@ func _write_report() -> void:
 		"fps": _stats(fps.slice(int(fps.size() * 0.2))),   # skip the warm-up
 		"frame_ms": _stats(process_ms),
 		"pops": pops,
+		"berries": economy.berries if economy != null else 0,
+		"collection": economy.collection.size() if economy != null else 0,
+		"luck": snappedf(economy.luck(), 0.01) if economy != null else 1.0,
 		"throws": throws,
 		"presence_source": presence.source,
 	}

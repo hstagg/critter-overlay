@@ -64,6 +64,18 @@ Don't refactor while fixing a bug. Don't fix adjacent issues while implementing 
 
 If the right approach is unclear, say so and give options with trade-offs. "I'll just do X" is less useful than "I see two approaches — here's the trade-off."
 
+### Simplest thing that works
+
+Minimum code that solves the problem. No features, options or abstractions nobody asked for; if 200 lines could be 50, rewrite it. (This and the next rule are adapted from forrestchang/andrej-karpathy-skills, MIT.)
+
+### Define the check, then loop
+
+Turn each task into something verifiable before starting: a failing test, a `--selftest` run, a measured frame time. Work until that check passes rather than until the code looks right.
+
+### Design skill: store page and website only
+
+`.claude/skills/design-taste-frontend/` (Leonxlnx/taste-skill, MIT, pinned at ce26fc2) is for the marketing site and store page. Do not apply it to the Godot app's own UI, and skip its image-generation steps. It is large (about 22k tokens), so invoke it only for web page work.
+
 ### Changes that require discussion first
 
 Before implementing any of these, stop and discuss:
