@@ -9,6 +9,11 @@ extends Node
 ## or if that process fails, idle time falls back to how long the mouse has
 ## been still (keyboard-only typing then reads as idle, so it is a fallback).
 ##
+## With the native layer (native/, CritterNative) there is no PowerShell:
+## idle time is time since input from a real device, so software that fakes
+## input (mouse jigglers, auto-clickers) neither keeps the critters awake nor
+## earns berries. main.gd sets `native` before start().
+##
 ## `--idle-sim=PRESENT,AWAY` replaces both with a fixed cycle, for testing.
 
 signal went_away
@@ -49,9 +54,12 @@ var _ps_mutex := Mutex.new()
 var _ps_ms := -1
 var _ps_at := 0
 var _running := true
+var native: RefCounted = null    # CritterNative, when built
 
 
 func start() -> void:
+	if native != null and native.real_input_age_ms() >= 0:
+		return
 	if sim.is_empty() and OS.get_name() == "Windows":
 		_start_poller()
 
@@ -93,6 +101,9 @@ func _process(delta: float) -> void:
 		_sim_t = fmod(_sim_t + delta, sim[0] + sim[1])
 		idle_s = 0.0 if _sim_t < sim[0] else away_after + (_sim_t - sim[0])
 		source = "sim"
+	elif native != null and native.real_input_age_ms() >= 0:
+		idle_s = native.real_input_age_ms() / 1000.0
+		source = "native"
 	else:
 		idle_s = _mouse_idle
 		source = "mouse"
