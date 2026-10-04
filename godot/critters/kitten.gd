@@ -1,7 +1,7 @@
 extends "res://critters/critter.gd"
 ## The kitten: a trotting walk, a loaf with its paws tucked and tail wrapped
-## round, and its own groom (paw lick and face wipe), play-bow stretch and
-## hunt (crouch, wiggle, pounce). Everything else is shared, in critter.gd.
+## round, and its own groom (paw lick and face wipe), hunt (crouch, wiggle,
+## pounce) and tail chase. Everything else is shared, in critter.gd.
 
 # The kitten's origin: between its feet, on the ground.
 const BASE := Vector2(150, 262)
@@ -13,13 +13,14 @@ const FRONT_HIP := Vector2(125, 224)   # the hunting wiggle rocks about this
 # Pivot of each part in SVG units, where it is drawn in its own file.
 const PIVOTS := {
 	"tail": Vector2(200, 226),
-	"body": BASE, "feet": BASE, "paws": BASE, "paw-left": BASE,
+	"body": BASE, "foot-l": BASE, "foot-r": BASE, "paws": BASE, "paw-left": BASE,
 	"walk-body": BASE,
 	"leg-front": LEG_HIP, "leg-front-far": LEG_HIP,
 	"leg-back": LEG_HIP, "leg-back-far": LEG_HIP,
 	"loaf-body": BASE, "loaf-paws": BASE,
 	"loaf-tail": Vector2(232, 246),
 	"groom-arm": Vector2(172, 206),
+	"scratch-foot": Vector2(194, 252),
 	"ear-l": Vector2(100, 76),
 	"ear-r": Vector2(200, 76),
 	"head": HEAD_PIVOT,
@@ -39,6 +40,7 @@ const WALK_LEGS := [
 ]
 
 var pounced := false
+var spins := 0
 var sit_paws: Node2D
 var paw_left: Node2D
 var groom_arm: Node2D
@@ -66,7 +68,8 @@ func _define() -> void:
 		"walk": Rect2(18, 36, 272, 226),
 		"loaf": Rect2(58, 52, 194, 211),
 	}
-	sit_parts = ["body", "feet", "paws", "paw-left"]
+	sit_parts = ["body", "foot-l", "foot-r", "paws", "paw-left"]
+	scratch_hides = "foot-r"
 	speed_range = Vector2(38.0, 62.0)
 	head_height = 60.0
 	back_hip = BACK_HIP
@@ -102,11 +105,13 @@ func _on_pose(p: String) -> void:
 
 
 func _act_pose(b: String) -> String:
-	return "walk" if b in ["stretch", "hunt"] else "sit"
+	return "walk" if b in ["stretch", "hunt", "chase_tail"] else "sit"
 
 
 func _on_begin(b: String) -> void:
+	super(b)
 	pounced = false
+	spins = 0
 	if b == "groom":
 		_kick_squash(-0.8)
 
@@ -123,6 +128,8 @@ func _behaviour_params(p: Dictionary) -> void:
 			_groom_params(p, act_t)
 		"hunt":
 			_hunt_params(p, act_t)
+		"chase_tail":
+			_chase_params(p, act_t)
 		_:
 			super(p)
 
@@ -181,6 +188,25 @@ func _hunt_params(p: Dictionary, u: float) -> void:
 		p.tail_rot = tail_rest_deg["walk"] + 20.0
 		if not airborne:
 			p.legs = "gait"   # landed: skids to a stop as the speed eases off
+
+
+func _chase_params(p: Dictionary, u: float) -> void:
+	# Round and round after its own tail: a spin every 0.4 s, each with a
+	# squash, eyes on the tail, tail whipping away.
+	var n := int(u / 0.4)
+	if n > spins and u < act_len - 0.2:
+		spins = n
+		facing = -facing
+		want_facing = facing
+		_kick_squash(-1.3)
+	var f := fmod(u, 0.4) / 0.4
+	p.eyes_off = Vector2(8.0, 2.0)
+	p.blink = false
+	p.head_rot = 8.0 * sin(f * PI)
+	p.torso_rot = -4.0 * sin(f * PI)
+	p.tail_extra = 28.0 * sin(u * TAU * 2.5)
+	p.ear_l = 8.0
+	p.ear_r = -8.0
 
 
 # --- Its own parts -----------------------------------------------------------------

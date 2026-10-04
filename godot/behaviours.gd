@@ -32,6 +32,9 @@ const REGISTRY := {
 	"wake_up":        {"dur": [0.6, 0.9], "cool": 30.0, "w": 0.5, "sleep": 0.0},
 	"nose_twitch":    {"dur": [0.4, 0.6], "cool": 5.0, "w": 1.0, "sleep": 0.0},
 	"stand_lookout":  {"dur": [1.8, 3.0], "cool": 40.0, "w": 1.0, "sleep": 0.0},
+	"chase_tail":     {"dur": [1.2, 2.0], "cool": 90.0, "w": 0.6, "sleep": -0.3},
+	"preen":          {"dur": [2.0, 3.5], "cool": 40.0, "w": 1.0, "sleep": 0.2},
+	"peck_ground":    {"dur": [1.0, 1.5], "cool": 25.0, "w": 1.0, "sleep": 0.0},
 }
 
 const BASE_CHANCE := 0.1          # per kitten per second, before weighting
