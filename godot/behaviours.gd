@@ -5,7 +5,9 @@ extends RefCounted
 ## The evaluator runs once a second (not every frame) and starts at most one
 ## behaviour per kitten, weighted, with a per-kitten cooldown so the same one
 ## does not repeat. Adding a behaviour is a registry entry here plus its pose
-## in critters/kitten.gd (_behaviour_params).
+## in critters/ (_behaviour_params): the shared ones in critter.gd, a
+## species' own in its file. Each species lists the ones it can do in
+## species.gd; the evaluator offers a critter only those.
 ##
 ## `sleep` is extra weight added in proportion to the sleep bias, which rises
 ## the longer the user has been idle: yawns and naps get likelier as they
@@ -21,6 +23,15 @@ const REGISTRY := {
 	"tail_swish":     {"dur": [0.6, 0.8], "cool": 6.0, "w": 0.7, "sleep": 0.0},
 	"look_at_cursor": {"dur": [1.5, 2.5], "cool": 15.0, "w": 1.0, "sleep": 0.0},
 	"hunt":           {"dur": [2.4, 3.4], "cool": 45.0, "w": 0.8, "sleep": -0.6},
+	# The rest of v2.0's universal idles, and the species' own. Durations are
+	# v2.0's, lengthened a little where the rig needs time to read.
+	"scratch":        {"dur": [1.2, 2.0], "cool": 35.0, "w": 1.0, "sleep": 0.0},
+	"sneeze":         {"dur": [0.6, 0.8], "cool": 30.0, "w": 0.6, "sleep": 0.0},
+	"shake_off":      {"dur": [0.7, 1.0], "cool": 60.0, "w": 0.8, "sleep": 0.0},
+	"listen":         {"dur": [1.0, 1.6], "cool": 20.0, "w": 1.0, "sleep": 0.0},
+	"wake_up":        {"dur": [0.6, 0.9], "cool": 30.0, "w": 0.5, "sleep": 0.0},
+	"nose_twitch":    {"dur": [0.4, 0.6], "cool": 5.0, "w": 1.0, "sleep": 0.0},
+	"stand_lookout":  {"dur": [1.8, 3.0], "cool": 40.0, "w": 1.0, "sleep": 0.0},
 }
 
 const BASE_CHANCE := 0.1          # per kitten per second, before weighting
@@ -67,7 +78,7 @@ func _pick(k, sleep_bias: float) -> String:
 	var weights := []
 	var total := 0.0
 	for b in REGISTRY.keys():
-		if k.on_cooldown(b):
+		if k.on_cooldown(b) or not k.can_do(b):
 			continue
 		var w: float = REGISTRY[b]["w"] + REGISTRY[b]["sleep"] * sleep_bias
 		if w <= 0.0:
