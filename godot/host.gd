@@ -43,6 +43,12 @@ var edges_ledge := 0.0
 
 # Drag, throw, pop.
 var state := "live"            # live | held | thrown | popping
+
+# A visit: its rarity, how long it stays (seconds of focus), and leaving.
+var tier := "common"
+var stay_left := INF
+var leaving := false
+var fade := 1.0
 var grab_from := Vector2.ZERO  # screen px where the button went down
 var grab_offset := Vector2.ZERO
 var moved := 0.0
@@ -55,6 +61,7 @@ var particles := []
 
 # Click-through hole.
 var _hole := Rect2(-1, -1, 0, 0)
+var world: Node
 
 
 class World extends Node:
@@ -118,7 +125,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	track = Node2D.new()
 	spin.add_child(track)
 
-	var world := World.new()
+	world = World.new()
 	world.host = self
 	add_child(world)
 	var r: Rect2 = main.area
@@ -219,6 +226,9 @@ func tick(delta: float) -> void:
 	match state:
 		"live":
 			critter.tick(delta)
+			if leaving and _left_the_screen(delta):
+				_close()
+				return
 			if kind == "roam" and critter.mode == "walk" and not critter.airborne:
 				# Drift up or down the screen in step with the walk.
 				if randf() < delta * 0.25:
@@ -301,6 +311,33 @@ func _release() -> void:
 	state = "thrown"
 	main.note_throw()
 	main.play_sound(Species.row(species)["sound"])
+
+
+func leave() -> void:
+	# The visit is over. A roamer walks off the nearer side of the screen; an
+	# edge walker, which has no side to walk off, fades away.
+	if leaving or state != "live":
+		return
+	leaving = true
+	if kind == "roam":
+		world.left_x = -INF
+		world.right_x = INF
+		critter.hold_nap = false
+		critter.act = ""
+		critter._go_walk()
+		critter.mode_left = INF
+		var r: Rect2 = main.area
+		critter.want_facing = -1 if critter.position.x < r.get_center().x else 1
+
+
+func _left_the_screen(delta: float) -> bool:
+	if kind == "roam":
+		critter.mode_left = INF   # keep walking
+		var r: Rect2 = main.area
+		return critter.position.x < r.position.x - size or critter.position.x > r.end.x + size
+	fade -= delta / 1.2
+	spin.modulate.a = clampf(fade, 0.0, 1.0)
+	return fade <= 0.0
 
 
 func pop() -> void:
