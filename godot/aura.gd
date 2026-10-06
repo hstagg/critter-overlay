@@ -58,6 +58,7 @@ var _crown: Texture2D
 var _spark: Texture2D
 
 static var _cache := {}
+static var simple := false        # System > Animation detail > Simple: glow, motes and crown only
 
 
 func setup(tier_name: String, species_id: String, critter_node, zoom: float) -> void:
@@ -172,6 +173,8 @@ func _draw() -> void:
 	var gs: float = _row[2] * lerpf(0.94, 1.04, b) * k
 	draw_texture_rect(_glow, Rect2(centre - Vector2(gs, gs) * 0.5, Vector2(gs, gs)), false, Color(1, 1, 1, alpha))
 
+	if simple:
+		return
 	if tier == "legendary":
 		_draw_rays()
 		_draw_prism()
@@ -311,14 +314,15 @@ func _draw_front() -> void:
 		var a := _keys(p, [[0.0, 0.0], [0.18, 1.0], [0.8, 0.9], [1.0, 0.0]])
 		_sprite(front, _mote[i], _at(Vector2(x0 + dx, y0 + dy)), s * sc, rot, a)
 
-	var g: int = _row[7]
+	var g: int = 0 if simple else _row[7]
 	for i in g:
 		var ang := i * TAU / g + 0.6
 		var r := 104.0 + (i % 2) * 14.0
 		var p := fposmod((t + i * 0.9) / 2.6, 1.0)
 		_twinkle(_glint, _at(Vector2(r * cos(ang), r * sin(ang) * 0.85 - 3.0)), 16.0, p)
 
-	_draw_orbs(front, true)
+	if not simple:
+		_draw_orbs(front, true)
 
 	if tier == "legendary" and critter != null and is_instance_valid(critter) and critter.head != null:
 		var head := front.to_local(critter.head.global_position)

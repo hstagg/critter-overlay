@@ -50,6 +50,13 @@ func _init() -> void:
 
 	check(n.poll_hotkey() == 0, "no hotkey press reported without one")
 	check(typeof(n.user_busy()) == TYPE_BOOL, "user_busy answers")
+	check(n.set_hotkey(1, 0x0001 | 0x0002, 0x87), "spawn shortcut (Ctrl+Alt+F24) sent to the input thread")
+	OS.delay_msec(200)
+	check(n.hotkey_state(1) == 1, "spawn shortcut registered (state %d)" % n.hotkey_state(1))
+	check(n.poll_hotkey_slot(1) == 0, "no spawn press reported without one")
+	n.set_hotkey(1, 0, 0)
+	OS.delay_msec(200)
+	check(n.hotkey_state(1) == 0, "spawn shortcut cleared")
 	print("user_busy: %s (true only while a full-screen app or presentation has the screen)" % n.user_busy())
 	check(n.single_instance("CritterOverlay.native_test"), "first instance takes the lock")
 

@@ -40,6 +40,7 @@ const REGISTRY := {
 const BASE_CHANCE := 0.1          # per kitten per second, before weighting
 const MAX_BEHAVING := 0.5         # at most half the kittens busy at once
 
+var frequency := 1.0              # World > Behaviour frequency, 0.3 to 2.0
 var _acc := 0.0
 var rng := RandomNumberGenerator.new()
 
@@ -66,7 +67,8 @@ func tick(delta: float, kittens: Array, sleep_bias: float) -> void:
 	for k in kittens:
 		if busy >= cap:
 			return
-		if not k.can_start_behaviour() or rng.randf() > BASE_CHANCE:
+		# Each critter's Activity (Critters page) scales its own chance.
+		if not k.can_start_behaviour() or rng.randf() > BASE_CHANCE * frequency * k.activity:
 			continue
 		var b := _pick(k, sleep_bias)
 		if b == "":

@@ -31,7 +31,13 @@ extends Node2D
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
-##   --open=collection  open the Collection at start (testing)
+##   --open=PAGE        open Settings on PAGE at start (home, critters, focus,
+##                      world, sound, collection, system)
+##   --settings=PATH    the settings file (timed runs use a throwaway one)
+##   --set=KEY:JSON     change a setting three seconds in, as Settings would
+##                      (repeatable; testing live changes)
+##   --settings-tour=DIR open Settings and save every page, scrolled through,
+##                      as PNGs in DIR, then quit (testing)
 ##   --tier=NAME        every critter arrives at this rarity tier (testing)
 ##   --toast-demo       show one of each toast, a few seconds apart
 ##   --selftest         check the click-through polygon and quit
@@ -46,16 +52,17 @@ const Economy := preload("res://economy.gd")
 const Tray := preload("res://gui/tray.gd")
 const Collection := preload("res://gui/collection.gd")
 const Toasts := preload("res://gui/toast.gd")
+const Settings := preload("res://settings.gd")
+const SettingsWindow := preload("res://gui/settings_window.gd")
+const Palette := preload("res://gui/palette.gd")
+const Aura := preload("res://aura.gd")
 
-const START_KITTENS := 2
-const MAX_KITTENS := 8
-const PERIMETER_SHARE := 0.3   # of arrivals, how many walk the edges
+const VERSION := "3.0.0"
+const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
-const MOD_CTRL_SHIFT := 0x0002 | 0x0004   # Win32 MOD_CONTROL | MOD_SHIFT
-const VK_P := 0x50
-const NOTES_FROM := "rare"      # toasts for this tier and up (a World setting later)
+const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
@@ -65,16 +72,28 @@ var t := 0.0
 var hosts := []
 var evaluator := Behaviours.new()
 var presence: Node
-var gather_every := 720.0     # a new visitor every 12 minutes of focus
-var focus_s := 0.0
+var gather_flag := -1.0       # --gather-every, over the setting
+var away_flag := -1.0         # --away-after, over the setting
+var zoom_flag := false        # --zoom, over the size setting
+var focus_s := 0.0            # focus seconds this run (gathering, solo walkers)
 var next_arrival := 0.0
+var wall_s := 0.0             # seconds this run, not paused (timer arrivals)
+var next_group := 0.0
+var next_solo := 0.0
+var tidied := false           # everyone went home during a long break
+var busy_hidden := false      # hidden while a full-screen app has the screen
+var busy_check := 0.0
+var settings: Node
+var settings_win: Window
+var settings_path := ""
+var tour_dir := ""
+var late_sets := []           # --set: [key, value], applied at three seconds
 var fixed_count := -1
 var fixed_perimeter := 0
 var species := Species.DEFAULT
 var species_fixed := false
 var economy: Node
 var tray: Node
-var collection: Window
 var toasts: Node
 var force_tier := ""
 var toast_demo := false
@@ -127,9 +146,9 @@ func _ready() -> void:
 		elif arg.begins_with("--demo="):
 			demo = v
 		elif arg.begins_with("--gather-every="):
-			gather_every = float(v)
+			gather_flag = float(v)
 		elif arg.begins_with("--away-after="):
-			presence.away_after = float(v)
+			away_flag = float(v)
 		elif arg.begins_with("--idle-sim="):
 			presence.sim = PackedFloat32Array([float(v.get_slice(",", 0)), float(v.get_slice(",", 1))])
 		elif arg.begins_with("--grab="):
@@ -142,14 +161,22 @@ func _ready() -> void:
 			grab_fps = float(v)
 		elif arg.begins_with("--zoom="):
 			Critter.zoom = float(v)
+			zoom_flag = true
 		elif arg == "--no-passthrough":
 			no_passthrough = true
 		elif arg.begins_with("--stay="):
 			stay_scale = float(v) / STAY_MAX
 		elif arg.begins_with("--save="):
 			save_path = v
-		elif arg == "--open=collection":
-			open_on_start = "collection"
+		elif arg.begins_with("--open="):
+			open_on_start = v
+		elif arg.begins_with("--settings="):
+			settings_path = v
+		elif arg.begins_with("--set="):
+			var kv := arg.substr(6)
+			late_sets.append([kv.get_slice(":", 0), JSON.parse_string(kv.substr(kv.find(":") + 1))])
+		elif arg.begins_with("--settings-tour="):
+			tour_dir = v
 		elif arg.begins_with("--tier="):
 			if v in Economy.TIERS:
 				force_tier = v
@@ -179,6 +206,20 @@ func _ready() -> void:
 	main_win.size = Vector2i(1, 1)
 	main_win.position = screen_rect.position + Vector2i(0, screen_rect.size.y - 1)
 
+	# Settings first: everything below reads them. A timed test run never
+	# touches the real file.
+	settings = Settings.new()
+	if settings_path != "":
+		settings.path = settings_path
+	elif seconds > 0.0 or demo != "":
+		# Each test run starts from the defaults.
+		settings.path = OS.get_temp_dir().path_join("critter_test_settings.json")
+		if FileAccess.file_exists(settings.path):
+			DirAccess.remove_absolute(settings.path)
+	add_child(settings)
+	settings.load_file()
+	Palette.theme = settings.value("system.theme")
+
 	# The Windows layer, when built: one copy at a time, the global pause
 	# shortcut, no taskbar button, and idle time from real devices only.
 	# Without it the game still runs, on the PowerShell idle poller.
@@ -190,7 +231,12 @@ func _ready() -> void:
 			set_process(false)
 			get_tree().quit()
 			return
-		native.start(MOD_CTRL_SHIFT, VK_P)
+		var pk: Dictionary = settings.value("system.pause_key")
+		native.start(int(pk.mods), int(pk.vk))
+		get_tree().create_timer(0.3).timeout.connect(func():
+			var sk: Dictionary = settings.value("system.spawn_key")
+			if int(sk.vk) != 0:
+				native.set_hotkey(1, int(sk.mods), int(sk.vk)))
 		native.hide_from_taskbar(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, 0))
 		presence.native = native
 
@@ -215,27 +261,31 @@ func _ready() -> void:
 
 	toasts = Toasts.new()
 	add_child(toasts)
-	toasts.open_collection.connect(func(_sp): open_collection())
+	toasts.open_collection.connect(func(sp): open_settings("collection", sp))
 	if toast_demo:
 		_run_toast_demo()
 
 	tray = Tray.new()
 	add_child(tray)
-	tray.spawn_pressed.connect(func():
-		if paused:
-			_set_paused(false)
-		if hosts.size() < MAX_KITTENS:
-			_arrive())
-	tray.pause_pressed.connect(func(): _set_paused(not paused))
-	tray.collection_pressed.connect(open_collection)
-	tray.settings_pressed.connect(func(): print("TRAY settings (not built yet)"))
-	tray.quit_pressed.connect(func(): _quit(0))
-	if open_on_start == "collection":
-		open_collection.call_deferred()
+	tray.spawn_pressed.connect(spawn_now)
+	tray.pause_pressed.connect(toggle_pause)
+	tray.collection_pressed.connect(func(): open_settings("collection"))
+	tray.settings_pressed.connect(func(): open_settings("home"))
+	tray.quit_pressed.connect(quit_app)
+	if open_on_start != "":
+		open_settings.call_deferred(open_on_start)
+	if tour_dir != "":
+		_tour.call_deferred()
+	if not late_sets.is_empty():
+		get_tree().create_timer(3.0).timeout.connect(func():
+			for kv in late_sets:
+				settings.set_value(kv[0], kv[1]))
 
 	add_child(presence)
 	presence.went_away.connect(_on_went_away)
 	presence.came_back.connect(_on_came_back)
+	_apply_all()
+	settings.changed.connect(_on_setting)
 
 	if demo != "":
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
@@ -248,24 +298,39 @@ func _ready() -> void:
 		for i in fixed_perimeter:
 			_spawn("perimeter", "walk")
 		return
-	for i in START_KITTENS:
+	for i in mini(int(settings.value("focus.start_with")), _max_out()):
 		_spawn("roam", ["sit", "walk", "walk", "loaf"].pick_random())
-	next_arrival = gather_every
+	next_arrival = _gather_every()
+	next_group = _timer_every()
+	next_solo = _solo_every()
 
 
-func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
-	var sp := _pick_species()
+func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := ""):
+	if sp == "":
+		sp = _pick_species()
+	if sp == "":
+		return null   # every species is switched off
 	var h = Host.new()
 	add_child(h)
 	h.setup(self, sp, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
 	hosts.append(h)
+	_personalise(h)
 	# Every visitor rolls its rarity, with the session's luck, and goes in
-	# the Collection. A visit lasts a while, then it leaves.
-	if economy != null and demo == "":
-		var roll: Array = economy.roll_arrival(Species.row(sp).get("rarity_max", "legendary"))
-		h.tier = force_tier if force_tier != "" else roll[0]
-		_announce(sp, h.tier, roll[1] and force_tier == "")
+	# the Collection. A visit lasts a while, then it leaves. A critter
+	# redrawn at a new size keeps its tier.
+	if keep_tier != "":
+		h.tier = keep_tier
+	elif economy != null and demo == "":
+		var row: Dictionary = settings.species(sp)
+		var cap: String = Species.row(sp).get("rarity_max", "legendary")
+		if Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(cap):
+			cap = row.tier_max
+		var roll: Array = economy.roll_arrival(cap, row.tier_min)
+		var rarity_on: bool = settings.value("world.rarity")
+		var tier: String = roll[0] if rarity_on else "common"
+		h.tier = force_tier if force_tier != "" else tier
+		_announce(sp, h.tier, roll[1] and force_tier == "" and rarity_on)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	elif force_tier != "":
@@ -273,16 +338,39 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
 	return h
 
 
+func _personalise(h) -> void:
+	# The species' Speed and Activity, and everyone's Opacity.
+	var row: Dictionary = settings.species(h.species)
+	var k = h.critter
+	if not k.has_meta("base_cruise"):
+		k.set_meta("base_cruise", k.cruise)
+	k.cruise = k.get_meta("base_cruise") * Settings.SPEEDS[int(row.speed)]
+	k.activity = Settings.ACTIVITY[int(row.activity)]
+	h.set_opacity(float(settings.value("critters.opacity")) / 100.0)
+
+
 func _pick_species() -> String:
-	# Any built species that is not a special visitor, unless one was asked
-	# for. Per-species weights come with the settings.
+	# A built species that is switched on, weighted by how often it visits
+	# (Settings > Critters), unless one was asked for. "" when none are on.
 	if species_fixed:
 		return species
 	var pool := []
+	var weights := []
+	var total := 0.0
 	for sp in Species.DATA:
-		if not Species.row(sp).get("special", false):
-			pool.append(sp)
-	return pool.pick_random() if not pool.is_empty() else species
+		if Species.row(sp).get("special", false) or not settings.sp(sp, "enabled"):
+			continue
+		pool.append(sp)
+		weights.append(Settings.VISITS[int(settings.sp(sp, "visits"))])
+		total += weights[-1]
+	if pool.is_empty():
+		return ""
+	var r := randf() * total
+	for i in pool.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return pool[i]
+	return pool[-1]
 
 
 func _on_gone(h) -> void:
@@ -290,14 +378,12 @@ func _on_gone(h) -> void:
 
 
 func _arrive() -> void:
-	# A newcomer: a roamer walks in from a side, an edge-walker appears on
-	# the bottom edge and sets off round the screen.
-	if randf() < PERIMETER_SHARE:
-		_spawn("perimeter", "walk")
-		return
+	# A newcomer: a roamer walks in from a side.
 	var from_left := randf() < 0.5
 	var x := area.position.x - 80.0 if from_left else area.end.x + 80.0
 	var h = _spawn("roam", "walk", Vector2(x, randf_range(area.position.y + 260.0, area.end.y)))
+	if h == null:
+		return
 	var k = h.critter
 	k.facing = 1 if from_left else -1
 	k.want_facing = k.facing
@@ -323,9 +409,22 @@ func _load_sound(species: String) -> void:
 		sounds[species] = AudioStreamWAV.load_from_file(path)
 
 
-func play_sound(species: String) -> void:
-	if sounds.has(species):
-		player.stream = sounds[species]
+func play_sound(sound: String, sp := "") -> void:
+	# Pops and throws: off with Sound > Pop sounds, or the species' own switch.
+	if not settings.value("sound.pops") or (sp != "" and not settings.sp(sp, "sound")):
+		return
+	_play(sound)
+
+
+func preview_sound(sp: String) -> void:
+	# The play buttons in Settings: always heard, at the set volume.
+	_play(Species.row(sp)["sound"])
+
+
+func _play(sound: String) -> void:
+	if sounds.has(sound):
+		player.stream = sounds[sound]
+		player.volume_db = linear_to_db(maxf(float(settings.value("sound.volume")) / 100.0, 0.0001))
 		player.play()
 
 
@@ -346,6 +445,12 @@ func _on_came_back() -> void:
 	queued.clear()
 	for k in kittens():
 		queued.append([k, randf_range(0.3, 2.5), "wake"])
+	if tidied:
+		# Everyone went home during the break: gather again.
+		tidied = false
+		for i in mini(int(settings.value("focus.start_with")), _max_out()):
+			_arrive()
+		next_arrival = focus_s + _gather_every()
 
 
 func _run_queue(delta: float) -> void:
@@ -370,20 +475,19 @@ func _process(delta: float) -> void:
 	else:
 		_run_queue(delta)
 		economy.tick(delta, not presence.away)
+		if fixed_count <= 0 and fixed_perimeter <= 0:
+			_arrivals(delta)
 		if not presence.away and not paused:
 			evaluator.tick(delta, kittens(), presence.sleep_bias())
-			if fixed_count <= 0 and fixed_perimeter <= 0:
-				focus_s += delta
-				if focus_s >= next_arrival and hosts.size() < MAX_KITTENS:
-					_arrive()
-					next_arrival = focus_s + gather_every
-				for h in hosts:
-					if h.state == "live" and not h.leaving:
-						h.stay_left -= delta
-						if h.stay_left <= 0.0:
-							h.leave()
-		if native != null and native.poll_hotkey() == 1:
-			_set_paused(not paused)
+		if native != null:
+			if native.poll_hotkey() == 1:
+				toggle_pause()
+			if native.poll_hotkey_slot(1) == 1:
+				spawn_now()
+		busy_check -= delta
+		if busy_check <= 0.0:
+			busy_check = 1.0
+			_check_busy()
 		tray_in -= delta
 		if tray_in <= 0.0:
 			tray_in = TRAY_EVERY
@@ -455,14 +559,15 @@ func _announce(sp: String, tier: String, bonus: bool) -> void:
 		if key.ends_with(":legendary"):
 			had_legendary = true
 	var first: bool = economy.record_sighting(sp, tier)
-	if Economy.TIERS.find(tier) < Economy.TIERS.find(NOTES_FROM) or _quiet():
+	var notes: String = settings.value("world.notes")
+	if notes == "off" or Economy.TIERS.find(tier) < Economy.TIERS.find(notes) or _quiet():
 		return
 	var text := sighting_text(sp, tier, first, bonus, had_legendary,
-		economy.collection.get("%s:%s" % [sp, tier], {}).get("count", 1))
+		economy.collection.get("%s:%s" % [sp, tier], {}).get("count", 1), economy.odds)
 	toasts.show_sighting(sp, tier, text[0], text[1], text[2])
 
 
-static func sighting_text(sp: String, tier: String, first: bool, bonus: bool, had_legendary: bool, count: int) -> Array:
+static func sighting_text(sp: String, tier: String, first: bool, bonus: bool, had_legendary: bool, count: int, odds := Economy.BASE_ODDS) -> Array:
 	# [kicker, title, line] for a sighting toast.
 	var name := Collection.species_name(sp)
 	var low := name.to_lower()
@@ -478,7 +583,7 @@ static func sighting_text(sp: String, tier: String, first: bool, bonus: bool, ha
 	elif tier == "legendary":
 		line = "Seen once before." if count == 2 else "Seen %d times before." % (count - 1)
 	else:
-		line = "Only about 1 in %d critters is %s." % [int(round(1.0 / Economy.BASE_ODDS[tier])), tier_name]
+		line = "Only about 1 in %d critters is %s." % [int(round(1.0 / maxf(odds[tier], 0.00001))), tier_name]
 	return [tier_name, title, line]
 
 
@@ -504,20 +609,339 @@ func _run_toast_demo() -> void:
 				toasts.toasts[i].win.get_texture().get_image().save_png(grab_path % i))
 
 
-func open_collection() -> void:
-	if collection == null:
-		collection = Collection.new()
-		add_child(collection)
-	collection.open(economy)
+func _tour() -> void:
+	# --settings-tour: every page, top to bottom, saved for checking by eye.
+	await get_tree().create_timer(1.5).timeout
+	for n in SettingsWindow.NAV:
+		open_settings(n[0])
+		await get_tree().create_timer(1.2).timeout
+		var y := 0
+		var i := 0
+		while true:
+			settings_win._scroll.scroll_vertical = y
+			await get_tree().create_timer(0.4).timeout
+			var sc: ScrollContainer = settings_win._scroll
+			settings_win.get_texture().get_image().save_png(tour_dir.path_join("%s-%d.png" % [n[0], i]))
+			var max_y := int(sc.get_v_scroll_bar().max_value - sc.size.y)
+			if y >= max_y or i >= 5:
+				break
+			y = mini(y + 600, max_y)
+			i += 1
+	print("TOUR done")
+	_quit(0)
+
+
+func open_settings(page := "", sp := "") -> void:
+	if settings_win == null:
+		settings_win = SettingsWindow.new()
+		add_child(settings_win)
+	settings_win.open(self, page, sp)
 
 
 func _set_paused(p: bool) -> void:
 	# Paused: the critters hide and no one arrives or leaves. Focus time
 	# keeps counting.
 	paused = p
-	for h in hosts:
-		h.win.visible = not p
+	_show_critters()
 	_update_tray()
+
+
+func _show_critters() -> void:
+	for h in hosts:
+		h.win.visible = not paused and not busy_hidden
+
+
+func _check_busy() -> void:
+	# Focus > Pause in full-screen apps: hide while a game, film or
+	# presentation has the screen.
+	var busy: bool = settings.value("focus.pause_fullscreen") and native != null and native.user_busy()
+	if busy != busy_hidden:
+		busy_hidden = busy
+		_show_critters()
+
+
+# --- Arrivals -------------------------------------------------------------------
+
+func _max_out() -> int:
+	return mini(int(settings.value("focus.max_out")), HARD_MAX)
+
+
+func _gather_every() -> float:
+	return gather_flag if gather_flag > 0.0 else float(settings.value("focus.gather_every_min")) * 60.0
+
+
+func _timer_every() -> float:
+	return float(settings.value("focus.timer_every_min")) * 60.0
+
+
+func _solo_every() -> float:
+	return float(settings.value("focus.solo_every_min")) * 60.0
+
+
+func _arrivals(delta: float) -> void:
+	# Who comes and goes. Gathering counts focus time; the timer counts
+	# time whatever you are doing (arrivals while you are away nap at once).
+	# Solo walkers come along the edges in either mode. Nobody comes or goes
+	# while paused.
+	if paused:
+		return
+	var present: bool = not presence.away
+	var timer: bool = settings.value("focus.mode") == "timer"
+	if present:
+		focus_s += delta
+	wall_s += delta
+	if timer:
+		if wall_s >= next_group:
+			next_group = wall_s + _timer_every()
+			_group()
+	elif present and focus_s >= next_arrival:
+		next_arrival = focus_s + _gather_every()
+		if hosts.size() < _max_out():
+			_arrive()
+	var solo_clock := wall_s if timer else focus_s
+	if settings.value("focus.solo") and (present or timer) and solo_clock >= next_solo:
+		next_solo = solo_clock + _solo_every()
+		if hosts.size() < (HARD_MAX if timer else _max_out()):
+			var h = _spawn("perimeter", "walk")
+			if h != null and not present:
+				h.critter.go_to_sleep()
+	if present:
+		for h in hosts:
+			if h.state == "live" and not h.leaving:
+				h.stay_left -= delta
+				if h.stay_left <= 0.0:
+					h.leave()
+	# Focus > Tidy up after a long break.
+	var tidy: float = float(settings.value("focus.tidy_after_min")) * 60.0
+	if not present and tidy > 0.0 and not tidied and presence.idle_s >= tidy:
+		tidied = true
+		for h in hosts:
+			if h.state == "live" and not h.leaving:
+				h.leave(true)
+
+
+func _group() -> void:
+	# v2.0's timed spawn: a group of one species at random spots.
+	var lo := int(settings.value("focus.timer_min"))
+	var hi := maxi(lo, int(settings.value("focus.timer_max")))
+	var sp := _pick_species()
+	if sp == "":
+		return
+	for i in mini(randi_range(lo, hi), HARD_MAX - hosts.size()):
+		var h = _spawn("roam", ["sit", "walk", "walk"].pick_random(), Vector2(-1, -1), sp)
+		if h != null and presence.away:
+			h.critter.go_to_sleep()
+
+
+# --- What the tray and Settings ask for -------------------------------------------
+
+func spawn_now() -> void:
+	if paused:
+		_set_paused(false)
+	if hosts.size() < HARD_MAX:
+		_arrive()
+
+
+func toggle_pause() -> void:
+	_set_paused(not paused)
+
+
+func quit_app() -> void:
+	_quit(0)
+
+
+func collection_counts() -> Array:
+	var total := 0
+	var found := 0
+	for sp in Species.DATA:
+		var cap := Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary"))
+		total += cap + 1
+		for i in cap + 1:
+			if economy.collection.has("%s:%s" % [sp, Economy.TIERS[i]]):
+				found += 1
+	return [found, total]
+
+
+func status() -> Dictionary:
+	# The live numbers the Settings sidebar and Home page show.
+	var timer: bool = settings.value("focus.mode") == "timer"
+	var mode := "paused" if paused else ("napping" if presence.away else "running")
+	var next_text := ""
+	var progress := 0.0
+	if timer:
+		var left := maxf(0.0, next_group - wall_s)
+		progress = 1.0 - left / maxf(_timer_every(), 1.0)
+		next_text = "Next group in %d min" % ceili(left / 60.0)
+	elif hosts.size() >= _max_out():
+		progress = 1.0
+		next_text = "The desk is full"
+	else:
+		var left := maxf(0.0, next_arrival - focus_s)
+		progress = 1.0 - left / maxf(_gather_every(), 1.0)
+		next_text = "Next critter in %d min" % ceili(left / 60.0)
+	var desk := []
+	var species_out := []
+	for h in hosts:
+		if h.state in ["live", "held", "thrown"]:
+			desk.append({"species": h.species, "tier": h.tier, "napping": h.critter.is_napping()})
+			species_out.append(h.species)
+	var boost: float = economy.rare_hour_boost
+	var how: String = {1.5: "half as likely again", 2.0: "twice as likely", 3.0: "three times as likely"}.get(boost, "%.1f times as likely" % boost)
+	var now_min: int = economy._local_minute()
+	var start: int = economy.rare_hour_start * 60
+	return {"mode": mode, "focus_min": economy.session_min, "out": hosts.size(), "max_out": _max_out(),
+		"next_text": next_text, "next_progress": clampf(progress, 0.0, 1.0), "luck": economy.luck(),
+		"desk": desk, "species_out": species_out,
+		"rare_hour": {"enabled": economy.rare_hour_enabled, "on": economy.in_rare_hour(),
+			"start": "%02d:00" % economy.rare_hour_start, "end": economy.rare_hour_ends(), "start_h": economy.rare_hour_start,
+			"how": how, "starts_in_min": posmod(start - now_min, 1440),
+			"ends_in_min": posmod(start + economy.rare_hour_min - now_min, 1440)}}
+
+
+func is_startup() -> bool:
+	return native != null and native.is_launch_at_startup()
+
+
+func set_startup(on: bool) -> void:
+	# The Run entry starts this executable; from the editor's Godot it also
+	# needs the project folder.
+	if native == null:
+		return
+	var args := ""
+	if not OS.has_feature("template"):
+		args = '--path "%s"' % ProjectSettings.globalize_path("res://").trim_suffix("/")
+	native.set_launch_at_startup(on, OS.get_executable_path(), args)
+
+
+func shortcut_state(slot: int) -> int:
+	return native.hotkey_state(slot) if native != null else 0
+
+
+func set_shortcut(slot: int, k: Dictionary) -> void:
+	# Registers the new keys; if another app already has them, the old ones
+	# come back and Settings says so.
+	var key := "system.pause_key" if slot == 0 else "system.spawn_key"
+	var old: Dictionary = settings.value(key)
+	settings.set_value(key, k)
+	if native == null:
+		return
+	native.set_hotkey(slot, int(k.mods), int(k.vk))
+	get_tree().create_timer(0.3).timeout.connect(func():
+		if native.hotkey_state(slot) == -1:
+			settings.set_value(key, old)
+			native.set_hotkey(slot, int(old.mods), int(old.vk))
+			if settings_win != null and settings_win.visible:
+				settings_win.pages.shortcut_note = "Another app is using those keys, so the old shortcut is kept."
+				settings_win.rebuild())
+
+
+func clear_seen_log() -> void:
+	economy.clear_seen_log()
+	_update_tray()
+
+
+func check_for_updates(done: Callable) -> void:
+	# System > Updates > Check now: the newest release on GitHub.
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.timeout = 10.0
+	req.request_completed.connect(func(result, code, _headers, body):
+		req.queue_free()
+		var stamp := "Checked today at %s." % Time.get_time_string_from_system().substr(0, 5)
+		if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+			done.call("Could not reach GitHub. Try again later.")
+			return
+		var d = JSON.parse_string(body.get_string_from_utf8())
+		var tag: String = str(d.get("tag_name", "")).trim_prefix("v") if typeof(d) == TYPE_DICTIONARY else ""
+		if tag != "" and _newer(tag, VERSION):
+			done.call("Version %s is out. Press What is new to get it. %s" % [tag, stamp])
+		else:
+			done.call("You are up to date. " + stamp))
+	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
+		req.queue_free()
+		done.call("Could not reach GitHub. Try again later.")
+
+
+static func _newer(a: String, b: String) -> bool:
+	var x := a.split(".")
+	var y := b.split(".")
+	for i in 3:
+		var p := int(x[i]) if i < x.size() else 0
+		var q := int(y[i]) if i < y.size() else 0
+		if p != q:
+			return p > q
+	return false
+
+
+# --- Applying settings ------------------------------------------------------------
+
+func _apply_all() -> void:
+	_on_setting("")
+
+
+func _on_setting(key: String) -> void:
+	# Called for every change. "" means everything (start-up and reset).
+	var all := key == ""
+	var under := func(prefix: String) -> bool: return all or key == prefix or key.begins_with(prefix + ".") or prefix.begins_with(key + ".")
+	if under.call("system.theme"):
+		var was: String = Palette.theme
+		Palette.theme = settings.value("system.theme")
+		if was != Palette.theme and settings_win != null and settings_win.visible:
+			settings_win.rebuild()
+	if under.call("system.detail"):
+		Aura.simple = settings.value("system.detail") == "simple"
+	if under.call("system.seen_log"):
+		economy.seen_log_enabled = settings.value("system.seen_log")
+	if under.call("world"):
+		evaluator.frequency = float(settings.value("world.behaviour_freq"))
+		economy.odds = settings.odds()
+		economy.first_bonus_enabled = settings.value("world.first_bonus")
+		economy.rare_hour_enabled = settings.value("world.rare_hour")
+		economy.rare_hour_start = int(settings.value("world.rare_hour_start"))
+		economy.rare_hour_min = int(settings.value("world.rare_hour_min"))
+		economy.rare_hour_boost = float(settings.value("world.rare_hour_boost"))
+		if key == "world.rarity" and not settings.value("world.rarity"):
+			for h in hosts:
+				h.tier = "common"
+	if under.call("focus"):
+		economy.luck_enabled = settings.value("focus.luck")
+		presence.away_after = away_flag if away_flag > 0.0 else float(settings.value("focus.nap_after_min")) * 60.0
+		if key == "focus.gather_every_min":
+			next_arrival = minf(next_arrival, focus_s + _gather_every())
+		if key == "focus.timer_every_min" or key == "focus.mode":
+			next_group = minf(next_group, wall_s + _timer_every()) if key != "focus.mode" else wall_s + _timer_every()
+		if key == "focus.solo_every_min":
+			next_solo = minf(next_solo, (wall_s if settings.value("focus.mode") == "timer" else focus_s) + _solo_every())
+		if key == "focus.pause_fullscreen":
+			_check_busy()
+	if under.call("critters.size") and not zoom_flag:
+		var z: float = settings.zoom()
+		if not is_equal_approx(z, Critter.zoom):
+			Critter.zoom = z
+			if not all:
+				_redraw_all()
+	if under.call("critters.opacity") or under.call("species"):
+		for h in hosts:
+			if h.state != "popping":
+				_personalise(h)
+	_update_tray()
+
+
+func _redraw_all() -> void:
+	# A new size: every critter is drawn again at the new size, where it
+	# stood, keeping its species, tier and how long it has left.
+	for h in hosts.duplicate():
+		if h.state != "live":
+			continue
+		var feet: Vector2 = h.feet_on_screen()
+		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier)
+		if n != null:
+			n.stay_left = h.stay_left
+			if h.critter.is_napping():
+				n.critter.go_to_sleep()
+		hosts.erase(h)
+		h.queue_free()
+	_show_critters()
 
 
 func _update_tray() -> void:
@@ -604,6 +1028,12 @@ func _write_report() -> void:
 		"throws": throws,
 		"presence_source": presence.source,
 		"injected_events": native.injected_events() if native != null else -1,
+		"zoom": Critter.zoom,
+		"species_out": hosts.map(func(h): return h.species),
+		"tiers": hosts.map(func(h): return h.tier),
+		"opacity": hosts.map(func(h): return snappedf(h.spin.modulate.a, 0.01)),
+		"window_px": hosts.map(func(h): return h.size),
+		"cruise": hosts.map(func(h): return snappedf(h.critter.cruise, 0.1)),
 	}
 	var f := FileAccess.open(report_path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(r, " "))

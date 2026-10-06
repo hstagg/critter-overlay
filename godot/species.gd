@@ -8,6 +8,7 @@ extends RefCounted
 ##   idles        the behaviours it can do (v2.0 IDLE_WHITELIST, by v3 name)
 ##   rarity_max   the highest rarity tier it can spawn at (v2.0 rarity_max)
 ##   special      a visitor that does not come in groups (unicorn, golden kitten)
+##   gait         how it walks, in words, for Settings
 ##
 ## Speeds, gait and proportions live in each species' own script, since they
 ## shape how it is drawn.
@@ -16,6 +17,7 @@ const DEFAULT := "kitten"
 
 const DATA := {
 	"kitten": {
+		"gait": "a pounce-pause",
 		"script": preload("res://critters/kitten.gd"),
 		"sound": "kitten",
 		"pop": [Color8(230, 165, 105), Color8(245, 190, 130), Color8(255, 160, 160)],
@@ -26,6 +28,7 @@ const DATA := {
 		"special": false,
 	},
 	"rabbit": {
+		"gait": "a hop",
 		"script": preload("res://critters/rabbit.gd"),
 		"sound": "rabbit",
 		"pop": [Color8(205, 198, 212), Color8(242, 180, 185), Color8(250, 248, 252)],
@@ -36,6 +39,7 @@ const DATA := {
 		"special": false,
 	},
 	"duckling": {
+		"gait": "a waddle",
 		"script": preload("res://critters/duckling.gd"),
 		"sound": "duck",
 		"pop": [Color8(248, 230, 80), Color8(255, 200, 50), Color8(240, 245, 220)],

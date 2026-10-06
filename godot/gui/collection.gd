@@ -1,7 +1,7 @@
-extends Window
-## The Collection (design: "Collection (Seen Log)" artboard): everyone you
-## have met, by species and tier, and a diary of the rare ones. Each card
-## shows the real critter, idling.
+extends VBoxContainer
+## The Collection page of the Settings window (design: "Collection (Seen
+## Log)" artboard): everyone you have met, by species and tier, and a diary of
+## the rare ones. Each card shows the real critter, idling.
 
 const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
@@ -9,8 +9,8 @@ const UI := preload("res://gui/ui.gd")
 const Species := preload("res://species.gd")
 
 const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
-const COLUMNS := 4
-const CARD_W := 214
+const COLUMNS := 3
+const CARD_W := 248
 const WELL_H := 112
 
 var economy: Node
@@ -29,27 +29,17 @@ class Floor extends Node:
 
 
 func _init() -> void:
-	title = "Critter Overlay · Collection"
-	size = Vector2i(COLUMNS * (CARD_W + 14) + 66, 760)
-	min_size = Vector2i(COLUMNS * (CARD_W + 14) + 66, 480)
-	wrap_controls = false
-	close_requested.connect(hide)
+	add_theme_constant_override("separation", 18)
 
 
-func open(e: Node) -> void:
+func setup(e: Node) -> void:
 	economy = e
-	_dark = DisplayServer.is_dark_mode()
+	_dark = Palette.is_dark()
 	_build()
-	# Centred on the screen. popup_centered() would centre it on the parent,
-	# which is the hidden 1 px main window in a corner.
-	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
-	position = usable.position + (usable.size - size) / 2
-	show()
-	grab_focus()
 
 
 func _process(delta: float) -> void:
-	if not visible:
+	if not is_visible_in_tree():
 		return
 	for c in _previews:
 		if is_instance_valid(c):
@@ -84,30 +74,15 @@ func _build() -> void:
 		c.queue_free()
 	_previews.clear()
 	var c := Palette.colours(_dark)
-
-	var bg := Panel.new()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.add_theme_stylebox_override("panel", UI.box(c.ground, 0))
-	add_child(bg)
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	var margin := MarginContainer.new()
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 26)
-	scroll.add_child(margin)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 18)
-	margin.add_child(col)
+	var col := self
 
 	# Title and filter.
 	var head := HBoxContainer.new()
 	var titles := VBoxContainer.new()
 	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	titles.add_child(UI.label("Collection", 28, c.ink, 600, true))
-	titles.add_child(UI.label("Everyone you have met so far. Stay focused to meet the rare ones.", 14, c.ink2, 600))
+	titles.add_theme_constant_override("separation", 6)
+	titles.add_child(UI.label("Collection", 32, c.ink, 600, true))
+	titles.add_child(UI.label("Everyone you have met so far. Stay focused to meet the rare ones.", 15, c.ink2, 400))
 	head.add_child(titles)
 	head.add_child(_filter_bar(c))
 	col.add_child(head)

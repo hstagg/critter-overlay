@@ -90,7 +90,7 @@ func _on_pressed(_button: int, _pos: Vector2i) -> void:
 # --- The panel ------------------------------------------------------------------
 
 func open() -> void:
-	_dark = DisplayServer.is_dark_mode()
+	_dark = Palette.is_dark()
 	if panel == null:
 		panel = Window.new()
 		panel.borderless = true
@@ -104,6 +104,7 @@ func open() -> void:
 		add_child(panel)
 	_build()
 	panel.show()
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, panel.get_window_id())   # one vsync'd window only
 	_place()
 	panel.grab_focus()
 

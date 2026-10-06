@@ -54,7 +54,11 @@ const SAVE_EVERY_S := 60.0
 const SAVE_VERSION := 1
 const FIRST_BONUS_ODDS := {"rare": 0.70, "epic": 0.20, "legendary": 0.10}
 
-# Rare Hour, set from Settings (World > Rare Hour) once those exist.
+# Set from Settings (main.gd applies them).
+var odds := BASE_ODDS.duplicate()  # World > Rarity > Odds, as fractions
+var luck_enabled := true           # Focus > Rarer the longer you stay
+var first_bonus_enabled := true    # World > Rarity > First arrival of the day
+var seen_log_enabled := true       # System > Collection > Keep a Seen Log
 var rare_hour_enabled := true
 var rare_hour_start := 21          # local hour
 var rare_hour_min := 60
@@ -170,6 +174,8 @@ func came_back(idle_before_s: float) -> void:
 # --- Luck and rarity -------------------------------------------------------------
 
 func luck() -> float:
+	if not luck_enabled:
+		return 1.0
 	var f := clampf(session_min / LUCK_FULL_MIN, 0.0, 1.0)
 	f = 1.0 - (1.0 - f) * (1.0 - f)   # most of the gain in the first hour
 	return 1.0 + (LUCK_MAX - 1.0) * f
@@ -194,10 +200,11 @@ func rare_hour_ends() -> String:
 	return "%02d:%02d" % [end / 60, end % 60]
 
 
-func roll_arrival(max_tier := "legendary") -> Array:
+func roll_arrival(max_tier := "legendary", min_tier := "common") -> Array:
 	# A visitor's tier, and whether it was the day's first-visitor bonus.
 	_roll_day()
-	if first_bonus_day != day:
+	var lo := TIERS.find(min_tier)
+	if first_bonus_enabled and first_bonus_day != day:
 		first_bonus_day = day
 		var r := rng.randf()
 		var acc := 0.0
@@ -210,24 +217,27 @@ func roll_arrival(max_tier := "legendary") -> Array:
 		if TIERS.find(tier) > TIERS.find(max_tier):
 			tier = max_tier
 		return [tier, true]
-	return [roll_tier(max_tier), false]
+	var t := roll_tier(max_tier)
+	if TIERS.find(t) < lo:
+		t = min_tier
+	return [t, false]
 
 
 func roll_tier(max_tier := "legendary") -> String:
 	var lk := luck() * (rare_hour_boost if in_rare_hour() else 1.0)
-	var odds := {}
+	var p := {}
 	var rest := 0.0
 	for t in TIERS:
 		if t == "common":
 			continue
-		odds[t] = BASE_ODDS[t] * (lk if t in LUCKY else 1.0)
-		rest += odds[t]
-	odds["common"] = maxf(0.0, 1.0 - rest)
+		p[t] = odds.get(t, 0.0) * (lk if t in LUCKY else 1.0)
+		rest += p[t]
+	p["common"] = maxf(0.0, 1.0 - rest)
 	var r := rng.randf()
 	var acc := 0.0
 	var tier := "common"
 	for t in TIERS:
-		acc += odds[t]
+		acc += p[t]
 		if r < acc:
 			tier = t
 			break
@@ -237,7 +247,11 @@ func roll_tier(max_tier := "legendary") -> String:
 
 
 func record_sighting(species: String, tier: String) -> bool:
-	# Returns whether this species and tier is a first find.
+	# Returns whether this species and tier is a first find. With the Seen
+	# Log off nothing is kept.
+	if not seen_log_enabled:
+		sighting.emit(species, tier, false)
+		return false
 	var key := "%s:%s" % [species, tier]
 	var first := not collection.has(key)
 	if first:
@@ -247,6 +261,12 @@ func record_sighting(species: String, tier: String) -> bool:
 		sightings.append({"t": int(now()), "species": species, "tier": tier})
 	sighting.emit(species, tier, first)
 	return first
+
+
+func clear_seen_log() -> void:
+	collection = {}
+	sightings = []
+	save()
 
 
 # --- Berries, gifts, the shop ------------------------------------------------------
