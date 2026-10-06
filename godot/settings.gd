@@ -63,6 +63,8 @@ const DEFAULTS := {
 		"detail": "detailed",      # detailed | simple
 		"seen_log": true,
 		"onboarded": false,
+		"update_checked": 0,       # unix time of the last automatic check
+		"update_dismissed": "",    # a version the user closed the note for
 	},
 }
 

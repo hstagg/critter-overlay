@@ -54,6 +54,8 @@ var back_hip := Vector2(205, 224)   # the stretch tips forward about this
 var scratch_hides := ""        # sitting part hidden while scratch-foot is up
 var activity := 1.0            # how often it stops for a behaviour (Settings > Activity)
 var paired := false
+var climbing := false          # on a side wall (host.gd): reach-and-pull, tail hanging
+var climb_turn := 0.0          # degrees the host turned it onto the wall
 var worn: Array = []            # clothes on the head (wear.gd ids)
 var _wear_nodes: Array = []            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var idles := []                # behaviours this species can do (species.gd)
@@ -624,7 +626,10 @@ func _update_motion(delta: float) -> void:
 			target = facing * cruise
 	if not airborne:
 		vx += (target - vx) * (1.0 - exp(-ACCEL * delta))
-	position.x += vx * delta * (_gait_speed() if pose == "walk" else 1.0)
+	var surge := 1.0
+	if pose == "walk":
+		surge = _climb_surge() if climbing else _gait_speed()
+	position.x += vx * delta * surge
 
 	if airborne:
 		air_vy += GRAVITY * zoom * delta
@@ -646,6 +651,13 @@ func _advance_gait(delta: float) -> void:
 	# The gait's phase, 0 to 1. By default it follows distance, so feet do
 	# not skate; a hopping species follows time instead.
 	gait = fmod(gait + absf(vx) * delta / cycle_px, 1.0)
+
+
+func _climb_surge() -> float:
+	# Climbing goes in pulls: slow while reaching, quick while hauling up.
+	# Averages 1 over a cycle.
+	var s := sin(gait * TAU)
+	return 0.35 + 1.3 * s * s
 
 
 func _gait_speed() -> float:
@@ -745,7 +757,22 @@ func _base_params() -> Dictionary:
 		p.lean = lerpf(shift_from, shift_to, _ease_io(shift_t))
 	if twitch_left > 0.0:
 		p.ear_r = sin((1.0 - twitch_left / 0.25) * TAU) * -10.0
+	if climbing and pose == "walk":
+		_climb_params(p)
 	return p
+
+
+func _climb_params(p: Dictionary) -> void:
+	# On a wall: head up the climb, ears back, body leaning in, tail hanging.
+	var pull := sin(gait * TAU)
+	# The head stays upright while the body lies along the wall: undo the
+	# wall's turn (mirrored when facing right, since the rig is flipped).
+	p.head_rot += -climb_turn * (1.0 if facing < 0 else -1.0)
+	p.head_off = p.head_off + Vector2(-12.0, -4.0)   # a little further up the wall, clear of the body
+	p.torso_rot += 6.0 + 2.0 * pull
+	p.ear_l -= 12.0
+	p.ear_r -= 12.0
+	p.tail_extra += 28.0
 
 
 func _behaviour_params(p: Dictionary) -> void:
@@ -1051,19 +1078,20 @@ func _apply_legs(p: Dictionary) -> void:
 func _gait_legs() -> void:
 	var moving := smoothstep(0.0, 15.0, absf(vx))
 	var stance_deg := 0.0
+	var reach := 1.5 if climbing else 1.0   # longer reaches up a wall, feet lifted clear
 	for leg in legs:
 		var ph: float = fmod(gait + 0.5 * leg.pair, 1.0)
 		var a: float
 		var lift := 0.0
 		if ph < 0.5:
 			# Stance: the foot is planted and sweeps back at the body's speed.
-			a = lerpf(stride_deg, -stride_deg, ph / 0.5)
-			stance_deg = a
+			a = lerpf(stride_deg, -stride_deg, ph / 0.5) * reach
+			stance_deg = a / reach
 		else:
 			# Swing: the foot lifts and eases forward to the next step.
 			var s := (ph - 0.5) / 0.5
-			a = lerpf(-stride_deg, stride_deg, smoothstep(0.0, 1.0, s))
-			lift = sin(s * PI) * leg_lift
+			a = lerpf(-stride_deg, stride_deg, smoothstep(0.0, 1.0, s)) * reach
+			lift = sin(s * PI) * leg_lift * (1.8 if climbing else 1.0)
 		var node: Node2D = leg.node
 		node.rotation = deg_to_rad(a * moving)
 		node.position = (leg.hip - base_pt + Vector2(0, -lift * moving)) * PART_SCALE

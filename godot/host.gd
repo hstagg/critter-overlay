@@ -211,6 +211,12 @@ func _place() -> void:
 				feet = p[0]
 				rot = p[1]
 				mirror = p[2]
+				critter.climbing = absf(rot) > 1.0   # the side walls
+				if critter.climbing and critter.facing * sin(rot) > 0.0:
+					# Its head would point down the wall: mirror it along the
+					# wall instead, so it backs down tail-first like a cat.
+					mirror = true
+				critter.climb_turn = rad_to_deg(rot) * (-1.0 if mirror else 1.0)
 			else:
 				feet = Vector2(critter.position.x, y)
 	spin.rotation = rot
