@@ -998,7 +998,13 @@ func _rail(sp: String, worn: Array) -> Control:
 		if shop_slot in ["head", "neck", "face"] and Wear.slot(id) != shop_slot:
 			continue
 		grid.add_child(_tile_item(id, sp, worn))
-	col.add_child(grid)
+	# The rail scrolls on its own, so the dressing room stays in view.
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size.y = 520
+	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(grid)
+	col.add_child(sc)
 	return col
 
 
@@ -1032,7 +1038,7 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	well.add_theme_stylebox_override("panel", ws)
 	well.custom_minimum_size.y = 84
 	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	well.add_child(CritterView.make(sp, 130, 84, 0.62, "sit", false, -1, [id]))
+	well.add_child(CritterView.make(sp, 130, 84, 0.62, "sit", false, -1, [id], true))
 	v.add_child(well)
 	var t := K.vbox(2)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE

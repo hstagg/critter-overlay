@@ -15,25 +15,26 @@ extends RefCounted
 const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000}
 const SLOTS := ["neck", "face", "head"]   # drawn in this order, head on top
 
-# id: [name, slot, tier, (only this species)]
-const ITEMS := {
-	"bow": ["Ribbon bow", "head", "small"],
-	"bell_collar": ["Bell collar", "neck", "small"],
-	"flower_clip": ["Daisy clip", "head", "small"],
-	"glasses": ["Round glasses", "face", "small"],
-	"beanie": ["Bobble beanie", "head", "medium"],
-	"scarf": ["Knitted scarf", "neck", "medium"],
-	"party_hat": ["Party hat", "head", "medium"],
-	"bandana": ["Spotty bandana", "neck", "medium"],
-	"strawberry_hat": ["Strawberry hat", "head", "large"],
-	"wizard_hat": ["Wizard hat", "head", "large"],
-	"fish_bowtie": ["Fishbone bow tie", "neck", "medium", "kitten"],
-	"paw_beret": ["Paw-print beret", "head", "large", "kitten"],
-	"carrot_clip": ["Carrot hair clip", "head", "small", "rabbit"],
-	"carrot_scarf": ["Carrot scarf", "neck", "medium", "rabbit"],
-	"sailor_hat": ["Sailor hat", "head", "medium", "duckling"],
-	"swim_ring": ["Swim ring", "neck", "large", "duckling"],
-}
+# id: [name, slot, tier, (only this species)], written by design/wear/build.py.
+static var ITEMS: Dictionary = _load()
+
+
+static func _load() -> Dictionary:
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://art/wear/catalogue.json"))
+	return d if typeof(d) == TYPE_DICTIONARY else {}
+
+
+static var HIDES: Dictionary = _load_hides()
+
+
+static func _load_hides() -> Dictionary:
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://art/wear/hides.json")) if FileAccess.file_exists("res://art/wear/hides.json") else null
+	return d if typeof(d) == TYPE_DICTIONARY else {}
+
+
+static func hides(id: String, species: String) -> Array:
+	# Parts of the wearer hidden while it is on (a hood hides the ears).
+	return HIDES.get(id, {}).get(species, [])
 
 
 static func has(id: String) -> bool:

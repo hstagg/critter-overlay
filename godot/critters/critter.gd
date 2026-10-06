@@ -221,6 +221,15 @@ func wear(items: Array) -> void:
 	worn = Wear.ordered(items)
 	if head == null:
 		return
+	# A hood hides the wearer's own ears (or the duckling's tuft).
+	var hidden: Array = []
+	for id in worn:
+		hidden.append_array(Wear.hides(id, species))
+	for e in ears:
+		e.visible = not "ears" in hidden
+	var tuft_node = get("tuft")
+	if tuft_node is Node2D:
+		tuft_node.visible = not "tuft" in hidden
 	for id in worn:
 		var path := "res://art/wear/%s/%s.svg" % [id, species]
 		if not FileAccess.file_exists(path):

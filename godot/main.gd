@@ -43,6 +43,8 @@ extends Node2D
 ##   --welcome          show the first-run welcome even if it has been seen
 ##   --welcome-tour=DIR save each step of the welcome as a PNG, then quit
 ##   --wear=A,B         every critter wears these (wear.gd ids; testing)
+##   --wear-sheet=DIR   every clothing item on every critter, saved as
+##                      DIR/<item>-<species>.png, then quit (--wear=A,B for some)
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
@@ -65,6 +67,7 @@ const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
+const Wear := preload("res://wear.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
@@ -113,6 +116,7 @@ var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
 var wear_flag := []
+var sheet_dir := ""
 var welcome := ""             # --welcome: show | tour
 var welcome_dir := ""
 var waiting_welcome := false  # nobody arrives until the welcome is closed
@@ -210,6 +214,8 @@ func _ready() -> void:
 			welcome_dir = v
 		elif arg.begins_with("--wear="):
 			wear_flag = Array(v.split(","))
+		elif arg.begins_with("--wear-sheet="):
+			sheet_dir = v
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
 		elif arg == "--selftest":
@@ -322,6 +328,9 @@ func _ready() -> void:
 	presence.start()
 	if pair_demo != "":
 		_run_pair_demo()
+		return
+	if sheet_dir != "":
+		_wear_sheet()
 		return
 	if fixed_count > 0 or fixed_perimeter > 0:
 		for i in maxi(fixed_count, 0):
@@ -680,6 +689,32 @@ func _on_rare_hour(on: bool) -> void:
 	_update_tray()
 	if on and not _quiet():
 		toasts.show_rare_hour(economy.rare_hour_ends(), economy.rare_hour_boost)
+
+
+func _wear_sheet() -> void:
+	# --wear-sheet: each item on each critter, grabbed from the game itself.
+	fixed_count = 3
+	var ids: Array = wear_flag.duplicate() if not wear_flag.is_empty() else Wear.ITEMS.keys()
+	wear_flag = []
+	var hs := []
+	var i := 0
+	for sp in ["kitten", "rabbit", "duckling"]:
+		var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 520, 600), sp, "common")
+		h.critter._go_sit()
+		h.critter.mode_left = INF
+		h.critter.activity = 0.0
+		hs.append(h)
+		i += 1
+	await get_tree().create_timer(1.0).timeout
+	for id in ids:
+		for h in hs:
+			h.critter.wear([id] if Wear.fits(id, h.species) else [])
+		await get_tree().create_timer(0.35).timeout
+		for h in hs:
+			if Wear.fits(id, h.species):
+				h.win.get_texture().get_image().save_png(sheet_dir.path_join("%s-%s.png" % [id, h.species]))
+	print("SHEET done ", ids.size())
+	_quit(0)
 
 
 func _run_pair_demo() -> void:
