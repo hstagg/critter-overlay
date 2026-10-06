@@ -65,9 +65,13 @@ func open(main_ref: Node, which := "", species := "") -> void:
 		# Only one window may wait for vsync (see host.gd); a second halves
 		# the frame rate of every critter.
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, get_window_id())
-		# A taskbar button (native show_in_taskbar) hid and re-showed the
-		# window, which left it blank on screen: off until done another way.
-	mode = Window.MODE_WINDOWED
+		if not _taskbar_done and main.native != null:
+			_taskbar_done = true
+			main.native.show_in_taskbar(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, get_window_id()))
+	# Back up from the taskbar only if minimised: setting the mode on a
+	# window that is already showing stops it drawing (a grey box).
+	if mode == Window.MODE_MINIMIZED:
+		mode = Window.MODE_WINDOWED
 	grab_focus()
 
 

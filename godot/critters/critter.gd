@@ -456,7 +456,7 @@ func _wake() -> void:
 # --- Behaviours (called by main.gd's evaluator) ----------------------------
 
 func can_do(b: String) -> bool:
-	return idles.has(b) or perk_moves.has(b) or b == "hello"
+	return idles.has(b) or perk_moves.has(b) or b in ["hello", "dizzy"]
 
 
 func can_start_behaviour() -> bool:
@@ -827,6 +827,19 @@ func _behaviour_params(p: Dictionary) -> void:
 			p.head_off = p.head_off + Vector2(0, 0.8 * p.nose)
 		"stand_lookout":
 			_lookout_params(p, u)
+		"dizzy":
+			# Head going round in circles, body wobbling, eyes screwed shut,
+			# settling as it comes to.
+			var k := _env(u, act_len, 0.15) * clampf(1.2 - u / act_len, 0.3, 1.0)
+			var w := u * TAU * 1.6
+			p.head_rot += 12.0 * sin(w) * k
+			p.torso_rot += 7.0 * sin(w + 0.9) * k
+			p.torso_dy -= 3.0 * absf(cos(w)) * k
+			p.eyes_off = Vector2(cos(w), sin(w)) * 4.0 * k
+			p.ear_l += 10.0 * sin(w + 1.2) * k
+			p.ear_r += 10.0 * sin(w + 2.4) * k
+			p.eyes_closed = k > 0.4 and fmod(u, 0.9) < 0.6
+			p.blink = false
 		"dance":
 			# Sway and bob to the beat, ears swinging, eyes happily shut.
 			var beat := sin(u * TAU * 2.0)

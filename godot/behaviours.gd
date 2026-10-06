@@ -41,6 +41,8 @@ const REGISTRY := {
 	"celebrate":      {"dur": [1.4, 1.8], "cool": 50.0, "w": 1.0, "sleep": -0.5},
 	# From bond (economy.gd BOND_LEVELS): started by main.gd, never picked.
 	"hello":          {"dur": [1.2, 1.5], "cool": 25.0, "w": 0.0, "sleep": 0.0},
+	# After a spinning throw (host.gd): started there, never picked.
+	"dizzy":          {"dur": [2.4, 3.2], "cool": 0.0, "w": 0.0, "sleep": 0.0},
 }
 
 const BASE_CHANCE := 0.1          # per kitten per second, before weighting
