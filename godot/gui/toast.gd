@@ -131,6 +131,20 @@ func show_update(version: String, url: String) -> void:
 	_push(t)
 
 
+func show_note(icon: Texture2D, kicker: String, title: String, sub: String, accent := "") -> void:
+	# A plain note: gifts, welcome-backs, a completed Collection row.
+	var dark := Palette.is_dark()
+	var c := Palette.colours(dark)
+	var t := Toast.new()
+	var edge: Color = Color(accent) if accent != "" else c.accent
+	var well := _well(c.surface, c.outline)
+	var ic := UI.icon(icon)
+	ic.size = Vector2(60, 60)
+	well.add_child(ic)
+	_build(t, c, c.surface, edge, 2, well, UI.label(kicker.to_upper(), 12, c.acc_ink, 600, true), title, sub, c.ink2, c.track)
+	_push(t)
+
+
 func _well(bg: Color, border := Color.TRANSPARENT) -> Control:
 	var well := Control.new()
 	well.custom_minimum_size = Vector2(60, 60)
