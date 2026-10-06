@@ -72,6 +72,12 @@ static func badge(tier: String, size: int, fill: Color, line: Color, ghost := fa
 	return _texture(svg, size / 20.0)
 
 
+static func berry(size: int) -> ImageTexture:
+	# The currency: a round red berry with a leaf.
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="14" r="8" fill="#E4505C" stroke="#7A2A33" stroke-width="1.6"/><circle cx="9" cy="11.5" r="2" fill="#FFB3BA"/><path d="M12 6.2c-1-2.4-3-3.4-5-3 .6 2.2 2.6 3.4 5 3z" fill="#6CC27A" stroke="#2F6B3A" stroke-width="1.2" stroke-linejoin="round"/><path d="M12 6.4c.4-1.8 1.6-3 3.2-3.4" stroke="#2F6B3A" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>'
+	return _texture(svg, size / 24.0)
+
+
 static func sparkle(size: int) -> ImageTexture:
 	# The gold four-point star on Legendary toasts.
 	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" fill="#FFD84D" stroke="#B8860B" stroke-width="1.4"/></svg>'

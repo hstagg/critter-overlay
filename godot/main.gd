@@ -42,6 +42,7 @@ extends Node2D
 ##   --toast-demo       show one of each toast, a few seconds apart
 ##   --welcome          show the first-run welcome even if it has been seen
 ##   --welcome-tour=DIR save each step of the welcome as a PNG, then quit
+##   --wear=A,B         every critter wears these (wear.gd ids; testing)
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
@@ -111,6 +112,7 @@ var toasts: Node
 var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
+var wear_flag := []
 var welcome := ""             # --welcome: show | tour
 var welcome_dir := ""
 var waiting_welcome := false  # nobody arrives until the welcome is closed
@@ -206,6 +208,8 @@ func _ready() -> void:
 		elif arg.begins_with("--welcome-tour="):
 			welcome = "tour"
 			welcome_dir = v
+		elif arg.begins_with("--wear="):
+			wear_flag = Array(v.split(","))
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
 		elif arg == "--selftest":
@@ -376,6 +380,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	_personalise(h)
+	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []))
 	# Every visitor rolls its rarity, with the session's luck, and goes in
 	# the Collection. A visit lasts a while, then it leaves. A critter
 	# redrawn at a new size keeps its tier.
@@ -961,6 +966,14 @@ func set_shortcut(slot: int, k: Dictionary) -> void:
 			if settings_win != null and settings_win.visible:
 				settings_win.pages.shortcut_note = "Another app is using those keys, so the old shortcut is kept."
 				settings_win.rebuild())
+
+
+func set_worn(sp: String, items: Array) -> void:
+	# Shop > Dress up: everyone of that species out now changes straight away.
+	economy.set_worn(sp, items)
+	for h in hosts:
+		if h.species == sp and h.state != "popping":
+			h.critter.wear(economy.worn.get(sp, []))
 
 
 func clear_seen_log() -> void:

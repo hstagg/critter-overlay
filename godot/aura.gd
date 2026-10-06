@@ -29,6 +29,7 @@ const SHAPE := {
 	"epic": "M10 2.4l2.3 4.8 5.2.6-3.9 3.6 1.1 5.2L10 14l-4.7 2.6 1.1-5.2-3.9-3.6 5.2-.6z",
 	"legendary": "M10 1.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z",
 }
+const Wear := preload("res://wear.gd")
 const SPARKLE := "M10 1.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z"
 const CROWN := "M3 15.5h14l1.2-9.2-4.6 3.6L10 3.8 6.4 9.9 1.8 6.3z"
 # Legendary sparkles cycle through these (the prism look).
@@ -61,7 +62,7 @@ static var _cache := {}
 static var simple := false        # System > Animation detail > Simple: glow, motes and crown only
 
 
-func setup(tier_name: String, species_id: String, critter_node, zoom: float) -> void:
+func setup(tier_name: String, species_id: String, critter_node, zoom: float, foot_drop := 40.0) -> void:
 	tier = tier_name
 	species = species_id
 	critter = critter_node
@@ -69,9 +70,9 @@ func setup(tier_name: String, species_id: String, critter_node, zoom: float) -> 
 	_row = TIER[tier]
 	_c = Color(_row[0])
 	_deep = Color(_row[1])
-	# The feet sit 40 px below the window's middle, the body's middle 36 px
+	# The feet sit `foot_drop` px below the window's middle, the body's middle 36 px
 	# (times zoom) above the feet's pivot.
-	centre = Vector2(0, 40.0 - 36.0 * zoom)
+	centre = Vector2(0, foot_drop - 36.0 * zoom)
 	_glow = _glow_texture(_row[0])
 	var n: int = _row[6]
 	for i in n:
@@ -327,6 +328,10 @@ func _draw_front() -> void:
 	if tier == "legendary" and critter != null and is_instance_valid(critter) and critter.head != null:
 		var head := front.to_local(critter.head.global_position)
 		var lift: float = CROWN_LIFT.get(species, 95.0)
+		for id in critter.worn:
+			if Wear.slot(id) == "head":
+				lift += 44.0   # above the hat
+				break
 		var bob := 0.5 - 0.5 * cos(TAU * t / 2.4)
 		var crown_at := head + Vector2(0, (-lift - 5.0 * bob) * k)
 		_sprite(front, _crown, crown_at, 28.0, deg_to_rad(lerpf(-6.0, 5.0, bob)))

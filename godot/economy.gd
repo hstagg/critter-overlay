@@ -42,7 +42,7 @@ const DAILY_TAPER := 0.25
 const FIRST_SESSION_BERRIES := 10
 const GIFTS := [[25, 15, 0.10], [50, 30, 0.20], [90, 60, 0.35], [150, 90, 0.50]]   # minute, berries, item chance
 const GIFT_PITY := 6
-const GIFT_ITEM_POOL := 40         # placeholder ids until the cosmetics exist
+const Wear := preload("res://wear.gd")
 const WELCOME_MIN_S := 5 * 60      # a break this long earns a welcome-back
 const SESSION_END_S := 30 * 60     # a break this long ends the session
 const WELCOME_BERRIES := 5
@@ -78,6 +78,7 @@ var paid_first_session := false
 var gifts_since_item := 0
 var gift_items := []               # item ids found in gifts
 var owned := []                    # item ids bought
+var worn := {}                     # species -> [item ids it wears]
 var collection := {}               # "species:tier" -> {"first": unix, "count": n}
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
@@ -282,10 +283,16 @@ func _open_gift(index: int) -> void:
 	var item := ""
 	gifts_since_item += 1
 	if rng.randf() < g[2] or gifts_since_item >= GIFT_PITY:
-		item = "gift_%03d" % rng.randi_range(0, GIFT_ITEM_POOL - 1)
-		gifts_since_item = 0
-		if not item in gift_items:
+		# A piece of clothing not yet owned, small or medium; when every one
+		# is owned the gift is berries only.
+		var pool := []
+		for id in Wear.ITEMS:
+			if Wear.ITEMS[id][2] in ["small", "medium"] and not owns(id):
+				pool.append(id)
+		if not pool.is_empty():
+			item = pool[rng.randi_range(0, pool.size() - 1)]
 			gift_items.append(item)
+		gifts_since_item = 0
 	_earn(g[1])
 	gift_opened.emit(index, g[1], item)
 
@@ -301,8 +308,17 @@ func gift_progress() -> float:
 	return 0.25 + 0.75 * p if next_gift == 0 else p
 
 
+func owns(item: String) -> bool:
+	return item in owned or item in gift_items
+
+
+func set_worn(species: String, items: Array) -> void:
+	worn[species] = Wear.ordered(items.filter(func(i): return owns(i)))
+	save()
+
+
 func buy(item: String, price: int) -> bool:
-	if item in owned or berries < price:
+	if owns(item) or berries < price:
 		return false
 	berries -= price
 	owned.append(item)
@@ -318,7 +334,7 @@ func to_dict() -> Dictionary:
 		"session_min": session_min, "next_gift": next_gift, "day": day, "day_focus_min": day_focus_min,
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
-		"first_bonus_day": first_bonus_day, "saved_at": int(now())}
+		"first_bonus_day": first_bonus_day, "worn": worn, "saved_at": int(now())}
 
 
 func save() -> void:
@@ -356,6 +372,7 @@ func load_save() -> void:
 	collection = d.get("collection", {})
 	sightings = d.get("sightings", [])
 	first_bonus_day = str(d.get("first_bonus_day", ""))
+	worn = d.get("worn", {})
 	# A long gap since the last save is a long break.
 	var gap := now() - float(d.get("saved_at", now()))
 	if gap >= SESSION_END_S:

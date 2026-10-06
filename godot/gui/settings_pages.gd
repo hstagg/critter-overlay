@@ -11,6 +11,7 @@ const Species := preload("res://species.gd")
 const Settings := preload("res://settings.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
+const Wear := preload("res://wear.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"
 const TIER_NAMES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
@@ -42,6 +43,7 @@ func build(page: String, body: VBoxContainer) -> void:
 		"world": _world(body)
 		"sound": _sound(body)
 		"collection": _collection(body)
+		"shop": _shop(body)
 		"system": _system(body)
 
 
@@ -823,6 +825,161 @@ func _collection(body: VBoxContainer) -> void:
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(page)
 	page.setup(w.main.economy)
+
+
+# ============================================================ SHOP
+
+var shop_slot := "all"
+
+
+func _shop(body: VBoxContainer) -> void:
+	var c := K.c
+	var eco = w.main.economy
+	var berries := K.hbox(8)
+	var bp := PanelContainer.new()
+	var bs := K.box(c.surface, 16, c.line, 2)
+	bs.content_margin_left = 12
+	bs.content_margin_right = 16
+	bs.content_margin_top = 6
+	bs.content_margin_bottom = 6
+	bp.add_theme_stylebox_override("panel", bs)
+	berries.add_child(UI.icon(Icons.berry(26)))
+	berries.add_child(UI.label("%d berries" % eco.berries, 18, c.ink, 600, true))
+	bp.add_child(berries)
+	header(body, "Shop", "Clothes for your critters, paid for in berries you earn by working. Nothing here costs money.", bp)
+
+	var sp: String = w.selected_species if Species.has(w.selected_species) else _built(false)[0]
+	var worn: Array = eco.worn.get(sp, [])
+
+	# Dress up: the critter in its outfit, and what it has on.
+	var strip := K.hbox(14)
+	for s in _built(false) + _built(true):
+		strip.add_child(_tile(s))
+	var dress := K.hbox(24)
+	var well := PanelContainer.new()
+	well.custom_minimum_size = Vector2(220, 220)
+	well.add_theme_stylebox_override("panel", K.box(Palette.species_tint(sp, w.dark), 20))
+	well.add_child(CritterView.make(sp, 220, 206, 1.45, "sit", false, -1, worn))
+	dress.add_child(well)
+	var slots := K.vbox(0)
+	slots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slots.add_child(K.margins(UI.label("%s is wearing" % Collection.species_name(sp), 16, c.ink, 800), 0, 4, 0, 8))
+	for slot in ["head", "face", "neck"]:
+		var on := ""
+		for id in worn:
+			if Wear.slot(id) == slot:
+				on = id
+		var r := K.hbox(12)
+		r.custom_minimum_size.y = 48
+		var sl := UI.label(slot.capitalize(), 14, c.ink2, 800)
+		sl.custom_minimum_size.x = 60
+		r.add_child(sl)
+		var nm := UI.label(Wear.item_name(on) if on != "" else "Nothing", 15, c.ink if on != "" else c.ink3, 800 if on != "" else 600)
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(nm)
+		if on != "":
+			var off := on
+			r.add_child(K.button("Take off", "bq", "close", true, func():
+				w.main.set_worn(sp, worn.filter(func(x): return x != off))
+				w.rebuild()))
+		slots.add_child(r)
+		if slot != "neck":
+			slots.add_child(K.divider())
+	var note := UI.label("Critters keep their clothes when they visit.", 13, c.ink2, 400)
+	slots.add_child(K.margins(note, 0, 10, 0, 0))
+	dress.add_child(slots)
+	var dv := K.vbox(14)
+	dv.add_child(strip)
+	dv.add_child(dress)
+	body.add_child(K.section("Dress up", K.card([K.margins(dv, 20, 18, 20, 20)])))
+
+	# The clothes, shown on this critter.
+	var filters := ["all", "head", "face", "neck"]
+	var filt := K.seg(["All", "Hats", "Glasses", "Neck"], filters.find(shop_slot), func(i):
+		shop_slot = filters[i]
+		w.rebuild())
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	var ids := Wear.ITEMS.keys()
+	ids.sort_custom(func(a, b): return Wear.price(a) < Wear.price(b) or (Wear.price(a) == Wear.price(b) and a < b))
+	for id in ids:
+		if shop_slot != "all" and Wear.slot(id) != shop_slot:
+			continue
+		if not Wear.fits(id, sp):
+			continue
+		grid.add_child(_item_card(id, sp, worn))
+	var head := K.hbox(10)
+	var hl := UI.label("Every item fits every critter.", 13, c.ink3, 700)
+	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(hl)
+	head.add_child(filt)
+	var cv := K.vbox(14)
+	cv.add_child(head)
+	cv.add_child(grid)
+	body.add_child(K.section("Clothes", cv))
+
+
+func _item_card(id: String, sp: String, worn: Array) -> Control:
+	var c := K.c
+	var eco = w.main.economy
+	var tier: String = Wear.ITEMS[id][2]
+	var price := Wear.price(id)
+	var owned: bool = eco.owns(id)
+	var wearing: bool = id in worn
+	var card := PanelContainer.new()
+	card.custom_minimum_size.x = 248
+	card.add_theme_stylebox_override("panel", K.box(c.surface, 18, c.outline if wearing else c.line, 3 if wearing else 2))
+	var v := K.vbox(0)
+	card.add_child(v)
+	var well := PanelContainer.new()
+	var ws := K.box(Palette.species_tint(sp, w.dark), 0)
+	ws.corner_radius_top_left = 16
+	ws.corner_radius_top_right = 16
+	well.add_theme_stylebox_override("panel", ws)
+	well.custom_minimum_size = Vector2(244, 132)
+	well.add_child(CritterView.make(sp, 244, 128, 0.85, "sit", false, -1, [id]))
+	v.add_child(well)
+	var b := K.vbox(8)
+	var top := K.hbox(8)
+	var nm := UI.label(Wear.item_name(id), 17, c.ink, 600, true)
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(nm)
+	top.add_child(K.pill({"small": "Small", "medium": "Medium", "large": "Large", "showpiece": "Showpiece"}[tier], c.track, c.acc_ink))
+	b.add_child(top)
+	var row := K.hbox(8)
+	var price_box := K.hbox(4)
+	price_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if owned:
+		price_box.add_child(UI.label("Yours" + (" (a gift)" if id in eco.gift_items and not id in eco.owned else ""), 13, Palette.tier("uncommon", w.dark).ink, 800))
+	else:
+		price_box.add_child(UI.icon(Icons.berry(18)))
+		price_box.add_child(UI.label(_thousands(price), 15, c.ink, 800))
+	row.add_child(price_box)
+	if wearing:
+		row.add_child(K.button("Take off", "bs", "", true, func():
+			w.main.set_worn(sp, worn.filter(func(x): return x != id))
+			w.rebuild()))
+	elif owned:
+		row.add_child(K.button("Wear", "bp", "", true, func():
+			w.main.set_worn(sp, worn.filter(func(x): return Wear.slot(x) != Wear.slot(id)) + [id])
+			w.rebuild()))
+	elif eco.berries >= price:
+		row.add_child(K.button("Buy", "bp", "", true, func():
+			w.confirm("Buy the %s?" % Wear.item_name(id).to_lower(), "%s berries. Every critter can wear it." % _thousands(price), "Buy it", func():
+				if eco.buy(id, price):
+					w.main.set_worn(sp, worn.filter(func(x): return Wear.slot(x) != Wear.slot(id)) + [id])
+				w.rebuild())))
+	else:
+		var need := UI.label("%s more" % _thousands(price - eco.berries), 13, c.ink3, 700)
+		need.tooltip_text = "Berries come from time spent working: about one a minute, plus gifts."
+		need.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.add_child(need)
+	b.add_child(row)
+	v.add_child(K.margins(b, 14, 10, 14, 12))
+	return card
 
 
 # ============================================================ SYSTEM

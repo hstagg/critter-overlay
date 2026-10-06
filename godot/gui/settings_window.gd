@@ -19,7 +19,7 @@ const H := 760
 const SIDE_W := 232
 const NAV := [["home", "Home", "home"], ["critters", "Critters", "paw"], ["focus", "Focus", "mug"],
 	["world", "World", "leaf"], ["sound", "Sound", "sound"], ["collection", "Collection", "star"],
-	["system", "System", "sliders"]]
+	["shop", "Shop", "heart"], ["system", "System", "sliders"]]
 
 var main: Node                     # main.gd
 var page := "home"
@@ -217,6 +217,11 @@ func _nav_button(key: String, label: String, icon: String) -> Button:
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, c.ink if on else c.ink2)
 	b.pressed.connect(func(): go(key))
+	if key == "shop":
+		var bc := UI.chip("%d" % main.economy.berries, c.ink, c.surface, c.line)
+		bc.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+		bc.position.x -= 10
+		b.add_child(bc)
 	if key == "collection":
 		# The found count, in Legendary's colours.
 		var t := Palette.tier("legendary", dark)
