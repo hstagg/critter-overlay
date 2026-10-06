@@ -982,6 +982,11 @@ func _dressing_room(sp: String, worn: Array, trying: Array, dyes: Dictionary) ->
 		wl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		wl.custom_minimum_size.x = 280
 		info.add_child(wl)
+		if Wear.PERKS.has(id):
+			var perk := UI.label("Perk: " + Wear.PERKS[id].text + ".", 14, Palette.tier("legendary", w.dark).ink, 800)
+			perk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			perk.custom_minimum_size.x = 280
+			info.add_child(perk)
 		var note := UI.label("Trying on changes nothing until you buy or wear it. Every critter can wear everything.", 13, c.ink2, 400)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.custom_minimum_size.x = 280
@@ -1273,6 +1278,8 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	t.add_child(UI.label(Wear.item_name(id), 13, c.ink, 800))
 	if Wear.only(id) != "":
 		t.add_child(UI.label("Only for %ss" % Collection.species_name(sp).to_lower(), 11, c.acc_ink, 800))
+	if Wear.PERKS.has(id):
+		t.add_child(UI.label(Wear.PERKS[id].text, 11, Palette.tier("legendary", w.dark).ink, 800))
 	var price_text := "Wearing" if id in worn else ("Yours" if owned else "%s berries" % _thousands(Wear.price(id)))
 	t.add_child(UI.label(price_text, 12, Palette.tier("uncommon", w.dark).ink if owned else c.ink2, 700))
 	v.add_child(K.margins(t, 10, 8, 10, 8))

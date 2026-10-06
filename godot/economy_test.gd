@@ -3,6 +3,7 @@ extends SceneTree
 ## Run: godot --headless --path godot --script res://economy_test.gd
 
 const Economy := preload("res://economy.gd")
+const Wear := preload("res://wear.gd")
 
 var clock := 0.0
 var fails := 0
@@ -192,6 +193,33 @@ func _init() -> void:
 	var t0: int = e.berries
 	check(e.buy_treat("rabbit") and e.buy_treat("rabbit") and e.berries == t0 - 120, "treats are repeatable, 60 each")
 	check(e.treats == ["rabbit", "rabbit"], "treats queue in order")
+
+	# --- Visitors bringing presents, and the lucky charm.
+	var g = fresh(path + ".g")
+	var n := 400000
+	var hits := {"common": 0, "legendary": 0}
+	var by_tier := {}
+	for t in hits:
+		for i in n:
+			var it: String = g.roll_brought_item(t, "kitten")
+			if it != "":
+				hits[t] += 1
+				var pt: String = Wear.ITEMS[it][2]
+				by_tier[pt] = by_tier.get(pt, 0) + 1
+	check(absf(hits["common"] / float(n) - 0.0002) < 0.0001, "a Common visitor almost never brings a present (got %.5f)" % (hits["common"] / float(n)))
+	check(absf(hits["legendary"] / float(n) - 0.03) < 0.003, "a Legendary one still rarely does (got %.4f)" % (hits["legendary"] / float(n)))
+	check(by_tier.get("small", 0) > by_tier.get("large", 0) and by_tier.get("large", 0) > by_tier.get("perk", 0), "cheaper presents are likelier (%s)" % [by_tier])
+	check(g.receive_brought("wizard_hat") and g.owns("wizard_hat") and not g.receive_brought("wizard_hat"), "a present not owned is free, once")
+	g.rare_hour_enabled = false
+	var charmed := 0
+	var plain := 0
+	for i in 200000:
+		if g.roll_tier("legendary", 1.5) in ["rare", "epic", "legendary"]:
+			charmed += 1
+		if g.roll_tier() in ["rare", "epic", "legendary"]:
+			plain += 1
+	check(absf(float(charmed) / plain - 1.5) < 0.08, "the lucky charm's luck is half again (got %.2f)" % (float(charmed) / plain))
+	g.free()
 
 	# --- v2.0's Seen Log into the Collection.
 	var v = fresh(path + ".v2")

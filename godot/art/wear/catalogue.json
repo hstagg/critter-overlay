@@ -350,5 +350,25 @@
   "head",
   "large",
   "rabbit"
+ ],
+ "disco_headphones": [
+  "Disco headphones",
+  "head",
+  "perk"
+ ],
+ "aviator_cap": [
+  "Aviator cap",
+  "head",
+  "perk"
+ ],
+ "confetti_crown": [
+  "Confetti crown",
+  "head",
+  "perk"
+ ],
+ "lucky_charm": [
+  "Lucky charm",
+  "neck",
+  "perk"
  ]
 }

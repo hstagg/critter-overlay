@@ -14,6 +14,7 @@ from common import LINE, W, svg, top, star, heart, clip_at, neck_arc  # noqa: E4
 import items_small  # noqa: E402
 import items_medium  # noqa: E402
 import items_large  # noqa: E402
+import items_perk  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parents[2] / "godot" / "art" / "wear"
 # Head metrics in SVG units (from each species' head.svg, eyes.svg, ears).
@@ -282,6 +283,7 @@ ITEMS = {
 ITEMS.update(items_small.ITEMS)
 ITEMS.update(items_medium.ITEMS)
 ITEMS.update(items_large.ITEMS)
+ITEMS.update(items_perk.ITEMS)
 
 
 # Where the first coloured fill is not the item's main colour.

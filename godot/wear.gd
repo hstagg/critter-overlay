@@ -12,7 +12,23 @@ extends RefCounted
 ## hour), medium 400 (one to three workdays), large 1,200 (about a week),
 ## showpiece 4,000 (two to four weeks).
 
-const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000}
+const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000, "perk": 8000}
+
+# Perk items (Harrison, 2026-10-06): the critter wearing one gets something
+# extra. A behaviour joins its idles; luck multiplies the luck that species'
+# visitors roll with.
+const PERKS := {
+	"disco_headphones": {"behaviour": "dance", "text": "Dances now and then"},
+	"aviator_cap": {"behaviour": "fly", "text": "Takes off and floats about"},
+	"confetti_crown": {"behaviour": "celebrate", "text": "Celebrates with confetti"},
+	"lucky_charm": {"luck": 1.5, "text": "Its kind arrive luckier"},
+}
+
+# Visitors bringing a present (Harrison, 2026-10-06): the chance an arrival
+# wears an item, by its tier (almost never Common, still rare at Legendary),
+# and which item, cheaper ones likelier. One not yet owned is a free gift.
+const BRING_CHANCE := {"common": 0.0002, "uncommon": 0.001, "rare": 0.004, "epic": 0.012, "legendary": 0.03}
+const BRING_PRICE_POWER := 0.75     # weight ~ (50 / price) ^ this
 
 # Dyes (economy design: repeatable sinks). A dye swaps an item's main colour
 # (art/wear/dyes.json, written by the generator) when its art is loaded. Each
@@ -98,6 +114,22 @@ static func unlocked(id: String, collection: Dictionary) -> bool:
 		if key.begins_with(sp + ":"):
 			return true
 	return false
+
+
+static func perk_behaviours(items: Array) -> Array:
+	var out := []
+	for id in items:
+		if PERKS.has(id) and PERKS[id].has("behaviour"):
+			out.append(PERKS[id].behaviour)
+	return out
+
+
+static func luck_mult(items: Array) -> float:
+	var m := 1.0
+	for id in items:
+		if PERKS.has(id):
+			m *= float(PERKS[id].get("luck", 1.0))
+	return m
 
 
 static func fits(id: String, species: String) -> bool:

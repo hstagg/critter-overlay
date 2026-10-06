@@ -205,7 +205,7 @@ func rare_hour_ends() -> String:
 	return "%02d:%02d" % [end / 60, end % 60]
 
 
-func roll_arrival(max_tier := "legendary", min_tier := "common") -> Array:
+func roll_arrival(max_tier := "legendary", min_tier := "common", luck_mult := 1.0) -> Array:
 	# A visitor's tier, and whether it was the day's first-visitor bonus.
 	_roll_day()
 	var lo := TIERS.find(min_tier)
@@ -222,14 +222,14 @@ func roll_arrival(max_tier := "legendary", min_tier := "common") -> Array:
 		if TIERS.find(tier) > TIERS.find(max_tier):
 			tier = max_tier
 		return [tier, true]
-	var t := roll_tier(max_tier)
+	var t := roll_tier(max_tier, luck_mult)
 	if TIERS.find(t) < lo:
 		t = min_tier
 	return [t, false]
 
 
-func roll_tier(max_tier := "legendary") -> String:
-	var lk := luck() * (rare_hour_boost if in_rare_hour() else 1.0)
+func roll_tier(max_tier := "legendary", luck_mult := 1.0) -> String:
+	var lk := luck() * (rare_hour_boost if in_rare_hour() else 1.0) * luck_mult
 	var p := {}
 	var rest := 0.0
 	for t in TIERS:
@@ -283,6 +283,41 @@ func import_v2_seen(seen: Dictionary) -> void:
 				collection[key] = {"first": int(now()), "count": 0}
 			collection[key]["count"] += int(seen[name][tier])
 	save()
+
+
+func roll_brought_item(tier: String, species: String) -> String:
+	# Whether an arriving critter wears a present, and which (wear.gd
+	# BRING_CHANCE): rarer critters are likelier to; cheaper items are
+	# likelier to be the one. "" for nothing.
+	if rng.randf() >= Wear.BRING_CHANCE.get(tier, 0.0):
+		return ""
+	var ids := []
+	var weights := []
+	var total := 0.0
+	for id in Wear.ITEMS:
+		if not Wear.fits(id, species) or not Wear.unlocked(id, collection):
+			continue
+		var w := pow(50.0 / float(Wear.price(id)), Wear.BRING_PRICE_POWER)
+		ids.append(id)
+		weights.append(w)
+		total += w
+	if ids.is_empty():
+		return ""
+	var r := rng.randf() * total
+	for i in ids.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return ids[i]
+	return ids[-1]
+
+
+func receive_brought(item: String) -> bool:
+	# A present brought by a visitor: free if not owned already.
+	if owns(item):
+		return false
+	gift_items.append(item)
+	save()
+	return true
 
 
 func clear_seen_log() -> void:

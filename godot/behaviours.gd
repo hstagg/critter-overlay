@@ -35,6 +35,10 @@ const REGISTRY := {
 	"chase_tail":     {"dur": [1.2, 2.0], "cool": 90.0, "w": 0.6, "sleep": -0.3},
 	"preen":          {"dur": [2.0, 3.5], "cool": 40.0, "w": 1.0, "sleep": 0.2},
 	"peck_ground":    {"dur": [1.0, 1.5], "cool": 25.0, "w": 1.0, "sleep": 0.0},
+	# From perk clothes (wear.gd PERKS): only a critter wearing one does them.
+	"dance":          {"dur": [3.0, 5.0], "cool": 40.0, "w": 1.2, "sleep": -0.5},
+	"fly":            {"dur": [3.5, 5.0], "cool": 60.0, "w": 1.0, "sleep": -0.5},
+	"celebrate":      {"dur": [1.4, 1.8], "cool": 50.0, "w": 1.0, "sleep": -0.5},
 }
 
 const BASE_CHANCE := 0.1          # per kitten per second, before weighting
