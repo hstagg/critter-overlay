@@ -31,9 +31,17 @@ func _ready() -> void:
 			e.now_fn = func() -> float: return clock
 			e.record_sighting(m[0], m[1])
 	add_child(e)
-	win = Collection.new()
+	# The Collection is a Settings page now; here it sits in a plain window.
+	win = Window.new()
+	win.size = Vector2i(860, 760)
 	add_child(win)
-	win.open(e)
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	win.add_child(scroll)
+	var page = Collection.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(page)
+	page.setup(e)
 
 
 func _process(delta: float) -> void:

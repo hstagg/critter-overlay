@@ -49,7 +49,7 @@ class Toast extends RefCounted:
 
 
 func show_sighting(species: String, tier: String, kicker: String, title: String, sub: String) -> void:
-	var dark := DisplayServer.is_dark_mode()
+	var dark := Palette.is_dark()
 	var c := Palette.colours(dark)
 	var tc := Palette.tier(tier, dark)
 	var legendary := tier == "legendary"
@@ -100,7 +100,7 @@ func show_sighting(species: String, tier: String, kicker: String, title: String,
 
 
 func show_rare_hour(until: String, boost: float) -> void:
-	var dark := DisplayServer.is_dark_mode()
+	var dark := Palette.is_dark()
 	var c := Palette.colours(dark)
 	var t := Toast.new()
 	var well := _well(c.surface, c.outline)
@@ -205,6 +205,7 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 
 	add_child(win)
 	win.size = Vector2i(W, int(card.get_combined_minimum_size().y) + 6)
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())   # one vsync'd window only
 
 
 func _push(t: Toast) -> void:

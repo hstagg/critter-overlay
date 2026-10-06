@@ -9,6 +9,8 @@ const LIGHT := {
 	"sec_line": "#D5C8E8", "nav_h": "#E2D6F3", "tip_bg": "#2F2143", "tip_ink": "#F7F1FF",
 	"dng_bg": "#FFF0F2", "dng_ink": "#A3283F", "accent": "#A07EEA", "outline": "#4A3466", "lip": "#4A3466",
 	"btn": "#7C4DD6", "sp_kitten": "#F3E6D6", "dash": "#C8BBDC", "badge_line": "#4A3466", "ph_bg": "#F5F0FB",
+	"off_line": "#B1A3C8", "chip_line": "#DCD0EC", "chip_sel": "#F2EBFD", "knob": "#FFFFFF", "dng_line": "#EDB7C1",
+	"ok_ring": "#DDF3E8", "ph_ink": "#8F84A6", "acc_ink_h": "#4F2B93", "zz": "#5C6F86",
 	"rh_bg": "#E9EEFC", "rh_line": "#9FB2EC", "rh_text": "#3F4C78", "rh_ink": "#33479A",
 }
 const DARK := {
@@ -18,6 +20,8 @@ const DARK := {
 	"sec_line": "#4D3F62", "nav_h": "#241B2F", "tip_bg": "#F0E8FB", "tip_ink": "#251A35",
 	"dng_bg": "#3A1A26", "dng_ink": "#FF9DB0", "accent": "#9C78E8", "outline": "#BBA6E0", "lip": "#0F0A15",
 	"btn": "#7C4DD6", "sp_kitten": "#80746E", "dash": "#55466C", "badge_line": "#1A1124", "ph_bg": "#211A2B",
+	"off_line": "#6E5F86", "chip_line": "#4A3D5E", "chip_sel": "#3C2D57", "knob": "#F5EFFC", "dng_line": "#6A2C3F",
+	"ok_ring": "#1E3A2E", "ph_ink": "#8C80A2", "acc_ink_h": "#DEC9FF", "zz": "#A9BBDD",
 	"rh_bg": "#1D2442", "rh_line": "#5C6FB0", "rh_text": "#B8C5EE", "rh_ink": "#A9BBFF",
 }
 # tier: fill, light tint, light ink, dark tint, dark ink
@@ -33,6 +37,19 @@ const SPECIES_TINT := {"kitten": "#F3E6D6", "rabbit": "#EFE4F4", "duckling": "#F
 	"hedgehog": "#F1E3D6", "squirrel": "#F6E1D1", "otter": "#E6EEF3", "panda": "#E9ECE4", "unicorn": "#F1E6F7",
 	"golden": "#FAF0CC"}
 const STATUS := {"running": "#4FB286", "paused": "#C9A13B", "napping": "#6C8DB0"}
+
+
+# "system", "light" or "dark", from Settings > System > Theme.
+static var theme := "system"
+
+
+static func is_dark() -> bool:
+	match theme:
+		"light":
+			return false
+		"dark":
+			return true
+	return DisplayServer.is_dark_mode()
 
 
 static func colours(dark: bool) -> Dictionary:

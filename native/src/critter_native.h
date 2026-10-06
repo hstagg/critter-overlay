@@ -8,7 +8,11 @@
 //   injected_events()       how many faked events have been seen
 //   injected_keys()         of which faked key presses
 //   poll_hotkey()           1 once per press of the global pause shortcut
+//   poll_hotkey_slot(n)     the same for shortcut n (0 pause, 1 spawn)
+//   set_hotkey(n, mods, vk) (re)register shortcut n; vk 0 clears it
+//   hotkey_state(n)         1 registered, -1 refused (another app has it), 0 none
 //   hide_from_taskbar(hwnd) no taskbar button for that window
+//   show_in_taskbar(hwnd)   a taskbar button for an owned window (Settings)
 //   single_instance(name)   false if another copy is already running
 //   set_launch_at_startup / is_launch_at_startup   HKCU Run entry
 //   user_busy()             true while a full-screen app, game or
@@ -39,7 +43,11 @@ public:
 	int64_t injected_events() const;
 	int64_t injected_keys() const;
 	int poll_hotkey();
+	int poll_hotkey_slot(int slot);
+	bool set_hotkey(int slot, int mods, int vk);
+	int hotkey_state(int slot) const;
 	bool hide_from_taskbar(int64_t hwnd);
+	bool show_in_taskbar(int64_t hwnd);
 	bool single_instance(const String &name);
 	bool set_launch_at_startup(bool enabled, const String &exe_path, const String &args);
 	bool is_launch_at_startup() const;

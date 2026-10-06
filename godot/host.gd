@@ -51,10 +51,12 @@ var tier := "common":
 		tier = v
 		_make_aura()
 var aura: Node2D               # rare and up: the aura, behind and in front
+var opacity := 1.0             # Settings > Critters > Opacity
 var zoom := 1.0
 var stay_left := INF
 var leaving := false
 var fade := 1.0
+var fade_away := false
 var grab_from := Vector2.ZERO  # screen px where the button went down
 var grab_offset := Vector2.ZERO
 var moved := 0.0
@@ -317,16 +319,18 @@ func _release() -> void:
 	spin_v = clampf(v.x / 120.0, -9.0, 9.0)
 	state = "thrown"
 	main.note_throw()
-	main.play_sound(Species.row(species)["sound"])
+	main.play_sound(Species.row(species)["sound"], species)
 
 
-func leave() -> void:
+func leave(quietly := false) -> void:
 	# The visit is over. A roamer walks off the nearer side of the screen; an
-	# edge walker, which has no side to walk off, fades away.
+	# edge walker, which has no side to walk off, fades away. `quietly`: fade
+	# where it is (tidied away during a long break, napping, unwatched).
 	if leaving or state != "live":
 		return
 	leaving = true
-	if kind == "roam":
+	fade_away = quietly
+	if kind == "roam" and not quietly:
 		world.left_x = -INF
 		world.right_x = INF
 		critter.hold_nap = false
@@ -338,13 +342,19 @@ func leave() -> void:
 
 
 func _left_the_screen(delta: float) -> bool:
-	if kind == "roam":
+	if kind == "roam" and not fade_away:
 		critter.mode_left = INF   # keep walking
 		var r: Rect2 = main.area
 		return critter.position.x < r.position.x - size or critter.position.x > r.end.x + size
 	fade -= delta / 1.2
-	spin.modulate.a = clampf(fade, 0.0, 1.0)
+	spin.modulate.a = clampf(fade, 0.0, 1.0) * opacity
 	return fade <= 0.0
+
+
+func set_opacity(o: float) -> void:
+	opacity = o
+	if spin != null:
+		spin.modulate.a = clampf(fade, 0.0, 1.0) * opacity
 
 
 func _make_aura() -> void:
@@ -383,7 +393,7 @@ func pop() -> void:
 		win.add_child(p)
 		particles.append(p)
 	main.note_pop()
-	main.play_sound(Species.row(species)["sound"])
+	main.play_sound(Species.row(species)["sound"], species)
 
 
 func _close() -> void:
