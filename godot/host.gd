@@ -16,6 +16,7 @@ signal gone(host)
 const Region := preload("res://region.gd")
 const Species := preload("res://species.gd")
 const Aura := preload("res://aura.gd")
+const Trail := preload("res://trail.gd")
 
 const FOOT_DROP := 40.0        # feet sit this far below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
@@ -52,6 +53,7 @@ var tier := "common":
 		_make_aura()
 var aura: Node2D               # rare and up: the aura, behind and in front
 var opacity := 1.0             # Settings > Critters > Opacity
+var trail: Node2D              # its trail, if it leaves one
 var zoom := 1.0
 var stay_left := INF
 var leaving := false
@@ -272,7 +274,29 @@ func tick(delta: float) -> void:
 				_close()
 				return
 	_place()
+	if trail != null:
+		# The body's place on screen, and whether it is going anywhere.
+		var body: Vector2 = (foot if state in ["held", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
+		var moving: bool = state == "thrown" or (state == "live" and critter.mode == "walk" and absf(critter.vx) > 5.0 * zoom)
+		trail.step(delta, body, moving)
 	_update_hole()
+
+
+func set_trail(style: String, palette: Array) -> void:
+	# "none" takes it away. Drawn under the critter.
+	var key := "%s|%s" % [style, palette]
+	if trail != null and trail.get_meta("key", "") == key:
+		return
+	if trail != null:
+		trail.queue_free()
+		trail = null
+	if style == "none" or win == null:
+		return
+	trail = Trail.new()
+	trail.setup(self, style, palette, zoom)
+	trail.set_meta("key", key)
+	win.add_child(trail)
+	win.move_child(trail, 0)
 
 
 # --- Pointer ------------------------------------------------------------------

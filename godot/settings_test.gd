@@ -74,6 +74,15 @@ func _init() -> void:
 	u.load_file()
 	check(u.value("focus.max_out") == 8, "an unreadable file means defaults")
 
+	# Day and night pacing (time_of_day.gd, v2.0's buckets).
+	var T := preload("res://time_of_day.gd")
+	check(T.at(9.0) == [1.10, 1.20, 0.05], "mid-morning is lively (got %s)" % [T.at(9.0)])
+	check(T.at(23.0) == [0.50, 0.50, 0.85] and T.at(3.0) == [0.50, 0.50, 0.85], "night wraps midnight")
+	check(T.at(6.0)[0] == 0.90, "dawn")
+	var edge: Array = T.at(7.95)
+	check(edge[0] > 0.9 and edge[0] < 1.1, "blends into morning over ten minutes (got %s)" % [edge])
+	check(is_equal_approx(T.at(4.999)[0], 0.9) or T.at(4.999)[0] > 0.5, "blends from night into dawn")
+
 	print("SETTINGS TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	for x in [s, t, u]:
 		x.free()

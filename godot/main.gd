@@ -56,6 +56,8 @@ const Settings := preload("res://settings.gd")
 const SettingsWindow := preload("res://gui/settings_window.gd")
 const Palette := preload("res://gui/palette.gd")
 const Aura := preload("res://aura.gd")
+const Trail := preload("res://trail.gd")
+const TimeOfDay := preload("res://time_of_day.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
@@ -85,6 +87,10 @@ var busy_hidden := false      # hidden while a full-screen app has the screen
 var busy_check := 0.0
 var settings: Node
 var settings_win: Window
+var pace := 1.0               # World > Day and night pacing: how lively now
+var spawn_rate := 1.0         # and how often they arrive
+var night_sleep := 0.0        # and how sleepy
+var tod_in := 0.0
 var settings_path := ""
 var tour_dir := ""
 var late_sets := []           # --set: [key, value], applied at three seconds
@@ -335,18 +341,36 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	elif force_tier != "":
 		h.tier = force_tier   # --demo with --tier: an aura to look at
+	_trail_for(h)
 	return h
 
 
 func _personalise(h) -> void:
-	# The species' Speed and Activity, and everyone's Opacity.
+	# The species' Speed and Activity, the hour's pace, everyone's Opacity,
+	# and the trail.
 	var row: Dictionary = settings.species(h.species)
 	var k = h.critter
 	if not k.has_meta("base_cruise"):
 		k.set_meta("base_cruise", k.cruise)
 	k.cruise = k.get_meta("base_cruise") * Settings.SPEEDS[int(row.speed)]
+	k.cruise *= pace
 	k.activity = Settings.ACTIVITY[int(row.activity)]
 	h.set_opacity(float(settings.value("critters.opacity")) / 100.0)
+	_trail_for(h)
+
+
+func _trail_for(h) -> void:
+	# The species' chosen trail, in its own colours; otherwise, with rarity
+	# tiers on, its tier's trail in the tier's colours (v2.0). None with
+	# Animation detail set to Simple.
+	var style: String = settings.sp(h.species, "trail")
+	var palette: Array = Species.row(h.species)["pop"]
+	if style == "none" and settings.value("world.rarity") and Trail.TIER_TRAIL.has(h.tier):
+		style = Trail.TIER_TRAIL[h.tier]
+		palette = Trail.TIER_COLOURS[h.tier]
+	if settings.value("system.detail") == "simple":
+		style = "none"
+	h.set_trail(style, palette)
 
 
 func _pick_species() -> String:
@@ -477,8 +501,12 @@ func _process(delta: float) -> void:
 		economy.tick(delta, not presence.away)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			_arrivals(delta)
+		tod_in -= delta
+		if tod_in <= 0.0:
+			tod_in = 30.0
+			_time_of_day()
 		if not presence.away and not paused:
-			evaluator.tick(delta, kittens(), presence.sleep_bias())
+			evaluator.tick(delta, kittens(), maxf(presence.sleep_bias(), night_sleep))
 		if native != null:
 			if native.poll_hotkey() == 1:
 				toggle_pause()
@@ -651,6 +679,26 @@ func _show_critters() -> void:
 		h.win.visible = not paused and not busy_hidden
 
 
+func _time_of_day() -> void:
+	# World > Day and night pacing (v2.0 time_of_day.py): livelier in the
+	# morning, sleepier at night. Only pace changes, never the colours.
+	var was := pace
+	if settings.value("world.day_night"):
+		var st: Array = TimeOfDay.now()
+		pace = st[0]
+		spawn_rate = st[1]
+		night_sleep = st[2]
+	else:
+		pace = 1.0
+		spawn_rate = 1.0
+		night_sleep = 0.0
+	evaluator.frequency = float(settings.value("world.behaviour_freq")) * pace
+	if not is_equal_approx(was, pace):
+		for h in hosts:
+			if h.state != "popping":
+				_personalise(h)
+
+
 func _check_busy() -> void:
 	# Focus > Pause in full-screen apps: hide while a game, film or
 	# presentation has the screen.
@@ -667,11 +715,11 @@ func _max_out() -> int:
 
 
 func _gather_every() -> float:
-	return gather_flag if gather_flag > 0.0 else float(settings.value("focus.gather_every_min")) * 60.0
+	return gather_flag if gather_flag > 0.0 else float(settings.value("focus.gather_every_min")) * 60.0 / spawn_rate
 
 
 func _timer_every() -> float:
-	return float(settings.value("focus.timer_every_min")) * 60.0
+	return float(settings.value("focus.timer_every_min")) * 60.0 / spawn_rate
 
 
 func _solo_every() -> float:
@@ -893,7 +941,7 @@ func _on_setting(key: String) -> void:
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
 	if under.call("world"):
-		evaluator.frequency = float(settings.value("world.behaviour_freq"))
+		_time_of_day()
 		economy.odds = settings.odds()
 		economy.first_bonus_enabled = settings.value("world.first_bonus")
 		economy.rare_hour_enabled = settings.value("world.rare_hour")
@@ -920,7 +968,7 @@ func _on_setting(key: String) -> void:
 			Critter.zoom = z
 			if not all:
 				_redraw_all()
-	if under.call("critters.opacity") or under.call("species"):
+	if under.call("critters.opacity") or under.call("species") or key == "world.rarity" or under.call("system.detail"):
 		for h in hosts:
 			if h.state != "popping":
 				_personalise(h)
