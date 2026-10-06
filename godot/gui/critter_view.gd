@@ -23,13 +23,13 @@ var _step := 0.0
 var still := false
 
 
-static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1, wear: Array = [], still := false) -> SubViewportContainer:
+static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1, wear: Array = [], still := false, dyes: Dictionary = {}) -> SubViewportContainer:
 	# `still`: drawn once and left (many small previews, like the Shop's).
 	var v = load("res://gui/critter_view.gd").new()
 	v.still = still
 	v._build(species, w, h, scale, mode, asleep, face)
 	if not wear.is_empty() and v.critter != null:
-		v.critter.wear(wear)
+		v.critter.wear(wear, dyes)
 	return v
 
 

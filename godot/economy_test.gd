@@ -178,6 +178,21 @@ func _init() -> void:
 	check(not e.buy("hat_red", 50), "cannot buy the same item twice")
 	check(not e.buy("castle", 999999), "cannot buy what you cannot afford")
 
+	# --- Dyes and treats (repeatable sinks).
+	e.berries = 1000
+	check(not e.buy_dye("bow", "sky"), "no dye for an item not owned")
+	e.buy("bow", 50)
+	var d0: int = e.berries
+	check(e.buy_dye("bow", "sky") and e.berries == d0 - 100, "a dye costs 100 for an owned item")
+	check(not e.buy_dye("bow", "sky"), "a colour is bought once per item")
+	e.set_dye("kitten", "bow", "sky")
+	check(e.dyed["kitten"]["bow"] == "sky", "a bought colour can be worn")
+	e.set_dye("kitten", "bow", "rose")
+	check(e.dyed["kitten"]["bow"] == "sky", "an unbought colour cannot")
+	var t0: int = e.berries
+	check(e.buy_treat("rabbit") and e.buy_treat("rabbit") and e.berries == t0 - 120, "treats are repeatable, 60 each")
+	check(e.treats == ["rabbit", "rabbit"], "treats queue in order")
+
 	# --- Save and load round trip; a gap since the save counts as a long break.
 	e.save()
 	var saved_berries: int = e.berries
@@ -186,6 +201,7 @@ func _init() -> void:
 	e2.load_save()
 	check(e2.berries == saved_berries, "berries survive a save and load")
 	check(e2.collection.has("kitten:rare") and e2.owned.has("hat_red"), "collection and shop survive")
+	check(e2.dyed.get("kitten", {}).get("bow", "") == "sky" and e2.treats.size() == 2, "dyes and treats survive")
 	check(is_equal_approx(e2.session_min, saved_session), "an immediate reload keeps the session")
 	clock += 3600.0
 	var e3 = fresh(path)
