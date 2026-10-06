@@ -991,7 +991,7 @@ func _rail(sp: String, worn: Array) -> Control:
 	var ids := Wear.ITEMS.keys()
 	ids.sort_custom(func(a, b): return Wear.price(a) > Wear.price(b) or (Wear.price(a) == Wear.price(b) and a < b))
 	for id in ids:
-		if not Wear.fits(id, sp):
+		if not Wear.fits(id, sp) or not Wear.unlocked(id, eco.collection):
 			continue
 		if shop_slot == "showpiece" and Wear.ITEMS[id][2] != "showpiece":
 			continue
@@ -1037,6 +1037,8 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	var t := K.vbox(2)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.add_child(UI.label(Wear.item_name(id), 13, c.ink, 800))
+	if Wear.only(id) != "":
+		t.add_child(UI.label("Only for %ss" % Collection.species_name(sp).to_lower(), 11, c.acc_ink, 800))
 	var price_text := "Wearing" if id in worn else ("Yours" if owned else "%s berries" % _thousands(Wear.price(id)))
 	t.add_child(UI.label(price_text, 12, Palette.tier("uncommon", w.dark).ink if owned else c.ink2, 700))
 	v.add_child(K.margins(t, 10, 8, 10, 8))

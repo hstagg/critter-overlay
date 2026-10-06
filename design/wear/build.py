@@ -195,7 +195,88 @@ def wizard_hat(m):
     return svg(brim + cone + band + stars)
 
 
-# id: (draw, name, slot, tier)
+# --- One species only (Harrison, 2026-10-06): sold only once that species has
+# been met, and only for critters whose design is final.
+
+def fish_bowtie(m):
+    # Kitten: a bow tie in the shape of two little fish, nose to nose.
+    cx, y = m["cx"], m["chin"] - 2
+    fish = ""
+    for s in (-1, 1):
+        x0 = cx + s * 6
+        fish += (f'<path d="M{x0} {y} C {x0 + s * 10} {y - 14} {x0 + s * 28} {y - 12} {x0 + s * 34} {y} '
+                 f'C {x0 + s * 28} {y + 12} {x0 + s * 10} {y + 14} {x0} {y} Z" fill="#7FBCF5" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+                 f'<path d="M{x0 + s * 32} {y} l {s * 12} -10 l 0 20 Z" fill="#7FBCF5" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>'
+                 f'<circle cx="{x0 + s * 9}" cy="{y - 2}" r="2.6" fill="{LINE}"/>'
+                 f'<path d="M{x0 + s * 16} {y - 6} q {s * 4} 6 0 12 M{x0 + s * 22} {y - 6} q {s * 4} 6 0 12" stroke="#4F8FD0" stroke-width="2.5" fill="none" stroke-linecap="round"/>')
+    knot = f'<circle cx="{cx}" cy="{y}" r="7" fill="#F590B4" stroke="{LINE}" stroke-width="{W}"/>'
+    return svg(fish + knot)
+
+
+def paw_beret(m):
+    # Kitten: a soft berry-coloured beret between the ears, a paw print on it.
+    cx = m["cx"] + 4
+    base = top(m, cx) + 18
+    beret = (f'<path d="M{cx - 58} {base} C {cx - 70} {base - 40} {cx - 10} {base - 56} {cx + 30} {base - 44} '
+             f'C {cx + 70} {base - 34} {cx + 62} {base - 4} {cx + 50} {base + 2} Q {cx} {base + 10} {cx - 58} {base} Z" '
+             f'fill="#C9506A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+             f'<path d="M{cx + 2} {base - 50} q 2 -8 8 -10" stroke="{LINE}" stroke-width="{W + 1}" fill="none" stroke-linecap="round"/>')
+    px, py = cx + 14, base - 22
+    paw = (f'<ellipse cx="{px}" cy="{py + 4}" rx="9" ry="7" fill="#FCD9E6"/>'
+           + "".join(f'<circle cx="{px + dx}" cy="{py + dy}" r="3.4" fill="#FCD9E6"/>' for dx, dy in ((-10, -5), (-4, -10), (4, -10), (10, -5))))
+    return svg(beret + paw)
+
+
+def carrot_clip(m):
+    # Rabbit: a little carrot hair clip at the foot of the right ear.
+    x, y = m["cx"] + 26, top(m, m["cx"] + 26) + 6
+    return svg(f'<g transform="rotate(-35 {x} {y})">'
+               f'<path d="M{x - 9} {y - 4} Q {x} {y - 10} {x + 9} {y - 4} L {x + 2} {y + 30} Q {x} {y + 34} {x - 2} {y + 30} Z" fill="#F59A4A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+               f'<path d="M{x - 5} {y + 6} l 5 1 M{x - 3} {y + 15} l 5 1" stroke="#C96F2A" stroke-width="2.5" stroke-linecap="round"/>'
+               f'<path d="M{x} {y - 6} q -10 -14 -6 -20 q 6 4 6 20 q 4 -16 12 -18 q 0 10 -12 18" fill="#6CC27A" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/></g>')
+
+
+def carrot_scarf(m):
+    # Rabbit: an orange knitted scarf with leafy green tassels.
+    cx, y = m["cx"], m["chin"] - 4
+    half = m["rx"] * 0.62
+    wrap = (f'<path d="M{cx - half:.1f} {y - 10:.1f} Q {cx} {y + 22:.1f} {cx + half:.1f} {y - 10:.1f} L {cx + half - 4:.1f} {y + 8:.1f} '
+            f'Q {cx} {y + 40:.1f} {cx - half + 4:.1f} {y + 8:.1f} Z" fill="#F59A4A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>')
+    ribs = "".join(f'<path d="M{cx + dx:.1f} {y + 10:.1f} l 3 -12" stroke="#E07F2E" stroke-width="3" stroke-linecap="round"/>'
+                   for dx in (-half * 0.7, -half * 0.35, 0, half * 0.35, half * 0.7))
+    tx = cx - half * 0.45
+    tail = (f'<path d="M{tx - 12:.1f} {y + 18:.1f} L {tx + 12:.1f} {y + 18:.1f} L {tx + 6:.1f} {y + 54:.1f} L {tx - 14:.1f} {y + 52:.1f} Z" '
+            f'fill="#F59A4A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+            f'<path d="M{tx - 10:.1f} {y + 54:.1f} q -4 10 -10 12 q 8 -2 12 -10 M{tx - 2:.1f} {y + 54:.1f} q 0 10 4 14 q 0 -8 -2 -14" fill="#6CC27A" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>')
+    return svg(tail + wrap + ribs)
+
+
+def sailor_hat(m):
+    # Duckling: a little white sailor cap, blue band, tipped back over the tuft.
+    cx = m["cx"]
+    base = top(m, cx) + 10
+    hat = (f'<g transform="rotate(-8 {cx} {base})">'
+           f'<path d="M{cx - 50} {base} C {cx - 52} {base - 30} {cx - 28} {base - 46} {cx} {base - 46} C {cx + 28} {base - 46} {cx + 52} {base - 30} {cx + 50} {base} Z" fill="#FFFFFF" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+           f'<rect x="{cx - 54}" y="{base - 12}" width="108" height="18" rx="9" fill="#3E6FC2" stroke="{LINE}" stroke-width="{W}"/>'
+           f'<path d="M{cx + 40} {base + 4} l 10 18 l 6 -12 Z" fill="#3E6FC2" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>'
+           f'{star(cx, base - 26, 8, "#FFCF5C")}</g>')
+    return svg(hat)
+
+
+def swim_ring(m):
+    # Duckling: a red and white striped swim ring just under the chin.
+    cx, y = m["cx"], m["chin"] + 8
+    rx, ry, t = m["rx"] * 0.86, 15, 18
+    per = 2 * math.pi * math.sqrt((rx * rx + ry * ry) / 2)
+    dash = per / 8
+    tube = (f'<ellipse cx="{cx}" cy="{y}" rx="{rx:.1f}" ry="{ry}" fill="none" stroke="{LINE}" stroke-width="{t + 2 * W}"/>'
+            f'<ellipse cx="{cx}" cy="{y}" rx="{rx:.1f}" ry="{ry}" fill="none" stroke="#FFFFFF" stroke-width="{t}"/>'
+            f'<ellipse cx="{cx}" cy="{y}" rx="{rx:.1f}" ry="{ry}" fill="none" stroke="#E2554F" stroke-width="{t}" stroke-dasharray="{dash:.1f} {dash:.1f}"/>'
+            f'<path d="M{cx - rx * 0.55:.1f} {y + ry - 2:.1f} q {rx * 0.25:.1f} 6 {rx * 0.5:.1f} 4" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8"/>')
+    return svg(tube)
+
+
+# id: (draw, name, slot, tier) or (draw, name, slot, tier, only species)
 ITEMS = {
     "bow": (bow, "Ribbon bow", "head", "small"),
     "bell_collar": (bell_collar, "Bell collar", "neck", "small"),
@@ -207,15 +288,23 @@ ITEMS = {
     "bandana": (bandana, "Spotty bandana", "neck", "medium"),
     "strawberry_hat": (strawberry_hat, "Strawberry hat", "head", "large"),
     "wizard_hat": (wizard_hat, "Wizard hat", "head", "large"),
+    "fish_bowtie": (fish_bowtie, "Fishbone bow tie", "neck", "medium", "kitten"),
+    "paw_beret": (paw_beret, "Paw-print beret", "head", "large", "kitten"),
+    "carrot_clip": (carrot_clip, "Carrot hair clip", "head", "small", "rabbit"),
+    "carrot_scarf": (carrot_scarf, "Carrot scarf", "neck", "medium", "rabbit"),
+    "sailor_hat": (sailor_hat, "Sailor hat", "head", "medium", "duckling"),
+    "swim_ring": (swim_ring, "Swim ring", "neck", "large", "duckling"),
 }
 
 
 def main():
-    for item, (draw, *_rest) in ITEMS.items():
+    for item, (draw, *rest) in ITEMS.items():
         d = OUT / item
         d.mkdir(parents=True, exist_ok=True)
+        only = rest[3] if len(rest) > 3 else None
         for sp, m in SPECIES.items():
-            (d / f"{sp}.svg").write_text(draw(m), encoding="utf-8")
+            if only is None or sp == only:
+                (d / f"{sp}.svg").write_text(draw(m), encoding="utf-8")
     print(f"{len(ITEMS)} items x {len(SPECIES)} species -> {OUT}")
 
 
