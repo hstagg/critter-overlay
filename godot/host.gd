@@ -497,6 +497,7 @@ func pop() -> void:
 		win.add_child(p)
 		particles.append(p)
 	main.note_pop()
+	main.note_play(species)
 	main.play_sound(Species.row(species)["sound"], species)
 
 

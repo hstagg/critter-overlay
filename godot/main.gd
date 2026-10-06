@@ -45,6 +45,8 @@ extends Node2D
 ##   --wear=A,B         every critter wears these (wear.gd ids; testing)
 ##   --wear-sheet=DIR   every clothing item on every critter, saved as
 ##                      DIR/<item>-<species>.png, then quit (--wear=A,B for some)
+##   --fake-pointer     a pretend pointer for the bond test: it circles the first
+##                      critter for eight seconds, then rests
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
@@ -120,6 +122,7 @@ var toasts: Node
 var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
+var fake_pointer := false
 var wear_flag := []
 var props := {}               # showpiece id -> prop.gd node on the desktop
 var sheet_dir := ""
@@ -224,6 +227,8 @@ func _ready() -> void:
 			wear_flag = Array(v.split(","))
 		elif arg.begins_with("--wear-sheet="):
 			sheet_dir = v
+		elif arg == "--fake-pointer":
+			fake_pointer = true
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
 		elif arg == "--selftest":
@@ -306,6 +311,7 @@ func _ready() -> void:
 	economy.gift_opened.connect(_on_gift)
 	economy.welcome_back.connect(_on_welcome_back)
 	economy.row_completed.connect(_on_row_completed)
+	economy.bond_grew.connect(_on_bond_grew)
 	for sp in Species.DATA:
 		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "legendary")
 	economy.rare_hour_changed.connect(_on_rare_hour)
@@ -513,6 +519,66 @@ func _on_row_completed(sp: String, berries: int) -> void:
 		"%d berries, and a gold frame for its card." % berries, "#E3A72F")
 
 
+func _on_bond_grew(sp: String, level: int) -> void:
+	print("BOND ", sp, " ", level)
+	if _quiet() or toasts == null:
+		return
+	var name := Collection.species_name(sp).to_lower()
+	var what := "They say hello when your pointer comes near." if level == 1 else "One curls up beside your pointer when it rests."
+	toasts.show_note(Icons.line("heart", 40, Color("#E07BA0")), "Bond", "Your %ss like you" % name, what, "#F590B4")
+
+
+var _pointer_last := Vector2.ZERO
+var _pointer_still := 0.0
+var _snuggler = null
+
+
+func _bond_tick() -> void:
+	# Once a second. Level 1: a bonded critter near the pointer says hello.
+	# Level 2: when the pointer rests, one walks over and curls up by it.
+	var m := _pointer()
+	var moved := m.distance_to(_pointer_last) > 6.0
+	_pointer_last = m
+	_pointer_still = 0.0 if moved else _pointer_still + 1.0
+	if moved and _snuggler != null:
+		if is_instance_valid(_snuggler):
+			_snuggler.cancel_nap()
+			_snuggler.critter.wake_up()
+		_snuggler = null
+	for h in hosts:
+		if h.state != "live" or h.kind != "roam" or economy.bond_level(h.species) < 1:
+			continue
+		var k = h.critter
+		if moved and h.feet_on_screen().distance_to(m) < 170.0 * Critter.zoom and k.can_start_behaviour() and not k.on_cooldown("hello"):
+			k.cooldowns["hello"] = Behaviours.REGISTRY["hello"]["cool"]
+			k.start_behaviour("hello", evaluator.duration_of("hello"))
+	if _pointer_still >= 5.0 and _snuggler == null:
+		var best = null
+		var best_d := INF
+		for h in hosts:
+			if h.state == "live" and h.kind == "roam" and economy.bond_level(h.species) >= 2 and h.critter.can_start_behaviour():
+				var d: float = h.feet_on_screen().distance_to(m)
+				if d < best_d and d < 700.0 * Critter.zoom:
+					best_d = d
+					best = h
+		if best != null:
+			_snuggler = best
+			best.nap_goal = Vector2(m.x + 50.0 * Critter.zoom, clampf(m.y + 60.0 * Critter.zoom, area.position.y + 200.0, area.end.y))
+
+
+func _pointer() -> Vector2:
+	if fake_pointer and not hosts.is_empty():
+		if t < 8.0:
+			return hosts[0].feet_on_screen() + Vector2(cos(t * 3.0), sin(t * 3.0)) * 60.0 - Vector2(0, 60)
+		return Vector2(area.get_center().x, area.end.y - 120.0)
+	return Vector2(DisplayServer.mouse_get_position())
+
+
+func note_play(sp: String) -> void:
+	# A click to pop is play: a little bond.
+	economy.add_bond(sp, 1)
+
+
 func _maybe_bring(h) -> void:
 	# Now and then a visitor arrives wearing a present; one not yet owned is
 	# a free gift (wear.gd BRING_CHANCE).
@@ -521,7 +587,10 @@ func _maybe_bring(h) -> void:
 		return
 	var outfit: Array = economy.worn.get(h.species, []).filter(func(x): return Wear.slot(x) != Wear.slot(item))
 	h.critter.wear(outfit + [item], economy.dyed.get(h.species, {}))
-	if economy.receive_brought(item) and not _quiet():
+	var got_it: bool = economy.receive_brought(item)
+	if got_it:
+		economy.add_bond(h.species, 2)
+	if got_it and not _quiet():
 		var t: String = h.tier
 		toasts.show_sighting(h.species, t, "A present", "%s %s brought you something" % ["An" if h.species[0] in "aeiou" else "A", Collection.species_name(h.species).to_lower()],
 			"The %s is yours. Find it in the Shop." % Wear.item_name(item).to_lower())
@@ -733,6 +802,8 @@ func _process(delta: float) -> void:
 		if busy_check <= 0.0:
 			busy_check = 1.0
 			_check_busy()
+			if not presence.away and not paused:
+				_bond_tick()
 		tray_in -= delta
 		if tray_in <= 0.0:
 			tray_in = TRAY_EVERY
