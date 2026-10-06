@@ -28,7 +28,9 @@ std::thread g_thread;
 std::atomic<DWORD> g_thread_id{ 0 };
 HANDLE g_instance_mutex = nullptr;
 const wchar_t *RUN_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-const wchar_t *RUN_VALUE = L"Critter Overlay";
+// v2.0's name for the entry, so upgrading keeps the user's choice and never
+// leaves two entries.
+const wchar_t *RUN_VALUE = L"CritterOverlay";
 const int HOTKEY_ID = 0xC0DE;   // + slot
 const UINT MSG_SET_HOTKEY = WM_APP + 1;   // wParam slot, lParam (mods << 16) | vk
 
@@ -306,6 +308,51 @@ bool CritterNative::set_launch_at_startup(bool enabled, const String &exe_path, 
 #endif
 }
 
+String CritterNative::startup_command() const {
+	// The startup entry exactly as stored, or "" (for tests to restore it).
+#ifdef _WIN32
+	HKEY key;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, RUN_KEY, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+		return String();
+	}
+	wchar_t buf[2048];
+	DWORD size = sizeof(buf);
+	DWORD type = 0;
+	LSTATUS st = RegQueryValueExW(key, RUN_VALUE, nullptr, &type, (BYTE *)buf, &size);
+	RegCloseKey(key);
+	if (st != ERROR_SUCCESS || type != REG_SZ) {
+		return String();
+	}
+	return String((const char16_t *)buf);
+#else
+	return String();
+#endif
+}
+
+bool CritterNative::set_startup_command(const String &command) {
+	// Writes the entry exactly as given; "" removes it.
+#ifdef _WIN32
+	HKEY key;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, RUN_KEY, 0, KEY_SET_VALUE, &key) != ERROR_SUCCESS) {
+		return false;
+	}
+	LSTATUS st;
+	if (command.is_empty()) {
+		st = RegDeleteValueW(key, RUN_VALUE);
+		if (st == ERROR_FILE_NOT_FOUND) {
+			st = ERROR_SUCCESS;
+		}
+	} else {
+		std::wstring w((const wchar_t *)command.wide_string().get_data());
+		st = RegSetValueExW(key, RUN_VALUE, 0, REG_SZ, (const BYTE *)w.c_str(), (DWORD)((w.size() + 1) * sizeof(wchar_t)));
+	}
+	RegCloseKey(key);
+	return st == ERROR_SUCCESS;
+#else
+	return false;
+#endif
+}
+
 bool CritterNative::is_launch_at_startup() const {
 #ifdef _WIN32
 	HKEY key;
@@ -345,6 +392,8 @@ void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("single_instance", "name"), &CritterNative::single_instance);
 	ClassDB::bind_method(D_METHOD("set_launch_at_startup", "enabled", "exe_path", "args"), &CritterNative::set_launch_at_startup);
 	ClassDB::bind_method(D_METHOD("is_launch_at_startup"), &CritterNative::is_launch_at_startup);
+	ClassDB::bind_method(D_METHOD("startup_command"), &CritterNative::startup_command);
+	ClassDB::bind_method(D_METHOD("set_startup_command", "command"), &CritterNative::set_startup_command);
 	ClassDB::bind_method(D_METHOD("user_busy"), &CritterNative::user_busy);
 	ClassDB::bind_method(D_METHOD("poll_hotkey_slot", "slot"), &CritterNative::poll_hotkey_slot);
 	ClassDB::bind_method(D_METHOD("set_hotkey", "slot", "mods", "vk"), &CritterNative::set_hotkey);

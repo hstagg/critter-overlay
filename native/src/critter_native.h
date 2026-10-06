@@ -51,6 +51,8 @@ public:
 	bool single_instance(const String &name);
 	bool set_launch_at_startup(bool enabled, const String &exe_path, const String &args);
 	bool is_launch_at_startup() const;
+	String startup_command() const;
+	bool set_startup_command(const String &command);
 	bool user_busy() const;
 
 	~CritterNative();
