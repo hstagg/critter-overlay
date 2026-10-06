@@ -237,6 +237,24 @@ func _init() -> void:
 	check(ff.berries == b_before + 40 + 5 + 15 + 100 + 500, "first finds and the row bonus add up (got %d)" % (ff.berries - b_before))
 	ff.free()
 
+	# --- Bond.
+	var bd = fresh(path + ".bond")
+	var grew := []
+	bd.bond_grew.connect(func(sp, lv): grew.append(lv))
+	bd.berries = 5000
+	bd.owned = ["bow", "beanie", "scarf"]
+	bd.set_worn("rabbit", ["bow"])
+	bd.set_worn("rabbit", ["bow"])
+	check(int(bd.bond.get("rabbit", 0)) == 3, "dressing counts once per new item (got %s)" % bd.bond.get("rabbit", 0))
+	for i in 4:
+		bd.buy_treat("rabbit")
+	check(bd.bond_level("rabbit") == 1 and grew == [1], "ten points is the first level, announced once")
+	bd.add_bond("rabbit", 25)
+	check(bd.bond_level("rabbit") == 2 and grew == [1, 2], "thirty is the second")
+	bd.add_bond("rabbit", 100)
+	check(bd.bond_level("rabbit") == 2 and grew.size() == 2, "nothing past the top level, nothing decays")
+	bd.free()
+
 	# --- v2.0's Seen Log into the Collection.
 	var v = fresh(path + ".v2")
 	v.import_v2_seen({"duck": {"common": 15, "rare": 1}, "kitten": {"legendary": 1}, "custom:x": {"rare": 5}})

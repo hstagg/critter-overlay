@@ -32,6 +32,7 @@ signal welcome_back(berries: int)
 signal sighting(species: String, tier: String, first: bool)
 signal rare_hour_changed(on: bool)
 signal row_completed(species: String, berries: int)
+signal bond_grew(species: String, level: int)
 
 const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
 const BASE_ODDS := {"common": 0.904, "uncommon": 0.07, "rare": 0.02, "epic": 0.005, "legendary": 0.001}
@@ -58,6 +59,10 @@ const FIRST_BONUS_ODDS := {"rare": 0.70, "epic": 0.20, "legendary": 0.10}
 # meeting every tier a species can roll pays a row bonus and frames its card.
 const FIRST_FIND := {"common": 5, "uncommon": 15, "rare": 40, "epic": 100, "legendary": 300}
 const ROW_BONUS := 500
+# Bond (economy design, section 9): dressing, treats, dyes, presents and play
+# build it per species; it never goes down. Level 1 says hello to the
+# pointer, level 2 curls up beside it when it rests.
+const BOND_LEVELS := [10, 30]
 
 # Set from Settings (main.gd applies them).
 var odds := BASE_ODDS.duplicate()  # World > Rarity > Odds, as fractions
@@ -88,6 +93,7 @@ var dyes_owned := {}               # item -> [dye ids bought for it]
 var dyed := {}                     # species -> {item: dye id}
 var treats := []                   # species called next, in order
 var props_out := {}                # showpiece id -> where it stands (0 left .. 1 right)
+var bond := {}                     # species -> bond points
 var collection := {}               # "species:tier" -> {"first": unix, "count": n}
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
@@ -280,6 +286,23 @@ func record_sighting(species: String, tier: String) -> bool:
 var row_caps := {}                 # species -> its top tier (main.gd fills it from species.gd)
 
 
+func bond_level(species: String) -> int:
+	var pts := int(bond.get(species, 0))
+	var lv := 0
+	for t in BOND_LEVELS:
+		if pts >= t:
+			lv += 1
+	return lv
+
+
+func add_bond(species: String, points: int) -> void:
+	var before := bond_level(species)
+	bond[species] = int(bond.get(species, 0)) + points
+	var after := bond_level(species)
+	if after > before:
+		bond_grew.emit(species, after)
+
+
 func row_complete(species: String) -> bool:
 	var cap: String = row_caps.get(species, "legendary")
 	for i in TIERS.find(cap) + 1:
@@ -389,7 +412,11 @@ func owns(item: String) -> bool:
 
 
 func set_worn(species: String, items: Array) -> void:
+	var before: Array = worn.get(species, [])
 	worn[species] = Wear.ordered(items.filter(func(i): return owns(i)))
+	for id in worn[species]:
+		if not id in before:
+			add_bond(species, 3)   # dressing them up
 	save()
 
 
@@ -418,6 +445,7 @@ func set_dye(species: String, item: String, dye: String) -> void:
 		dyed[species].erase(item)
 	elif owns_dye(item, dye):
 		dyed[species][item] = dye
+		add_bond(species, 1)
 	save()
 
 
@@ -427,6 +455,7 @@ func buy_treat(species: String) -> bool:
 		return false
 	berries -= Wear.TREAT_PRICE
 	treats.append(species)
+	add_bond(species, 2)
 	berries_changed.emit(berries)
 	save()
 	return true
@@ -450,7 +479,7 @@ func to_dict() -> Dictionary:
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
-		"treats": treats, "props_out": props_out, "saved_at": int(now())}
+		"treats": treats, "props_out": props_out, "bond": bond, "saved_at": int(now())}
 
 
 func save() -> void:
@@ -493,6 +522,7 @@ func load_save() -> void:
 	dyed = d.get("dyed", {})
 	treats = d.get("treats", [])
 	props_out = d.get("props_out", {})
+	bond = d.get("bond", {})
 	# A long gap since the last save is a long break.
 	var gap := now() - float(d.get("saved_at", now()))
 	if gap >= SESSION_END_S:

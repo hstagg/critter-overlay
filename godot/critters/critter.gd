@@ -456,7 +456,7 @@ func _wake() -> void:
 # --- Behaviours (called by main.gd's evaluator) ----------------------------
 
 func can_do(b: String) -> bool:
-	return idles.has(b) or perk_moves.has(b)
+	return idles.has(b) or perk_moves.has(b) or b == "hello"
 
 
 func can_start_behaviour() -> bool:
@@ -506,6 +506,8 @@ func _act_pose(b: String) -> String:
 func _on_begin(b: String) -> void:
 	if b == "sneeze":
 		sneezed = false
+	if b == "hello" and not airborne:
+		_launch(-300.0 * zoom)   # a little hop of greeting
 	if b == "celebrate" and not airborne:
 		_launch(-520.0 * zoom)   # a happy jump; host.gd throws the confetti
 
@@ -844,6 +846,20 @@ func _behaviour_params(p: Dictionary) -> void:
 			p.head_rot += 4.0 * sin(u * TAU * 0.8) * k
 			p.ear_l -= 10.0 * k
 			p.ear_r -= 10.0 * k
+		"hello":
+			# Bonded: a hop, ears up, happy eyes, looking at the pointer.
+			var m: Vector2 = world.mouse_local()
+			var hp := position + Vector2(0, -head_height) * zoom
+			var d := m - hp
+			d.x *= -facing
+			var dir := d.normalized() if d.length() > 1.0 else Vector2.ZERO
+			var k := _env(u, act_len, 0.2)
+			p.eyes_off = dir * 6.0
+			p.head_rot += clampf(dir.x * 8.0, -8.0, 8.0) * k
+			p.ear_l -= 16.0 * k
+			p.ear_r -= 16.0 * k
+			p.eyes_closed = u > 0.3 and u < act_len - 0.3
+			p.blink = false
 		"celebrate":
 			var k := _env(u, act_len, 0.2)
 			p.ear_l -= 14.0 * k

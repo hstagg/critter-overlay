@@ -301,6 +301,16 @@ func _card(sp: String, c: Dictionary) -> Control:
 	if done:
 		var t := Palette.tier("legendary", _dark)
 		bc.add_child(UI.chip("%s keeper" % species_name(sp), t.ink, t.tint))
+	# Bond: a heart per level reached, outlines for the rest.
+	var hearts := HBoxContainer.new()
+	hearts.add_theme_constant_override("separation", 4)
+	var lv: int = economy.bond_level(sp)
+	for i in economy.BOND_LEVELS.size():
+		hearts.add_child(UI.icon(Icons.line("heart", 16, Color("#E07BA0") if i < lv else c.dash)))
+	hearts.add_child(UI.label("Bond", 11, c.ink3, 700))
+	hearts.tooltip_text = "Dress them, give treats, play: bonded critters greet your pointer, then curl up beside it."
+	hearts.mouse_filter = Control.MOUSE_FILTER_STOP
+	bc.add_child(hearts)
 	var pips := HBoxContainer.new()
 	pips.alignment = BoxContainer.ALIGNMENT_CENTER
 	pips.add_theme_constant_override("separation", 8)
