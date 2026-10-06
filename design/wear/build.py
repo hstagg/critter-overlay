@@ -7,11 +7,15 @@ rides every pose. Run: python design/wear/build.py
 """
 import math
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from common import LINE, W, svg, top, star, heart, clip_at, neck_arc  # noqa: E402
+import items_small  # noqa: E402
+import items_medium  # noqa: E402
+import items_large  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parents[2] / "godot" / "art" / "wear"
-LINE = "#6B4A3A"
-W = 4  # outline width, as the critter art
-
 # Head metrics in SVG units (from each species' head.svg, eyes.svg, ears).
 SPECIES = {
     "kitten": dict(cx=150, cy=122, rx=92, ry=74, eye_y=124, eye_dx=38, eye_r=18, chin=196,
@@ -21,28 +25,6 @@ SPECIES = {
     "duckling": dict(cx=150, cy=128, rx=72, ry=72, eye_y=132, eye_dx=30, eye_r=17, chin=200,
                      gap=(132, 168), side=0.85),
 }
-
-
-def svg(body):
-    # 120 units of headroom above the part frame, for tall hats (the rig
-    # offsets by the same, see critter.gd wear()).
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -120 300 400" width="300" height="400">'
-            + body + '</svg>')
-
-
-def top(m, x):
-    """y of the head's outline at x (upper half of its ellipse)."""
-    dx = (x - m["cx"]) / m["rx"]
-    return m["cy"] - m["ry"] * math.sqrt(max(0.0, 1 - dx * dx))
-
-
-def star(cx, cy, r, fill, stroke=LINE, sw=3, rot=0):
-    pts = []
-    for i in range(10):
-        a = math.radians(rot - 90 + i * 36)
-        rr = r if i % 2 == 0 else r * 0.45
-        pts.append(f"{cx + rr * math.cos(a):.1f},{cy + rr * math.sin(a):.1f}")
-    return f'<polygon points="{" ".join(pts)}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}" stroke-linejoin="round"/>'
 
 
 # --- Items -----------------------------------------------------------------------
@@ -297,6 +279,11 @@ ITEMS = {
 }
 
 
+ITEMS.update(items_small.ITEMS)
+ITEMS.update(items_medium.ITEMS)
+ITEMS.update(items_large.ITEMS)
+
+
 def main():
     for item, (draw, *rest) in ITEMS.items():
         d = OUT / item
@@ -305,6 +292,11 @@ def main():
         for sp, m in SPECIES.items():
             if only is None or sp == only:
                 (d / f"{sp}.svg").write_text(draw(m), encoding="utf-8")
+    # The catalogue the game reads (wear.gd): id -> [name, slot, tier, (species)].
+    import json
+    cat = {k: list(v[1:]) for k, v in ITEMS.items()}
+    (OUT / "catalogue.json").write_text(json.dumps(cat, indent=1), encoding="utf-8")
+    (OUT / "hides.json").write_text(json.dumps(items_large.HIDES, indent=1), encoding="utf-8")
     print(f"{len(ITEMS)} items x {len(SPECIES)} species -> {OUT}")
 
 

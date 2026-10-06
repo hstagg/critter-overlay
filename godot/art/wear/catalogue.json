@@ -1,0 +1,354 @@
+{
+ "bow": [
+  "Ribbon bow",
+  "head",
+  "small"
+ ],
+ "bell_collar": [
+  "Bell collar",
+  "neck",
+  "small"
+ ],
+ "flower_clip": [
+  "Daisy clip",
+  "head",
+  "small"
+ ],
+ "glasses": [
+  "Round glasses",
+  "face",
+  "small"
+ ],
+ "beanie": [
+  "Bobble beanie",
+  "head",
+  "medium"
+ ],
+ "scarf": [
+  "Knitted scarf",
+  "neck",
+  "medium"
+ ],
+ "party_hat": [
+  "Party hat",
+  "head",
+  "medium"
+ ],
+ "bandana": [
+  "Spotty bandana",
+  "neck",
+  "medium"
+ ],
+ "strawberry_hat": [
+  "Strawberry hat",
+  "head",
+  "large"
+ ],
+ "wizard_hat": [
+  "Wizard hat",
+  "head",
+  "large"
+ ],
+ "fish_bowtie": [
+  "Fishbone bow tie",
+  "neck",
+  "medium",
+  "kitten"
+ ],
+ "paw_beret": [
+  "Paw-print beret",
+  "head",
+  "large",
+  "kitten"
+ ],
+ "carrot_clip": [
+  "Carrot hair clip",
+  "head",
+  "small",
+  "rabbit"
+ ],
+ "carrot_scarf": [
+  "Carrot scarf",
+  "neck",
+  "medium",
+  "rabbit"
+ ],
+ "sailor_hat": [
+  "Sailor hat",
+  "head",
+  "medium",
+  "duckling"
+ ],
+ "swim_ring": [
+  "Swim ring",
+  "neck",
+  "large",
+  "duckling"
+ ],
+ "heart_clip": [
+  "Heart clip",
+  "head",
+  "small"
+ ],
+ "star_clip": [
+  "Star clip",
+  "head",
+  "small"
+ ],
+ "cherry_clip": [
+  "Cherry clip",
+  "head",
+  "small"
+ ],
+ "leaf_sprig": [
+  "Leaf sprig",
+  "head",
+  "small"
+ ],
+ "pearl_necklace": [
+  "Pearl necklace",
+  "neck",
+  "small"
+ ],
+ "bead_necklace": [
+  "Bead necklace",
+  "neck",
+  "small"
+ ],
+ "sunglasses": [
+  "Sunglasses",
+  "face",
+  "small"
+ ],
+ "heart_glasses": [
+  "Heart glasses",
+  "face",
+  "small"
+ ],
+ "monocle": [
+  "Monocle",
+  "face",
+  "small"
+ ],
+ "plaster": [
+  "Plaster",
+  "head",
+  "small"
+ ],
+ "rose_clip": [
+  "Rose clip",
+  "head",
+  "small"
+ ],
+ "feather_clip": [
+  "Feather clip",
+  "head",
+  "small"
+ ],
+ "heart_tag": [
+  "Heart tag collar",
+  "neck",
+  "small"
+ ],
+ "clover_clip": [
+  "Clover clip",
+  "head",
+  "small"
+ ],
+ "fish_clip": [
+  "Fish clip",
+  "head",
+  "small",
+  "kitten"
+ ],
+ "lily_pad": [
+  "Lily pad hat",
+  "head",
+  "small",
+  "duckling"
+ ],
+ "baseball_cap": [
+  "Baseball cap",
+  "head",
+  "medium"
+ ],
+ "bucket_hat": [
+  "Bucket hat",
+  "head",
+  "medium"
+ ],
+ "flower_crown": [
+  "Flower crown",
+  "head",
+  "medium"
+ ],
+ "headphones": [
+  "Headphones",
+  "head",
+  "medium"
+ ],
+ "pirate_bandana": [
+  "Pirate bandana",
+  "head",
+  "medium"
+ ],
+ "cowboy_hat": [
+  "Cowboy hat",
+  "head",
+  "medium"
+ ],
+ "alice_band": [
+  "Alice band",
+  "head",
+  "medium"
+ ],
+ "tiara": [
+  "Tiara",
+  "head",
+  "medium"
+ ],
+ "chef_hat": [
+  "Chef hat",
+  "head",
+  "medium"
+ ],
+ "bow_tie": [
+  "Bow tie",
+  "neck",
+  "medium"
+ ],
+ "sweatband": [
+  "Sweatband",
+  "head",
+  "medium"
+ ],
+ "bee_antennae": [
+  "Bee antennae",
+  "head",
+  "medium"
+ ],
+ "devil_horns": [
+  "Little horns",
+  "head",
+  "medium"
+ ],
+ "halo": [
+  "Halo",
+  "head",
+  "medium"
+ ],
+ "visor": [
+  "Sun visor",
+  "head",
+  "medium"
+ ],
+ "lei": [
+  "Flower lei",
+  "neck",
+  "medium"
+ ],
+ "necktie": [
+  "Necktie",
+  "neck",
+  "medium"
+ ],
+ "mushroom_hat": [
+  "Mushroom hat",
+  "head",
+  "medium"
+ ],
+ "santa_hat": [
+  "Santa hat",
+  "head",
+  "medium"
+ ],
+ "pumpkin_hat": [
+  "Pumpkin hat",
+  "head",
+  "medium"
+ ],
+ "propeller_cap": [
+  "Propeller cap",
+  "head",
+  "medium"
+ ],
+ "daisy_chain": [
+  "Daisy chain",
+  "neck",
+  "medium",
+  "rabbit"
+ ],
+ "rain_hat": [
+  "Rain hat",
+  "head",
+  "medium",
+  "duckling"
+ ],
+ "frog_hood": [
+  "Frog hood",
+  "head",
+  "large"
+ ],
+ "dino_hood": [
+  "Dino hood",
+  "head",
+  "large"
+ ],
+ "bear_hood": [
+  "Bear hood",
+  "head",
+  "large"
+ ],
+ "astronaut_helmet": [
+  "Space helmet",
+  "head",
+  "large"
+ ],
+ "viking_helmet": [
+  "Viking helmet",
+  "head",
+  "large"
+ ],
+ "knight_helmet": [
+  "Knight's helmet",
+  "head",
+  "large"
+ ],
+ "tricorn": [
+  "Pirate hat",
+  "head",
+  "large"
+ ],
+ "top_hat": [
+  "Top hat",
+  "head",
+  "large"
+ ],
+ "jester_hat": [
+  "Jester hat",
+  "head",
+  "large"
+ ],
+ "mortarboard": [
+  "Graduation cap",
+  "head",
+  "large"
+ ],
+ "flower_bonnet": [
+  "Flower bonnet",
+  "head",
+  "large"
+ ],
+ "lion_mane": [
+  "Lion mane",
+  "head",
+  "large",
+  "kitten"
+ ],
+ "garden_hat": [
+  "Garden hat",
+  "head",
+  "large",
+  "rabbit"
+ ]
+}

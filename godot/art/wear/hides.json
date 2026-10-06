@@ -1,0 +1,39 @@
+{
+ "frog_hood": {
+  "kitten": [
+   "ears"
+  ],
+  "duckling": [
+   "tuft"
+  ]
+ },
+ "dino_hood": {
+  "kitten": [
+   "ears"
+  ],
+  "duckling": [
+   "tuft"
+  ]
+ },
+ "bear_hood": {
+  "kitten": [
+   "ears"
+  ],
+  "duckling": [
+   "tuft"
+  ]
+ },
+ "flower_bonnet": {
+  "kitten": [
+   "ears"
+  ],
+  "duckling": [
+   "tuft"
+  ]
+ },
+ "lion_mane": {
+  "kitten": [
+   "ears"
+  ]
+ }
+}
