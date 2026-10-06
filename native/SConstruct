@@ -9,7 +9,7 @@ import os
 env = SConscript(os.environ.get("GODOT_CPP", "../../godot-cpp") + "/SConstruct")
 env.Append(CPPPATH=["src/"])
 if env["platform"] == "windows":
-    env.Append(LIBS=["user32", "advapi32"])
+    env.Append(LIBS=["user32", "advapi32", "shell32"])
 library = env.SharedLibrary(
     "../godot/bin/critter_native{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
     source=Glob("src/*.cpp"),

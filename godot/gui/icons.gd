@@ -9,6 +9,8 @@ const LINE := {
 	"pause": '<path d="M9 6v12M15 6v12"/>',
 	"sparkle": '<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/><path d="M18.5 16v4M16.5 18h4"/>',
 	"power": '<path d="M12 4v8"/><path d="M7.2 7.2a7 7 0 1 0 9.6 0"/>',
+	"close": '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+	"moon": '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
 	"lock": '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
 }
 
@@ -48,6 +50,12 @@ static func badge(tier: String, size: int, fill: Color, line: Color, ghost := fa
 		fill.to_html(false), line.to_html(false), ' stroke-dasharray="2.2 2"' if ghost else "", TIER_SHAPE[tier]]
 	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20">%s</svg>' % g
 	return _texture(svg, size / 20.0)
+
+
+static func sparkle(size: int) -> ImageTexture:
+	# The gold four-point star on Legendary toasts.
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" fill="#FFD84D" stroke="#B8860B" stroke-width="1.4"/></svg>'
+	return _texture(svg, size / 24.0)
 
 
 static func tray(state: String, size: int) -> ImageTexture:

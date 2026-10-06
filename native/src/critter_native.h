@@ -11,6 +11,9 @@
 //   hide_from_taskbar(hwnd) no taskbar button for that window
 //   single_instance(name)   false if another copy is already running
 //   set_launch_at_startup / is_launch_at_startup   HKCU Run entry
+//   user_busy()             true while a full-screen app, game or
+//                           presentation has the screen (Windows' own
+//                           "do not disturb" test, SHQueryUserNotificationState)
 //
 // A background thread owns a message-only window that receives the hotkey
 // and Raw Input. No hooks: nothing runs on, or sits in, anyone's input.
@@ -40,6 +43,7 @@ public:
 	bool single_instance(const String &name);
 	bool set_launch_at_startup(bool enabled, const String &exe_path, const String &args);
 	bool is_launch_at_startup() const;
+	bool user_busy() const;
 
 	~CritterNative();
 };
