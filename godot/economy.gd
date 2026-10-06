@@ -31,6 +31,7 @@ signal gift_opened(index: int, berries: int, item: String)
 signal welcome_back(berries: int)
 signal sighting(species: String, tier: String, first: bool)
 signal rare_hour_changed(on: bool)
+signal row_completed(species: String, berries: int)
 
 const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
 const BASE_ODDS := {"common": 0.904, "uncommon": 0.07, "rare": 0.02, "epic": 0.005, "legendary": 0.001}
@@ -53,6 +54,10 @@ const NIGHT_S := 6 * 3600          # a break this long starts afresh
 const SAVE_EVERY_S := 60.0
 const SAVE_VERSION := 1
 const FIRST_BONUS_ODDS := {"rare": 0.70, "epic": 0.20, "legendary": 0.10}
+# Collection (economy design, section 8): first finds pay, more for rarer;
+# meeting every tier a species can roll pays a row bonus and frames its card.
+const FIRST_FIND := {"common": 5, "uncommon": 15, "rare": 40, "epic": 100, "legendary": 300}
+const ROW_BONUS := 500
 
 # Set from Settings (main.gd applies them).
 var odds := BASE_ODDS.duplicate()  # World > Rarity > Odds, as fractions
@@ -261,11 +266,26 @@ func record_sighting(species: String, tier: String) -> bool:
 	var first := not collection.has(key)
 	if first:
 		collection[key] = {"first": int(now()), "count": 0}
+		_earn(FIRST_FIND.get(tier, 0))
 	collection[key]["count"] += 1
 	if tier in LUCKY:
 		sightings.append({"t": int(now()), "species": species, "tier": tier})
 	sighting.emit(species, tier, first)
+	if first and row_complete(species):
+		_earn(ROW_BONUS)
+		row_completed.emit(species, ROW_BONUS)
 	return first
+
+
+var row_caps := {}                 # species -> its top tier (main.gd fills it from species.gd)
+
+
+func row_complete(species: String) -> bool:
+	var cap: String = row_caps.get(species, "legendary")
+	for i in TIERS.find(cap) + 1:
+		if not collection.has("%s:%s" % [species, TIERS[i]]):
+			return false
+	return true
 
 
 func import_v2_seen(seen: Dictionary) -> void:

@@ -221,6 +221,22 @@ func _init() -> void:
 	check(absf(float(charmed) / plain - 1.5) < 0.08, "the lucky charm's luck is half again (got %.2f)" % (float(charmed) / plain))
 	g.free()
 
+	# --- First finds pay; a full row pays once more.
+	var ff = fresh(path + ".ff")
+	ff.row_caps = {"panda": "epic"}
+	var rows := []
+	ff.row_completed.connect(func(sp, b): rows.append(sp))
+	var b_before: int = ff.berries
+	ff.record_sighting("panda", "rare")
+	check(ff.berries == b_before + 40, "a first Rare find pays 40 berries")
+	ff.record_sighting("panda", "rare")
+	check(ff.berries == b_before + 40, "a repeat pays nothing")
+	for t in ["common", "uncommon", "epic"]:
+		ff.record_sighting("panda", t)
+	check(rows == ["panda"] and ff.row_complete("panda"), "meeting every tier a species can roll completes its row, once")
+	check(ff.berries == b_before + 40 + 5 + 15 + 100 + 500, "first finds and the row bonus add up (got %d)" % (ff.berries - b_before))
+	ff.free()
+
 	# --- v2.0's Seen Log into the Collection.
 	var v = fresh(path + ".v2")
 	v.import_v2_seen({"duck": {"common": 15, "rare": 1}, "kitten": {"legendary": 1}, "custom:x": {"rare": 5}})

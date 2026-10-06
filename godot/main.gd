@@ -69,6 +69,7 @@ const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
+const Icons := preload("res://gui/icons.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
@@ -302,8 +303,11 @@ func _ready() -> void:
 	if not v2.is_empty() and fresh_economy:
 		economy.import_v2_seen(v2.get("rarity", {}).get("seen_log", {}))
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
-	economy.gift_opened.connect(func(i, b, item): print("GIFT ", i, " +", b, " ", item))
-	economy.welcome_back.connect(func(b): print("WELCOME BACK +", b))
+	economy.gift_opened.connect(_on_gift)
+	economy.welcome_back.connect(_on_welcome_back)
+	economy.row_completed.connect(_on_row_completed)
+	for sp in Species.DATA:
+		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "legendary")
 	economy.rare_hour_changed.connect(_on_rare_hour)
 
 	toasts = Toasts.new()
@@ -481,6 +485,32 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		h.tier = force_tier   # --demo with --tier: an aura to look at
 	_trail_for(h)
 	return h
+
+
+func _on_gift(index: int, berries: int, item: String) -> void:
+	# The focus gifts at 25, 50, 90 and 150 minutes (economy design).
+	print("GIFT ", index, " +", berries, " ", item)
+	if _quiet() or toasts == null:
+		return
+	var mins: int = Economy.GIFTS[index][0]
+	var sub := "%d berries" % berries + (", and a %s." % Wear.item_name(item).to_lower() if item != "" else ".")
+	toasts.show_note(Icons.berry(40), "A gift", "%d minutes of focus" % mins, sub)
+
+
+func _on_welcome_back(berries: int) -> void:
+	print("WELCOME BACK +", berries)
+	if _quiet() or toasts == null:
+		return
+	toasts.show_note(Icons.berry(40), "Welcome back", "The critters found something", "%d berries while you were away." % berries)
+
+
+func _on_row_completed(sp: String, berries: int) -> void:
+	print("ROW ", sp, " +", berries)
+	if _quiet() or toasts == null:
+		return
+	var name := Collection.species_name(sp).to_lower()
+	toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Collection", "Every %s met" % name,
+		"%d berries, and a gold frame for its card." % berries, "#E3A72F")
 
 
 func _maybe_bring(h) -> void:
@@ -864,6 +894,9 @@ func _run_toast_demo() -> void:
 		func(): toasts.show_sighting("duckling", "epic", "Epic", "A duckling has arrived", "Only about 1 in 200 critters is Epic."),
 		func(): toasts.show_sighting("kitten", "legendary", "Legendary", "A Legendary kitten", "Your first Legendary. Take a moment."),
 		func(): toasts.show_rare_hour(economy.rare_hour_ends(), economy.rare_hour_boost),
+		func(): toasts.show_note(Icons.berry(40), "A gift", "50 minutes of focus", "30 berries, and a bobble beanie."),
+		func(): toasts.show_note(Icons.berry(40), "Welcome back", "The critters found something", "5 berries while you were away."),
+		func(): toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Collection", "Every kitten met", "500 berries, and a gold frame for its card.", "#E3A72F"),
 	]
 	for i in steps.size():
 		get_tree().create_timer(1.0 + i * 1.2).timeout.connect(steps[i])

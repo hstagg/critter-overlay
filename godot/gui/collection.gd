@@ -245,7 +245,10 @@ func _card(sp: String, c: Dictionary) -> Control:
 	var seen := _seen_total(sp)
 	var card := PanelContainer.new()
 	card.custom_minimum_size.x = CARD_W
-	var cs := UI.box(c.surface, 18, c.outline if sp == focus else c.line, 3 if sp == focus else 2)
+	# A completed row: a gold frame and a title (economy design, section 8).
+	var done: bool = economy.row_complete(sp)
+	var edge: Color = Color("#E3A72F") if done else (c.outline if sp == focus else c.line)
+	var cs := UI.box(c.surface, 18, edge, 3 if (done or sp == focus) else 2)
 	card.add_theme_stylebox_override("panel", cs)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
@@ -295,6 +298,9 @@ func _card(sp: String, c: Dictionary) -> Control:
 	nr.add_child(nm)
 	nr.add_child(UI.label("Seen %d" % seen, 12, c.ink2, 700))
 	bc.add_child(nr)
+	if done:
+		var t := Palette.tier("legendary", _dark)
+		bc.add_child(UI.chip("%s keeper" % species_name(sp), t.ink, t.tint))
 	var pips := HBoxContainer.new()
 	pips.alignment = BoxContainer.ALIGNMENT_CENTER
 	pips.add_theme_constant_override("separation", 8)
