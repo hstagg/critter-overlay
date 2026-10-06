@@ -287,7 +287,7 @@ func _open_gift(index: int) -> void:
 		# is owned the gift is berries only.
 		var pool := []
 		for id in Wear.ITEMS:
-			if Wear.ITEMS[id][2] in ["small", "medium"] and not owns(id):
+			if Wear.ITEMS[id][2] in ["small", "medium"] and not owns(id) and Wear.unlocked(id, collection):
 				pool.append(id)
 		if not pool.is_empty():
 			item = pool[rng.randi_range(0, pool.size() - 1)]

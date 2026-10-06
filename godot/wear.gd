@@ -4,6 +4,10 @@ extends RefCounted
 ## into art/wear/<item>/<species>.svg, and rides the head through every pose.
 ## A critter wears at most one item per slot.
 ##
+## Some items belong to one species (a fourth field): they are sold only once
+## that species has been met, and are drawn only for critters whose design
+## is final (Harrison, 2026-10-06).
+##
 ## Prices are by hours of work (economy design): small 50 berries (under an
 ## hour), medium 400 (one to three workdays), large 1,200 (about a week),
 ## showpiece 4,000 (two to four weeks).
@@ -11,7 +15,7 @@ extends RefCounted
 const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000}
 const SLOTS := ["neck", "face", "head"]   # drawn in this order, head on top
 
-# id: [name, slot, tier]
+# id: [name, slot, tier, (only this species)]
 const ITEMS := {
 	"bow": ["Ribbon bow", "head", "small"],
 	"bell_collar": ["Bell collar", "neck", "small"],
@@ -23,6 +27,12 @@ const ITEMS := {
 	"bandana": ["Spotty bandana", "neck", "medium"],
 	"strawberry_hat": ["Strawberry hat", "head", "large"],
 	"wizard_hat": ["Wizard hat", "head", "large"],
+	"fish_bowtie": ["Fishbone bow tie", "neck", "medium", "kitten"],
+	"paw_beret": ["Paw-print beret", "head", "large", "kitten"],
+	"carrot_clip": ["Carrot hair clip", "head", "small", "rabbit"],
+	"carrot_scarf": ["Carrot scarf", "neck", "medium", "rabbit"],
+	"sailor_hat": ["Sailor hat", "head", "medium", "duckling"],
+	"swim_ring": ["Swim ring", "neck", "large", "duckling"],
 }
 
 
@@ -40,6 +50,22 @@ static func slot(id: String) -> String:
 
 static func price(id: String) -> int:
 	return PRICES[ITEMS[id][2]] if ITEMS.has(id) else 0
+
+
+static func only(id: String) -> String:
+	# The one species an item is for, or "".
+	return ITEMS[id][3] if ITEMS.has(id) and ITEMS[id].size() > 3 else ""
+
+
+static func unlocked(id: String, collection: Dictionary) -> bool:
+	# A species' own item is on sale once that species has been met.
+	var sp := only(id)
+	if sp == "":
+		return true
+	for key in collection:
+		if key.begins_with(sp + ":"):
+			return true
+	return false
 
 
 static func fits(id: String, species: String) -> bool:
