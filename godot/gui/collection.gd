@@ -17,6 +17,8 @@ var economy: Node
 var filter := "all"            # all | found | missing
 var _dark := false
 var _previews := []            # critters ticking in the cards
+var cards := {}                # species -> its card
+var focus := ""                # a species to outline (opened from a toast)
 
 
 class Floor extends Node:
@@ -73,6 +75,7 @@ func _build() -> void:
 	for c in get_children():
 		c.queue_free()
 	_previews.clear()
+	cards.clear()
 	var c := Palette.colours(_dark)
 	var col := self
 
@@ -102,7 +105,9 @@ func _build() -> void:
 			continue
 		if filter == "missing" and complete:
 			continue
-		grid.add_child(_card(sp, c))
+		var card := _card(sp, c)
+		cards[sp] = card
+		grid.add_child(card)
 	col.add_child(grid)
 
 	var specials := _built_species(true)
@@ -240,7 +245,7 @@ func _card(sp: String, c: Dictionary) -> Control:
 	var seen := _seen_total(sp)
 	var card := PanelContainer.new()
 	card.custom_minimum_size.x = CARD_W
-	var cs := UI.box(c.surface, 18, c.line, 2)
+	var cs := UI.box(c.surface, 18, c.outline if sp == focus else c.line, 3 if sp == focus else 2)
 	card.add_theme_stylebox_override("panel", cs)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)

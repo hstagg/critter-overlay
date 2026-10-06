@@ -27,6 +27,7 @@ var dark := false
 var live := {}                     # labels and bars the once-a-second refresh updates
 var pages: RefCounted
 var selected_species := "kitten"
+var focus_species := ""            # the Collection scrolls to this critter (from a toast)
 var capturing := -1                # shortcut slot waiting for keys, or -1
 var _scroll: ScrollContainer
 var _body: VBoxContainer
@@ -53,6 +54,7 @@ func open(main_ref: Node, which := "", species := "") -> void:
 		page = which
 	if species != "":
 		selected_species = species
+	focus_species = species if which == "collection" else ""
 	if pages == null:
 		pages = Pages.new(self)
 	rebuild()
@@ -230,6 +232,14 @@ func _nav_button(key: String, label: String, icon: String) -> Button:
 		chip.position.x -= 10
 		b.add_child(chip)
 	return b
+
+
+func scroll_to(c: Control) -> void:
+	# Bring a control into view (after layout has placed it).
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(c) and is_instance_valid(_scroll):
+		_scroll.ensure_control_visible(c)
 
 
 func _titlebar() -> Control:

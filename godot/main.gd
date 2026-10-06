@@ -328,7 +328,8 @@ func _ready() -> void:
 	tray.settings_pressed.connect(func(): open_settings("home"))
 	tray.quit_pressed.connect(quit_app)
 	if open_on_start != "":
-		open_settings.call_deferred(open_on_start)
+		# --open=PAGE, or PAGE:SPECIES (the Collection, scrolled to a critter)
+		open_settings.call_deferred(open_on_start.get_slice(":", 0), open_on_start.get_slice(":", 1) if ":" in open_on_start else "")
 	if tour_dir != "":
 		_tour.call_deferred()
 	if not late_sets.is_empty():
