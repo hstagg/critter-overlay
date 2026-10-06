@@ -22,9 +22,11 @@ var _vp: SubViewport
 var _step := 0.0
 
 
-static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1) -> SubViewportContainer:
+static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1, wear: Array = []) -> SubViewportContainer:
 	var v = load("res://gui/critter_view.gd").new()
 	v._build(species, w, h, scale, mode, asleep, face)
+	if not wear.is_empty() and v.critter != null:
+		v.critter.wear(wear)
 	return v
 
 

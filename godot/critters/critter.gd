@@ -18,6 +18,7 @@ extends Node2D
 ## 300 x 280 frame, so a part's pivot is simply where it sits in that frame.
 ## The art faces left.
 
+const Wear := preload("res://wear.gd")
 const PART_SCALE := 0.75       # SVG units -> texture pixels
 const ACCEL := 4.0             # how quickly walking speed eases to its target, 1/s
 const GRAVITY := 1800.0        # px/s^2, for hops and pounces
@@ -26,6 +27,7 @@ const SPRING_DT := 1.0 / 120.0
 
 static var _textures := {}     # species -> part -> texture
 static var zoom := 1.0         # draws everything bigger, for close-up demo captures
+static var _wear_textures := {}   # "wear:item:species" -> texture
 
 # --- Species shape: set by each species in _define() ----------------------------
 var species := ""
@@ -50,7 +52,9 @@ var head_height := 60.0        # px above the feet that the eyes look out from
 var back_hip := Vector2(205, 224)   # the stretch tips forward about this
 var scratch_hides := ""        # sitting part hidden while scratch-foot is up
 var activity := 1.0            # how often it stops for a behaviour (Settings > Activity)
-var paired := false            # in a pair interaction (pairs.gd): the evaluator leaves it be
+var paired := false
+var worn: Array = []            # clothes on the head (wear.gd ids)
+var _wear_nodes: Array = []            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var idles := []                # behaviours this species can do (species.gd)
 
 var world: Node                # host.gd's World: floor_y, left_x, right_x, mouse_local()
@@ -204,6 +208,36 @@ func _pivot(at_svg: Vector2, parent_at_svg: Vector2) -> Node2D:
 	var n := Node2D.new()
 	n.position = (at_svg - parent_at_svg) * PART_SCALE
 	return n
+
+
+func wear(items: Array) -> void:
+	# Hang clothes on the head pivot, each drawn in this species' part frame,
+	# so they ride every pose. One per slot.
+	for n in _wear_nodes:
+		_sprites.erase(n)
+		n.queue_free()
+	_wear_nodes.clear()
+	worn = Wear.ordered(items)
+	if head == null:
+		return
+	for id in worn:
+		var path := "res://art/wear/%s/%s.svg" % [id, species]
+		if not FileAccess.file_exists(path):
+			continue
+		var key := "wear:%s:%s" % [id, species]
+		if not _wear_textures.has(key):
+			var img := Image.new()
+			img.load_svg_from_string(FileAccess.get_file_as_string(path), PART_SCALE)
+			img.generate_mipmaps()
+			_wear_textures[key] = ImageTexture.create_from_image(img)
+		var s := Sprite2D.new()
+		s.texture = _wear_textures[key]
+		s.centered = false
+		s.position = -head_pivot * PART_SCALE
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		head.add_child(s)
+		_sprites.append(s)
+		_wear_nodes.append(s)
 
 
 func _has(part: String) -> bool:

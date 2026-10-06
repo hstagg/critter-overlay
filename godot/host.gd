@@ -18,7 +18,8 @@ const Species := preload("res://species.gd")
 const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 
-const FOOT_DROP := 40.0        # feet sit this far below the window's centre
+const WINDOW := 240.0          # px across at zoom 1: room for a tall hat and a hop
+const FOOT_DROP := 50.0        # px at zoom 1 the feet sit below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
 const DRAG_THRESHOLD := 8.0    # px of travel that turns a click into a drag
 const MIN_THROW := 380.0       # px/s: a gentle release still flies
@@ -53,6 +54,7 @@ var tier := "common":
 		_make_aura()
 var aura: Node2D               # rare and up: the aura, behind and in front
 var opacity := 1.0             # Settings > Critters > Opacity
+var foot_drop := FOOT_DROP
 var trail: Node2D              # its trail, if it leaves one
 var zoom := 1.0
 var stay_left := INF
@@ -110,7 +112,8 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	species = species_id
 	kind = how
 	self.zoom = zoom
-	size = int(200 * zoom)
+	size = int(WINDOW * zoom)
+	foot_drop = FOOT_DROP * zoom
 
 	win = Window.new()
 	win.borderless = true
@@ -213,13 +216,13 @@ func _place() -> void:
 	spin.rotation = rot
 	spin.scale = Vector2(-1.0 if mirror else 1.0, 1.0)
 	# The critter's track slides under the window so it stays in the middle.
-	track.position = Vector2(-critter.position.x, FOOT_DROP)
-	var centre := feet - Vector2(0, FOOT_DROP).rotated(rot)
+	track.position = Vector2(-critter.position.x, foot_drop)
+	var centre := feet - Vector2(0, foot_drop).rotated(rot)
 	win.position = Vector2i((centre - Vector2(size, size) * 0.5).round())
 
 
 func feet_on_screen() -> Vector2:
-	return Vector2(win.position) + Vector2(size, size) * 0.5 + Vector2(0, FOOT_DROP).rotated(spin.rotation)
+	return Vector2(win.position) + Vector2(size, size) * 0.5 + Vector2(0, foot_drop).rotated(spin.rotation)
 
 
 func to_critter(screen_pt: Vector2) -> Vector2:
@@ -393,7 +396,7 @@ func _make_aura() -> void:
 	if spin == null or not Aura.TIER.has(tier):
 		return
 	aura = Aura.new()
-	aura.setup(tier, species, critter, zoom)
+	aura.setup(tier, species, critter, zoom, foot_drop)
 	spin.add_child(aura)
 	spin.move_child(aura, 0)
 	spin.add_child(aura.front)
