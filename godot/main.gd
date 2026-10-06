@@ -256,7 +256,10 @@ func _ready() -> void:
 		if FileAccess.file_exists(settings.path):
 			DirAccess.remove_absolute(settings.path)
 	add_child(settings)
+	var v2 := _v2_settings() if settings_path == "" and seconds <= 0.0 and demo == "" and not FileAccess.file_exists(settings.path) else {}
 	settings.load_file()
+	if not v2.is_empty():
+		settings.import_v2(v2)
 	Palette.theme = settings.value("system.theme")
 
 	# The Windows layer, when built: one copy at a time, the global pause
@@ -291,8 +294,11 @@ func _ready() -> void:
 		economy.save_path = save_path
 	elif seconds > 0.0:
 		economy.save_path = OS.get_temp_dir().path_join("critter_test_economy.json")
+	var fresh_economy := not FileAccess.file_exists(economy.save_path)
 	add_child(economy)
 	economy.load_save()
+	if not v2.is_empty() and fresh_economy:
+		economy.import_v2_seen(v2.get("rarity", {}).get("seen_log", {}))
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(func(i, b, item): print("GIFT ", i, " +", b, " ", item))
 	economy.welcome_back.connect(func(b): print("WELCOME BACK +", b))
@@ -376,6 +382,15 @@ func _ready() -> void:
 			_welcome_tour(w)
 		return
 	_first_critters()
+
+
+static func _v2_settings() -> Dictionary:
+	# v2.0 kept its settings in %APPDATA%\CritterOverlay\settings.json.
+	var path := OS.get_environment("APPDATA").path_join("CritterOverlay").path_join("settings.json")
+	if not FileAccess.file_exists(path):
+		return {}
+	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return d if typeof(d) == TYPE_DICTIONARY and d.has("animals") else {}
 
 
 func _first_critters() -> void:
