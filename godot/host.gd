@@ -27,10 +27,11 @@ const WINDOW := 240.0          # px across at zoom 1: room for a tall hat and a 
 const FOOT_DROP := 50.0        # px at zoom 1 the feet sit below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
 const DRAG_THRESHOLD := 8.0    # px of travel that turns a click into a drag
-const ESCAPE_SPEED := 1600.0   # px/s: released faster than this, it leaves the screen
-const MAX_THROW := 2000.0      # px/s: the fastest anything goes
-const SLIDE_FRICTION := 1.6    # 1/s
-const SLIDE_DECEL := 220.0     # px/s^2, so a slide comes to a definite stop
+const ESCAPE_SPEED := 3000.0   # px/s: only a hard flick leaves the screen
+const MAX_THROW := 3600.0      # px/s: the fastest anything goes
+const SLIDE_FRICTION := 0.8    # 1/s: a good throw crosses the screen
+const SLIDE_DECEL := 150.0     # px/s^2, so a slide comes to a definite stop
+const DIZZY_TURNS := 1.0       # spun round at least this much: dizzy when it stops
 const STOP_SPEED := 30.0       # px/s: slow enough to be back on its feet
 const WALL_BOUNCE := 0.55      # speed kept off a side of the screen
 const BODY_R := 40.0           # px at zoom 1: the round body that bumps
@@ -83,6 +84,7 @@ var history := []              # [time s, screen pos]
 var foot := Vector2.ZERO       # screen px of the feet, while held or thrown
 var throw_v := Vector2.ZERO
 var spin_v := 0.0
+var spun := 0.0                # radians turned in this slide
 var pop_left := 0.0
 var particles := []
 
@@ -299,8 +301,13 @@ func tick(delta: float) -> void:
 				if foot[i] < lo[i] or foot[i] > hi[i]:
 					foot[i] = clampf(foot[i], lo[i], hi[i])
 					throw_v[i] = -throw_v[i] * WALL_BOUNCE
-			# Leaning into the slide, upright again as it slows.
-			critter.rotation = clampf(throw_v.x / 2600.0, -0.35, 0.35)
+			# Spinning, slowing with the slide, and coming round upright.
+			spin_v *= exp(-0.9 * delta)
+			if nsp < 260.0:
+				spin_v *= exp(-6.0 * delta)
+				critter.rotation = lerp_angle(critter.rotation, 0.0, 1.0 - exp(-7.0 * delta))
+			critter.rotation += spin_v * delta
+			spun += absf(spin_v * delta)
 			if nsp < STOP_SPEED:
 				_settle()
 		"thrown":
@@ -328,6 +335,7 @@ func tick(delta: float) -> void:
 				return true
 			p.queue_free()
 			return false)
+	_dizzy_stars(delta)
 	if trail != null:
 		# The body's place on screen, and whether it is going anywhere.
 		var body: Vector2 = (foot if state in ["held", "sliding", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
@@ -405,10 +413,54 @@ func launch(v: Vector2) -> void:
 	if v.length() > MAX_THROW:
 		v = v.normalized() * MAX_THROW
 	throw_v = v
-	spin_v = clampf(v.x / 160.0, -8.0, 8.0)
+	# Spins the way it is thrown: faster the harder.
+	var turn: float = signf(v.x) if absf(v.x) > 1.0 else [-1.0, 1.0].pick_random()
+	spin_v = turn * clampf(v.length() / 140.0, 3.0, 16.0)
+	spun = 0.0
 	state = "thrown" if v.length() >= ESCAPE_SPEED else "sliding"
 	if state == "sliding" and v.length() < STOP_SPEED:
 		_settle()
+
+
+var _stars: Array = []
+
+
+func _dizzy_stars(delta: float) -> void:
+	var on: bool = state == "live" and critter.act == "dizzy"
+	if not on:
+		if not _stars.is_empty():
+			for st in _stars:
+				st.queue_free()
+			_stars.clear()
+		return
+	if _stars.is_empty():
+		for i in 3:
+			var st := DizzyStar.new()
+			st.phase = TAU * i / 3.0
+			st.zoom = zoom
+			win.add_child(st)
+			_stars.append(st)
+	var head: Vector2 = Vector2(size, size) * 0.5 + Vector2(0, foot_drop) - Vector2(0, (critter.head_height + 34.0) * zoom)
+	var fade_k := clampf(minf(critter.act_t / 0.3, (critter.act_len - critter.act_t) / 0.4), 0.0, 1.0)
+	for st in _stars:
+		st.phase += delta * 5.0
+		st.position = head + Vector2(cos(st.phase) * 30.0, sin(st.phase) * 8.0) * zoom
+		st.modulate.a = fade_k * opacity
+		st.z_index = 1 if sin(st.phase) > 0.0 else -1
+		st.queue_redraw()
+
+
+class DizzyStar extends Node2D:
+	var phase := 0.0
+	var zoom := 1.0
+	func _draw() -> void:
+		var pts := PackedVector2Array()
+		for i in 10:
+			var a := -PI * 0.5 + i * PI / 5.0
+			var r := (7.0 if i % 2 == 0 else 3.0) * zoom
+			pts.append(Vector2(cos(a), sin(a)) * r)
+		draw_colored_polygon(pts, Color("#F6C945"))
+		draw_polyline(pts + PackedVector2Array([pts[0]]), Color("#B9851B"), 1.2 * zoom, true)
 
 
 func restate() -> void:
@@ -466,6 +518,10 @@ func _settle() -> void:
 	critter.vx = 0.0
 	y = foot.y
 	_place()
+	if spun >= DIZZY_TURNS * TAU:
+		critter.act = ""
+		critter.start_behaviour("dizzy", randf_range(2.4, 3.2))
+	spun = 0.0
 
 
 func leave(quietly := false) -> void:
