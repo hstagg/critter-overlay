@@ -58,6 +58,7 @@ var foot_drop := FOOT_DROP
 
 # Walking to a showpiece for a nap (main.gd sends it when you step away).
 var nap_goal := Vector2.INF        # screen px for its feet
+var _confetti_for := ""            # the celebration already showered
 var nap_prop: Node = null
 var nap_spot := -1
 var trail: Node2D              # its trail, if it leaves one
@@ -292,6 +293,15 @@ func tick(delta: float) -> void:
 				_close()
 				return
 	_place()
+	if state == "live" and critter.act == "celebrate" and critter.act_t < 0.2 and _confetti_for != str(critter.act_len):
+		_confetti_for = str(critter.act_len)
+		_confetti()
+	if state != "popping" and not particles.is_empty():
+		particles = particles.filter(func(p):
+			if p.step(delta):
+				return true
+			p.queue_free()
+			return false)
 	if trail != null:
 		# The body's place on screen, and whether it is going anywhere.
 		var body: Vector2 = (foot if state in ["held", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
@@ -450,6 +460,21 @@ func _make_aura() -> void:
 	spin.add_child(aura)
 	spin.move_child(aura, 0)
 	spin.add_child(aura.front)
+
+
+func _confetti() -> void:
+	# The confetti crown's shower, from just above the head.
+	var at := Vector2(size, size) * 0.5 + Vector2(0, foot_drop - 90.0 * zoom).rotated(spin.rotation)
+	var cols := [Color("#F590B4"), Color("#7FBCF5"), Color("#86D9B0"), Color("#FFCF5C"), Color("#C8A8FF")]
+	for i in 22:
+		var p := Particle.new()
+		p.position = at
+		p.v = Vector2.from_angle(randf_range(-PI * 0.95, -PI * 0.05)) * randf_range(90.0, 220.0) * zoom
+		p.colour = cols.pick_random()
+		p.life = randf_range(0.8, 1.4)
+		p.r = randf_range(2.5, 4.5) * zoom
+		win.add_child(p)
+		particles.append(p)
 
 
 func pop() -> void:

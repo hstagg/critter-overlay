@@ -469,17 +469,33 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		var cap: String = Species.row(sp).get("rarity_max", "legendary")
 		if Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(cap):
 			cap = row.tier_max
-		var roll: Array = economy.roll_arrival(cap, row.tier_min)
+		var roll: Array = economy.roll_arrival(cap, row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
 		var rarity_on: bool = settings.value("world.rarity")
 		var tier: String = roll[0] if rarity_on else "common"
 		h.tier = force_tier if force_tier != "" else tier
 		_announce(sp, h.tier, roll[1] and force_tier == "" and rarity_on)
+		_maybe_bring(h)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	elif force_tier != "":
 		h.tier = force_tier   # --demo with --tier: an aura to look at
 	_trail_for(h)
 	return h
+
+
+func _maybe_bring(h) -> void:
+	# Now and then a visitor arrives wearing a present; one not yet owned is
+	# a free gift (wear.gd BRING_CHANCE).
+	var item: String = economy.roll_brought_item(h.tier, h.species)
+	if item == "":
+		return
+	var outfit: Array = economy.worn.get(h.species, []).filter(func(x): return Wear.slot(x) != Wear.slot(item))
+	h.critter.wear(outfit + [item], economy.dyed.get(h.species, {}))
+	if economy.receive_brought(item) and not _quiet():
+		var t: String = h.tier
+		toasts.show_sighting(h.species, t, "A present", "%s %s brought you something" % ["An" if h.species[0] in "aeiou" else "A", Collection.species_name(h.species).to_lower()],
+			"The %s is yours. Find it in the Shop." % Wear.item_name(item).to_lower())
+	print("BROUGHT ", h.species, " ", h.tier, " ", item)
 
 
 func _personalise(h) -> void:
@@ -726,7 +742,7 @@ func _run_demo(delta: float) -> void:
 	if Behaviours.REGISTRY.has(demo) and k.can_do(demo) and k.can_start_behaviour():
 		demo_wait -= delta
 		if demo_wait <= 0.0:
-			demo_wait = 1.2
+			demo_wait = 1.2 if Behaviours.REGISTRY[demo]["dur"][1] < 2.0 else 0.6
 			k.start_behaviour(demo, evaluator.duration_of(demo))
 	if k.mode == "sit":
 		k.mode_left = INF   # stay sitting between repeats

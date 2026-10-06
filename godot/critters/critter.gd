@@ -57,6 +57,7 @@ var paired := false
 var climbing := false          # on a side wall (host.gd): reach-and-pull, tail hanging
 var climb_turn := 0.0          # degrees the host turned it onto the wall
 var worn: Array = []            # clothes on the head (wear.gd ids)
+var perk_moves: Array = []      # behaviours its perk clothes give it
 var _wear_nodes: Array = []            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var idles := []                # behaviours this species can do (species.gd)
 
@@ -221,6 +222,7 @@ func wear(items: Array, dyes: Dictionary = {}) -> void:
 		n.queue_free()
 	_wear_nodes.clear()
 	worn = Wear.ordered(items)
+	perk_moves = Wear.perk_behaviours(worn)
 	if head == null:
 		return
 	# A hood hides the wearer's own ears (or the duckling's tuft).
@@ -454,7 +456,7 @@ func _wake() -> void:
 # --- Behaviours (called by main.gd's evaluator) ----------------------------
 
 func can_do(b: String) -> bool:
-	return idles.has(b)
+	return idles.has(b) or perk_moves.has(b)
 
 
 func can_start_behaviour() -> bool:
@@ -504,6 +506,8 @@ func _act_pose(b: String) -> String:
 func _on_begin(b: String) -> void:
 	if b == "sneeze":
 		sneezed = false
+	if b == "celebrate" and not airborne:
+		_launch(-520.0 * zoom)   # a happy jump; host.gd throws the confetti
 
 
 func _end_behaviour() -> void:
@@ -745,7 +749,7 @@ func _base_params() -> Dictionary:
 		"paws_up": 0.0, "paws_dy": 0.0, "scratch": 0.0, "scratch_rot": 0.0, "rise": 1.0,
 		"arm": false, "arm_rot": 0.0, "arm_dy": 0.0,
 		"tail_rot": 0.0, "tail_extra": 0.0, "ear_l": 0.0, "ear_r": 0.0,
-		"legs": "gait", "leg_front": 0.0, "leg_back": 0.0, "lean": 0.0,
+		"legs": "gait", "leg_front": 0.0, "leg_back": 0.0, "lean": 0.0, "float": 0.0,
 	}
 	if walking:
 		var moving := smoothstep(0.0, 15.0, absf(vx))
@@ -821,6 +825,31 @@ func _behaviour_params(p: Dictionary) -> void:
 			p.head_off = p.head_off + Vector2(0, 0.8 * p.nose)
 		"stand_lookout":
 			_lookout_params(p, u)
+		"dance":
+			# Sway and bob to the beat, ears swinging, eyes happily shut.
+			var beat := sin(u * TAU * 2.0)
+			var k := _env(u, act_len, 0.3)
+			p.torso_rot += 8.0 * beat * k
+			p.head_rot += -6.0 * beat * k
+			p.torso_dy -= 6.0 * absf(beat) * k
+			p.ear_l += 12.0 * beat * k
+			p.ear_r -= 12.0 * beat * k
+			p.eyes_closed = k > 0.5 and fmod(u, 1.0) > 0.5
+			p.blink = false
+			p.tail_extra += 20.0 * beat * k
+		"fly":
+			# Up into the air, bobbing, then gently down again.
+			var k := _env(u, act_len, 0.8)
+			p.float = (46.0 + 5.0 * sin(u * TAU * 1.5)) * k
+			p.head_rot += 4.0 * sin(u * TAU * 0.8) * k
+			p.ear_l -= 10.0 * k
+			p.ear_r -= 10.0 * k
+		"celebrate":
+			var k := _env(u, act_len, 0.2)
+			p.ear_l -= 14.0 * k
+			p.ear_r -= 14.0 * k
+			p.eyes_closed = true
+			p.blink = false
 
 
 func _stretch_params(p: Dictionary, u: float) -> void:
@@ -954,7 +983,7 @@ func _yawn_params(p: Dictionary, u: float, length: float) -> void:
 func _apply(p: Dictionary) -> void:
 	var walking := pose == "walk"
 
-	position.y = world.floor_y - air_y - lift
+	position.y = world.floor_y - air_y - lift - p.get("float", 0.0) * zoom
 	var sq := squash
 	scale = Vector2(critter_scale * zoom * (1.0 + (1.0 - sq) * 0.6) * (1.0 if facing < 0 else -1.0), critter_scale * zoom * sq)
 
