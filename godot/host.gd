@@ -81,8 +81,10 @@ class World extends Node:
 	var left_x := -INF
 	var right_x := INF
 	var host: Node
+	var look_at := Vector2.INF   # a screen point to look at instead of the pointer (pairs.gd)
 	func mouse_local() -> Vector2:
-		return host.to_critter(Vector2(DisplayServer.mouse_get_position()))
+		var at := look_at if look_at.x != INF else Vector2(DisplayServer.mouse_get_position())
+		return host.to_critter(at)
 
 
 class Particle extends Node2D:
