@@ -12,6 +12,7 @@ const Settings := preload("res://settings.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
+const Prop := preload("res://prop.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"
 const TIER_NAMES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
@@ -858,13 +859,14 @@ func _shop(body: VBoxContainer) -> void:
 
 	var sp: String = w.selected_species if Species.has(w.selected_species) else _built(false)[0]
 	var worn: Array = eco.worn.get(sp, [])
-	if shop_try != "" and not Wear.fits(shop_try, sp):
+	if shop_try != "" and not shop_try.begins_with("prop:") and not Wear.fits(shop_try, sp):
 		shop_try = ""
 	if shop_try == "":
 		shop_dye = ""
-	var trying: Array = worn.filter(func(x): return shop_try == "" or Wear.slot(x) != Wear.slot(shop_try))
-	if shop_try != "":
-		trying.append(shop_try)
+	var item_try := "" if shop_try.begins_with("prop:") else shop_try
+	var trying: Array = worn.filter(func(x): return item_try == "" or Wear.slot(x) != Wear.slot(item_try))
+	if item_try != "":
+		trying.append(item_try)
 
 	var dyes: Dictionary = eco.dyed.get(sp, {}).duplicate()
 	if shop_try != "":
@@ -874,7 +876,10 @@ func _shop(body: VBoxContainer) -> void:
 			dyes.erase(shop_try)
 	var row := K.hbox(20)
 	var left := K.vbox(16)
-	left.add_child(_dressing_room(sp, worn, trying, dyes))
+	if shop_try.begins_with("prop:"):
+		left.add_child(_prop_panel(shop_try.substr(5)))
+	else:
+		left.add_child(_dressing_room(sp, worn, trying, dyes))
 	left.add_child(_treats(sp))
 	row.add_child(left)
 	row.add_child(_rail(sp, worn))
@@ -1082,10 +1087,7 @@ func _rail(sp: String, worn: Array) -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var filters := ["all", "head", "neck", "face", "showpiece"]
 	var labels := ["All", "Hats", "Neck", "Face", "Showpieces"]
-	var have_show := Wear.ITEMS.keys().any(func(i): return Wear.ITEMS[i][2] == "showpiece")
-	if not have_show:
-		filters.pop_back()
-		labels.pop_back()
+
 	var seg := K.seg(labels, maxi(0, filters.find(shop_slot)), func(i):
 		shop_slot = filters[i]
 		w.rebuild())
@@ -1097,7 +1099,12 @@ func _rail(sp: String, worn: Array) -> Control:
 	grid.add_theme_constant_override("v_separation", 12)
 	var ids := Wear.ITEMS.keys()
 	ids.sort_custom(func(a, b): return Wear.price(a) > Wear.price(b) or (Wear.price(a) == Wear.price(b) and a < b))
+	if shop_slot in ["all", "showpiece"]:
+		for pid in Prop.PROPS:
+			grid.add_child(_tile_prop(pid))
 	for id in ids:
+		if shop_slot == "showpiece":
+			break
 		if not Wear.fits(id, sp) or not Wear.unlocked(id, eco.collection):
 			continue
 		if shop_slot == "showpiece" and Wear.ITEMS[id][2] != "showpiece":
@@ -1113,6 +1120,120 @@ func _rail(sp: String, worn: Array) -> Control:
 	sc.add_child(grid)
 	col.add_child(sc)
 	return col
+
+
+static var _prop_tex := {}
+
+
+static func prop_texture(pid: String, px: float) -> Texture2D:
+	var key := "%s@%d" % [pid, int(px)]
+	if not _prop_tex.has(key):
+		var img := Image.new()
+		img.load_svg_from_string(FileAccess.get_file_as_string("res://art/props/%s.svg" % pid), px / Prop.ART)
+		_prop_tex[key] = ImageTexture.create_from_image(img)
+	return _prop_tex[key]
+
+
+func _tile_prop(pid: String) -> Control:
+	# A showpiece in the rail: picture, name, price or whether it is out.
+	var c := K.c
+	var eco = w.main.economy
+	var picked := shop_try == "prop:" + pid
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(140, 150)
+	b.focus_mode = Control.FOCUS_ALL
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var n := K.box(c.surface, 16, c.outline if picked else c.line, 3 if picked else 2, c.lip, 2 if picked else 0)
+	b.add_theme_stylebox_override("normal", n)
+	var hv := n.duplicate()
+	hv.border_color = c.outline
+	b.add_theme_stylebox_override("hover", hv)
+	b.add_theme_stylebox_override("pressed", n)
+	b.add_theme_stylebox_override("focus", K.box(Color.TRANSPARENT, 16, c.acc_ink, 2))
+	var v := K.vbox(0)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	v.offset_left = 3
+	v.offset_right = -3
+	v.offset_top = 3
+	var well := PanelContainer.new()
+	var ws := K.box(c.ground, 0)
+	ws.corner_radius_top_left = 13
+	ws.corner_radius_top_right = 13
+	well.add_theme_stylebox_override("panel", ws)
+	well.custom_minimum_size.y = 84
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pic := UI.icon(prop_texture(pid, 120))
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	well.add_child(pic)
+	v.add_child(well)
+	var t := K.vbox(2)
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.add_child(UI.label(Prop.prop_name(pid), 13, c.ink, 800))
+	var owned: bool = eco.owns(pid)
+	var line := "Out on your desk" if eco.props_out.has(pid) else ("Yours" if owned else "%s berries" % _thousands(Prop.PRICE))
+	t.add_child(UI.label(line, 12, Palette.tier("uncommon", w.dark).ink if owned else c.ink2, 700))
+	v.add_child(K.margins(t, 10, 8, 10, 8))
+	b.add_child(v)
+	b.pressed.connect(func():
+		shop_try = "" if picked else "prop:" + pid
+		w.rebuild())
+	return b
+
+
+func _prop_panel(pid: String) -> Control:
+	# The dressing room, showing a showpiece instead of clothes.
+	var c := K.c
+	var eco = w.main.economy
+	var card := PanelContainer.new()
+	card.custom_minimum_size.x = 320
+	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var cs := K.box(c.surface, 20, c.line, 2)
+	cs.set_content_margin_all(2)
+	card.add_theme_stylebox_override("panel", cs)
+	var v := K.vbox(0)
+	card.add_child(v)
+	var stage := PanelContainer.new()
+	var ss := K.box(c.ground, 0)
+	ss.corner_radius_top_left = 18
+	ss.corner_radius_top_right = 18
+	stage.add_theme_stylebox_override("panel", ss)
+	stage.custom_minimum_size = Vector2(316, 240)
+	var pic := UI.icon(prop_texture(pid, 280))
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	stage.add_child(pic)
+	v.add_child(stage)
+	var info := K.vbox(10)
+	info.add_child(UI.label("SHOWPIECE", 12, c.acc_ink, 800))
+	var tr := K.hbox(8)
+	var nm := UI.label(Prop.prop_name(pid), 22, c.ink, 600, true)
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tr.add_child(nm)
+	var owned: bool = eco.owns(pid)
+	tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("uncommon", w.dark).ink if owned else c.ink, 800))
+	info.add_child(tr)
+	var what := UI.label("It stands on your taskbar; drag it where you like. When you step away, sleepy critters curl up in it." + (" They go inside the cottage." if Prop.PROPS[pid][3] else ""), 13, c.ink2, 400)
+	what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	what.custom_minimum_size.x = 280
+	info.add_child(what)
+	var btn: Button
+	if owned:
+		var out: bool = eco.props_out.has(pid)
+		btn = K.button("Put it away" if out else "Put it out", "bs" if out else "bp", "", false, func():
+			w.main.put_out(pid, not out)
+			w.rebuild())
+	elif eco.berries >= Prop.PRICE:
+		btn = K.button("Buy for %s" % _thousands(Prop.PRICE), "bp", "", false, func():
+			w.confirm("Buy the %s?" % Prop.prop_name(pid).to_lower(), "%s berries. It goes straight onto your desktop." % _thousands(Prop.PRICE), "Buy it", func():
+				if eco.buy(pid, Prop.PRICE):
+					w.main.put_out(pid, true)
+				w.rebuild()))
+	else:
+		btn = K.button("%s more berries" % _thousands(Prop.PRICE - eco.berries), "bs", "", false)
+		btn.disabled = true
+	info.add_child(btn)
+	v.add_child(K.margins(info, 18, 16, 18, 18))
+	return card
 
 
 func _tile_item(id: String, sp: String, worn: Array) -> Control:
