@@ -74,6 +74,25 @@ func _init() -> void:
 	u.load_file()
 	check(u.value("focus.max_out") == 8, "an unreadable file means defaults")
 
+	# Coming from v2.0.
+	var m = Settings.new()
+	m.path = path + ".v2"
+	m.load_file()
+	m.import_v2({"visual": {"animal_size": 100, "opacity": 90}, "audio": {"sound_enabled": false, "volume": 30},
+		"spawn": {"primary_interval_min": 60, "primary_count_min": 2, "primary_count_max": 3, "solo_enabled": true, "solo_interval_min": 20},
+		"behaviour": {"day_night_enabled": true, "behaviour_frequency": 2.0, "interactions_enabled": false},
+		"rarity": {"enabled": true, "distribution": {"common": 0.6, "uncommon": 0.228, "rare": 0.139, "epic": 0.069, "legendary": 0.015},
+			"rare_hour": {"enabled": true, "start_hour": 4, "duration_minutes": 60, "rare_tier_boost": 2.0}, "first_spawn_of_day_bonus": true},
+		"animals": {"duck": {"enabled": true, "weight": 3.0, "sound": true, "speed_multiplier": 2.5, "idle_rate": 0.1, "trail_style": "sparkles", "rarity_min": "common", "rarity_max": "legendary"},
+			"turtle": {"enabled": false, "weight": 1.0, "rarity_max": "epic"}}})
+	check(m.value("critters.size") == 100 and m.value("critters.opacity") == 90, "v2.0 size and opacity carry over")
+	check(m.value("sound.pops") == false and m.value("sound.volume") == 30, "v2.0 sound carries over")
+	check(m.value("world.rare_hour_start") == 4 and not m.value("world.pairs"), "v2.0 world settings carry over")
+	check(is_equal_approx(m.odds()["rare"], 0.139 / 1.051), "v2.0 odds carry over, as relative weights")
+	check(m.sp("duckling", "visits") == 2 and m.sp("duckling", "speed") == 3 and m.sp("duckling", "activity") == 4, "v2.0 duck becomes the duckling, stops matched")
+	check(m.sp("duckling", "trail") == "sparkles" and not m.sp("turtle", "enabled"), "trails and switched-off species carry over")
+	m.free()
+
 	# Day and night pacing (time_of_day.gd, v2.0's buckets).
 	var T := preload("res://time_of_day.gd")
 	check(T.at(9.0) == [1.10, 1.20, 0.05], "mid-morning is lively (got %s)" % [T.at(9.0)])

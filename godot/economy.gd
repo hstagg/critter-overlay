@@ -267,6 +267,23 @@ func record_sighting(species: String, tier: String) -> bool:
 	return first
 
 
+func import_v2_seen(seen: Dictionary) -> void:
+	# v2.0's Seen Log ({species: {tier: count}}) into the Collection, so an
+	# upgrade keeps what was met. When is not known; today stands in.
+	for name in seen:
+		if str(name).begins_with("custom:"):
+			continue
+		var id: String = "duckling" if name == "duck" else str(name)
+		for tier in seen[name]:
+			if not tier in TIERS:
+				continue
+			var key := "%s:%s" % [id, tier]
+			if not collection.has(key):
+				collection[key] = {"first": int(now()), "count": 0}
+			collection[key]["count"] += int(seen[name][tier])
+	save()
+
+
 func clear_seen_log() -> void:
 	collection = {}
 	sightings = []

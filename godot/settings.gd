@@ -190,6 +190,71 @@ func reset_all() -> void:
 	changed.emit("")
 
 
+# --- Coming from v2.0 ------------------------------------------------------------
+
+static func _nearest(values: Array, v: float) -> int:
+	var best := 0
+	for i in values.size():
+		if absf(float(values[i]) - v) < absf(float(values[best]) - v):
+			best = i
+	return best
+
+
+func import_v2(v2: Dictionary) -> void:
+	# The first run after upgrading: v2.0's choices, where v3 has them.
+	var vis: Dictionary = v2.get("visual", {})
+	if vis.has("animal_size"):
+		data.critters.size = clampi(int(vis.animal_size), 80, 200)
+	if vis.has("opacity"):
+		data.critters.opacity = clampi(int(vis.opacity), 50, 100)
+	if vis.get("animation_detail", "") == "simple":
+		data.system.detail = "simple"
+	var au: Dictionary = v2.get("audio", {})
+	data.sound.pops = bool(au.get("sound_enabled", true))
+	data.sound.volume = clampi(int(au.get("volume", 50)), 0, 100)
+	var sp: Dictionary = v2.get("spawn", {})
+	data.focus.timer_every_min = clampi(int(sp.get("primary_interval_min", 5)), 1, 60)
+	data.focus.timer_min = clampi(int(sp.get("primary_count_min", 5)), 1, 15)
+	data.focus.timer_max = clampi(int(sp.get("primary_count_max", 10)), 1, 25)
+	data.focus.solo = bool(sp.get("solo_enabled", true))
+	data.focus.solo_every_min = clampi(int(sp.get("solo_interval_min", 10)), 1, 60)
+	var be: Dictionary = v2.get("behaviour", {})
+	data.world.day_night = bool(be.get("day_night_enabled", true))
+	data.world.behaviour_freq = clampf(float(be.get("behaviour_frequency", 1.0)), 0.3, 2.0)
+	data.world.pairs = bool(be.get("interactions_enabled", true))
+	var ra: Dictionary = v2.get("rarity", {})
+	data.world.rarity = bool(ra.get("enabled", true))
+	data.world.first_bonus = bool(ra.get("first_spawn_of_day_bonus", true))
+	if ra.has("distribution"):
+		var o := {}
+		for t in TIERS:
+			o[t] = snappedf(float(ra.distribution.get(t, 0.0)) * 100.0, 0.01)
+		data.world.odds = o
+	var rh: Dictionary = ra.get("rare_hour", {})
+	data.world.rare_hour = bool(rh.get("enabled", true))
+	data.world.rare_hour_start = clampi(int(rh.get("start_hour", 21)), 0, 23)
+	data.world.rare_hour_min = [30, 60, 120][_nearest([30, 60, 120], float(rh.get("duration_minutes", 60)))]
+	data.world.rare_hour_boost = [1.5, 2.0, 3.0][_nearest([1.5, 2.0, 3.0], float(rh.get("rare_tier_boost", 2.0)))]
+	data.system.seen_log = bool(ra.get("seen_log_enabled", true))
+	# Each species, by v3's name (v2.0's "duck" is the duckling).
+	var idle_rates := [0.003, 0.008, 0.018, 0.045, 0.100, 0.250]
+	for name in v2.get("animals", {}):
+		var a: Dictionary = v2.animals[name]
+		var id: String = "duckling" if name == "duck" else name
+		data.species[id] = {
+			"enabled": bool(a.get("enabled", true)),
+			"visits": _nearest(VISITS, float(a.get("weight", 1.0))),
+			"speed": _nearest(SPEEDS, float(a.get("speed_multiplier", 1.0))),
+			"activity": _nearest(idle_rates, float(a.get("idle_rate", 0.018))),
+			"trail": a.get("trail_style", "none") if a.get("trail_style", "none") in TRAILS else "none",
+			"tier_min": a.get("rarity_min", "common"),
+			"tier_max": a.get("rarity_max", "legendary"),
+			"sound": bool(a.get("sound", true)),
+		}
+	data.system.from_v2 = true
+	save()
+
+
 # --- Derived values -----------------------------------------------------------
 
 func zoom() -> float:

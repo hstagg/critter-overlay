@@ -193,6 +193,13 @@ func _init() -> void:
 	check(e.buy_treat("rabbit") and e.buy_treat("rabbit") and e.berries == t0 - 120, "treats are repeatable, 60 each")
 	check(e.treats == ["rabbit", "rabbit"], "treats queue in order")
 
+	# --- v2.0's Seen Log into the Collection.
+	var v = fresh(path + ".v2")
+	v.import_v2_seen({"duck": {"common": 15, "rare": 1}, "kitten": {"legendary": 1}, "custom:x": {"rare": 5}})
+	check(v.collection["duckling:common"]["count"] == 15 and v.collection.has("kitten:legendary"), "v2.0 sightings carry over, duck as duckling")
+	check(not v.collection.has("custom:x:rare"), "custom critters are left for their own import")
+	v.free()
+
 	# --- Save and load round trip; a gap since the save counts as a long break.
 	e.save()
 	var saved_berries: int = e.berries
