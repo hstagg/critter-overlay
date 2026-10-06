@@ -834,6 +834,7 @@ func _collection(body: VBoxContainer) -> void:
 
 var shop_slot := "all"
 var shop_try := ""                 # the item being tried on, or ""
+var shop_dye := ""                 # the colour being tried on it, "" its own
 
 
 func _shop(body: VBoxContainer) -> void:
@@ -856,17 +857,28 @@ func _shop(body: VBoxContainer) -> void:
 	var worn: Array = eco.worn.get(sp, [])
 	if shop_try != "" and not Wear.fits(shop_try, sp):
 		shop_try = ""
+	if shop_try == "":
+		shop_dye = ""
 	var trying: Array = worn.filter(func(x): return shop_try == "" or Wear.slot(x) != Wear.slot(shop_try))
 	if shop_try != "":
 		trying.append(shop_try)
 
+	var dyes: Dictionary = eco.dyed.get(sp, {}).duplicate()
+	if shop_try != "":
+		if shop_dye != "":
+			dyes[shop_try] = shop_dye
+		else:
+			dyes.erase(shop_try)
 	var row := K.hbox(20)
-	row.add_child(_dressing_room(sp, worn, trying))
+	var left := K.vbox(16)
+	left.add_child(_dressing_room(sp, worn, trying, dyes))
+	left.add_child(_treats(sp))
+	row.add_child(left)
 	row.add_child(_rail(sp, worn))
 	body.add_child(row)
 
 
-func _dressing_room(sp: String, worn: Array, trying: Array) -> Control:
+func _dressing_room(sp: String, worn: Array, trying: Array, dyes: Dictionary) -> Control:
 	var c := K.c
 	var eco = w.main.economy
 	var card := PanelContainer.new()
@@ -887,7 +899,7 @@ func _dressing_room(sp: String, worn: Array, trying: Array) -> Control:
 	stage.custom_minimum_size = Vector2(316, 300)
 	var layer := Control.new()
 	stage.add_child(layer)
-	var view := CritterView.make(sp, 316, 296, 2.0, "sit", false, -1, trying)
+	var view := CritterView.make(sp, 316, 296, 2.0, "sit", false, -1, trying, false, dyes)
 	view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(view)
 	var chips := K.hbox(6)
@@ -954,6 +966,8 @@ func _dressing_room(sp: String, worn: Array, trying: Array) -> Control:
 			shop_try = ""
 			w.rebuild()))
 		info.add_child(btns)
+		if owned and Wear.dyeable(id):
+			info.add_child(_colours(sp, id, on))
 		var now := K.divider()
 		info.add_child(now)
 		var wl := UI.label("Wearing now: " + (", ".join(worn.map(func(x): return Wear.item_name(x))) if not worn.is_empty() else "nothing"), 13, c.ink2, 700)
@@ -965,6 +979,96 @@ func _dressing_room(sp: String, worn: Array, trying: Array) -> Control:
 		note.custom_minimum_size.x = 280
 		info.add_child(note)
 	v.add_child(K.margins(info, 18, 16, 18, 18))
+	return card
+
+
+func _colours(sp: String, id: String, on: bool) -> Control:
+	# Dyes for an owned item: try a colour on, buy it once, use it.
+	var c := K.c
+	var eco = w.main.economy
+	var v := K.vbox(8)
+	v.add_child(UI.label("COLOUR", 12, c.acc_ink, 800))
+	var sw := HFlowContainer.new()
+	sw.add_theme_constant_override("h_separation", 6)
+	sw.add_theme_constant_override("v_separation", 6)
+	var opts := [["", "Its own", Wear.MAINS[id]]]
+	for d in Wear.DYES:
+		opts.append([d, Wear.DYES[d][0], Wear.DYES[d][1]])
+	for o in opts:
+		var dye: String = o[0]
+		var mine: bool = dye == "" or eco.owns_dye(id, dye)
+		var sel: bool = dye == shop_dye
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(30, 30)
+		b.focus_mode = Control.FOCUS_ALL
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		b.tooltip_text = o[1] + ("" if mine else ", %d berries" % Wear.DYE_PRICE)
+		var st := K.box(Color(o[2]), 15, c.outline if sel else (c.line if mine else c.dash), 3 if sel else 2)
+		b.add_theme_stylebox_override("normal", st)
+		b.add_theme_stylebox_override("hover", st)
+		b.add_theme_stylebox_override("pressed", st)
+		b.add_theme_stylebox_override("focus", K.box(Color.TRANSPARENT, 15, c.acc_ink, 2))
+		if not mine:
+			b.modulate.a = 0.7
+		b.pressed.connect(func():
+			shop_dye = dye
+			w.rebuild())
+		sw.add_child(b)
+	v.add_child(sw)
+	var current: String = eco.dyed.get(sp, {}).get(id, "")
+	if shop_dye != "" and not eco.owns_dye(id, shop_dye):
+		var name: String = Wear.DYES[shop_dye][0]
+		var buy := K.button("Buy %s for %d" % [name, Wear.DYE_PRICE], "bp", "", true, func():
+			if eco.buy_dye(id, shop_dye):
+				if on:
+					w.main.set_dye(sp, id, shop_dye)
+			w.rebuild())
+		buy.disabled = eco.berries < Wear.DYE_PRICE
+		buy.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		v.add_child(buy)
+	elif on and shop_dye != current:
+		var use := K.button("Use this colour", "bs", "", true, func():
+			w.main.set_dye(sp, id, shop_dye)
+			w.rebuild())
+		use.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		v.add_child(use)
+	return v
+
+
+func _treats(sp: String) -> Control:
+	# Treats: call a chosen critter on the next visit.
+	var c := K.c
+	var eco = w.main.economy
+	var v := K.vbox(10)
+	var top := K.hbox(8)
+	var t := UI.label("Treats", 16, c.ink, 800)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(t)
+	top.add_child(UI.label("%d berries each" % Wear.TREAT_PRICE, 13, c.ink2, 700))
+	v.add_child(top)
+	var note := UI.label("Leave a treat out and that critter comes next.", 13, c.ink2, 400)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = 280
+	v.add_child(note)
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 6)
+	chips.add_theme_constant_override("v_separation", 6)
+	for s in _built(false):
+		var spc: String = s
+		var b := K.button("Call a %s" % Collection.species_name(s).to_lower(), "bs", "", true, func():
+			eco.buy_treat(spc)
+			w.rebuild())
+		b.disabled = eco.berries < Wear.TREAT_PRICE or not S().sp(s, "enabled")
+		chips.add_child(b)
+	v.add_child(chips)
+	if not eco.treats.is_empty():
+		v.add_child(UI.label("Coming next: " + ", ".join(eco.treats.map(func(x): return Collection.species_name(x).to_lower())), 13, c.acc_ink, 800))
+	var card := PanelContainer.new()
+	card.custom_minimum_size.x = 320
+	var cs := K.box(c.surface, 20, c.line, 2)
+	cs.set_content_margin_all(16)
+	card.add_theme_stylebox_override("panel", cs)
+	card.add_child(v)
 	return card
 
 

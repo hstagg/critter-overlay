@@ -284,6 +284,21 @@ ITEMS.update(items_medium.ITEMS)
 ITEMS.update(items_large.ITEMS)
 
 
+# Where the first coloured fill is not the item's main colour.
+MAIN = {"bell_collar": "#E2554F", "beanie": "#7FB3E8", "scarf": "#E86A5C", "carrot_scarf": "#F59A4A",
+        "heart_tag": "#7C4DD6", "headphones": "#7C4DD6", "sweatband": "#7FBCF5", "visor": "#86D9B0",
+        "alice_band": "#F590B4", "halo": "#FFE07A", "tiara": "#E8EEF7", "flower_crown": "#F7A8C4",
+        "bead_necklace": "#F590B4", "lei": "#F7A8C4", "pearl_necklace": "#FBF7F0", "wizard_hat": "#6A5AD0",
+        "swim_ring": "#E2554F", "lion_mane": "#E8A04F", "bee_antennae": "#FFD84D", "chef_hat": "#FFFFFF",
+        "tricorn": "#3B3346", "top_hat": "#3B3346", "mortarboard": "#3B3346", "viking_helmet": "#A9B4C2",
+        "knight_helmet": "#C5CEDA", "astronaut_helmet": "#E8EEF7", "garden_hat": "#F2D58A",
+        "flower_bonnet": "#FFF0C2", "sailor_hat": "#3E6FC2", "strawberry_hat": "#F2575D", "star_clip": "#FFD84D",
+        "monocle": "#D9961A", "plaster": "#F7D3B0", "clover_clip": "#6CC27A", "lily_pad": "#6CC27A",
+        "dino_hood": "#86C9E8", "cowboy_hat": "#D99A5B"}
+# No dyes where the main colour is white (it would recolour every highlight).
+NO_DYE = {"chef_hat", "flower_clip", "daisy_chain", "glasses", "sunglasses"}
+
+
 def main():
     for item, (draw, *rest) in ITEMS.items():
         d = OUT / item
@@ -295,6 +310,22 @@ def main():
     # The catalogue the game reads (wear.gd): id -> [name, slot, tier, (species)].
     import json
     cat = {k: list(v[1:]) for k, v in ITEMS.items()}
+    # Each item's main colour, which a dye replaces: the commonest fill that
+    # is not the outline, white or near-white.
+    import re
+    from collections import Counter
+    mains = {}
+    for k, v in ITEMS.items():
+        sp = (v[4] if len(v) > 4 else "kitten")
+        text = v[0](SPECIES[sp])
+        fills = [f.upper() for f in re.findall(r'fill="(#[0-9A-Fa-f]{6})"', text)]
+        skip = {"#FFFFFF", "#6B4A3A", "#2B2330", "#FBF7F0", "#FFF4CC", "#FFF0C2", "#E8EEF7", "#DDEEFF",
+                "#F3F7FC", "#C9D8EA", "#FFB3BA", "#E3DCD3", "#FFD84D", "#FFCF5C", "#6CC27A", "#F59C9C"}
+        firsts = [f for f in fills if f not in skip]
+        main = MAIN.get(k) or (firsts[0] if firsts else None)
+        if main and k not in NO_DYE:
+            mains[k] = main
+    (OUT / "dyes.json").write_text(json.dumps(mains, indent=1), encoding="utf-8")
     (OUT / "catalogue.json").write_text(json.dumps(cat, indent=1), encoding="utf-8")
     (OUT / "hides.json").write_text(json.dumps(items_large.HIDES, indent=1), encoding="utf-8")
     print(f"{len(ITEMS)} items x {len(SPECIES)} species -> {OUT}")

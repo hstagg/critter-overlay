@@ -79,6 +79,9 @@ var gifts_since_item := 0
 var gift_items := []               # item ids found in gifts
 var owned := []                    # item ids bought
 var worn := {}                     # species -> [item ids it wears]
+var dyes_owned := {}               # item -> [dye ids bought for it]
+var dyed := {}                     # species -> {item: dye id}
+var treats := []                   # species called next, in order
 var collection := {}               # "species:tier" -> {"first": unix, "count": n}
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
@@ -317,6 +320,45 @@ func set_worn(species: String, items: Array) -> void:
 	save()
 
 
+func owns_dye(item: String, dye: String) -> bool:
+	return dye in dyes_owned.get(item, [])
+
+
+func buy_dye(item: String, dye: String) -> bool:
+	# A colour for an item already owned, bought once.
+	if not owns(item) or owns_dye(item, dye) or berries < Wear.DYE_PRICE:
+		return false
+	berries -= Wear.DYE_PRICE
+	if not dyes_owned.has(item):
+		dyes_owned[item] = []
+	dyes_owned[item].append(dye)
+	berries_changed.emit(berries)
+	save()
+	return true
+
+
+func set_dye(species: String, item: String, dye: String) -> void:
+	# "" puts the item back in its own colour.
+	if not dyed.has(species):
+		dyed[species] = {}
+	if dye == "":
+		dyed[species].erase(item)
+	elif owns_dye(item, dye):
+		dyed[species][item] = dye
+	save()
+
+
+func buy_treat(species: String) -> bool:
+	# Calls that species on the next visit. Repeatable.
+	if berries < Wear.TREAT_PRICE:
+		return false
+	berries -= Wear.TREAT_PRICE
+	treats.append(species)
+	berries_changed.emit(berries)
+	save()
+	return true
+
+
 func buy(item: String, price: int) -> bool:
 	if owns(item) or berries < price:
 		return false
@@ -334,7 +376,8 @@ func to_dict() -> Dictionary:
 		"session_min": session_min, "next_gift": next_gift, "day": day, "day_focus_min": day_focus_min,
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
-		"first_bonus_day": first_bonus_day, "worn": worn, "saved_at": int(now())}
+		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
+		"treats": treats, "saved_at": int(now())}
 
 
 func save() -> void:
@@ -373,6 +416,9 @@ func load_save() -> void:
 	sightings = d.get("sightings", [])
 	first_bonus_day = str(d.get("first_bonus_day", ""))
 	worn = d.get("worn", {})
+	dyes_owned = d.get("dyes_owned", {})
+	dyed = d.get("dyed", {})
+	treats = d.get("treats", [])
 	# A long gap since the last save is a long break.
 	var gap := now() - float(d.get("saved_at", now()))
 	if gap >= SESSION_END_S:

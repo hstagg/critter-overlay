@@ -211,7 +211,7 @@ func _pivot(at_svg: Vector2, parent_at_svg: Vector2) -> Node2D:
 	return n
 
 
-func wear(items: Array) -> void:
+func wear(items: Array, dyes: Dictionary = {}) -> void:
 	# Hang clothes on the head pivot, each drawn in this species' part frame,
 	# so they ride every pose. One per slot.
 	for n in _wear_nodes:
@@ -234,10 +234,11 @@ func wear(items: Array) -> void:
 		var path := "res://art/wear/%s/%s.svg" % [id, species]
 		if not FileAccess.file_exists(path):
 			continue
-		var key := "wear:%s:%s" % [id, species]
+		var dye: String = dyes.get(id, "")
+		var key := "wear:%s:%s:%s" % [id, species, dye]
 		if not _wear_textures.has(key):
 			var img := Image.new()
-			img.load_svg_from_string(FileAccess.get_file_as_string(path), PART_SCALE)
+			img.load_svg_from_string(Wear.svg(id, species, dye), PART_SCALE)
 			img.generate_mipmaps()
 			_wear_textures[key] = ImageTexture.create_from_image(img)
 		var s := Sprite2D.new()

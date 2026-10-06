@@ -104,6 +104,7 @@ var night_sleep := 0.0        # and how sleepy
 var tod_in := 0.0
 var settings_path := ""
 var tour_dir := ""
+var shop_try_flag := ""       # --shop-try=ITEM[:DYE]: the tour shows it being tried on
 var late_sets := []           # --set: [key, value], applied at three seconds
 var fixed_count := -1
 var fixed_perimeter := 0
@@ -198,6 +199,8 @@ func _ready() -> void:
 		elif arg.begins_with("--set="):
 			var kv := arg.substr(6)
 			late_sets.append([kv.get_slice(":", 0), JSON.parse_string(kv.substr(kv.find(":") + 1))])
+		elif arg.begins_with("--shop-try="):
+			shop_try_flag = v
 		elif arg.begins_with("--settings-tour="):
 			tour_dir = v
 		elif arg.begins_with("--tier="):
@@ -389,7 +392,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	_personalise(h)
-	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []))
+	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
 	# Every visitor rolls its rarity, with the session's luck, and goes in
 	# the Collection. A visit lasts a while, then it leaves. A critter
 	# redrawn at a new size keeps its tier.
@@ -446,6 +449,12 @@ func _pick_species() -> String:
 	# (Settings > Critters), unless one was asked for. "" when none are on.
 	if species_fixed:
 		return species
+	# A treat calls its species next (Shop > Treats).
+	while economy != null and not economy.treats.is_empty():
+		var called: String = economy.treats.pop_front()
+		economy.save()
+		if Species.has(called) and settings.sp(called, "enabled"):
+			return called
 	var pool := []
 	var weights := []
 	var total := 0.0
@@ -761,6 +770,9 @@ func _tour() -> void:
 	# --settings-tour: every page, top to bottom, saved for checking by eye.
 	await get_tree().create_timer(1.5).timeout
 	for n in SettingsWindow.NAV:
+		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
+			settings_win.pages.shop_try = shop_try_flag.get_slice(":", 0)
+			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag else ""
 		open_settings(n[0])
 		await get_tree().create_timer(1.2).timeout
 		var y := 0
@@ -1006,9 +1018,18 @@ func set_shortcut(slot: int, k: Dictionary) -> void:
 func set_worn(sp: String, items: Array) -> void:
 	# Shop > Dress up: everyone of that species out now changes straight away.
 	economy.set_worn(sp, items)
+	_redress(sp)
+
+
+func set_dye(sp: String, item: String, dye: String) -> void:
+	economy.set_dye(sp, item, dye)
+	_redress(sp)
+
+
+func _redress(sp: String) -> void:
 	for h in hosts:
 		if h.species == sp and h.state != "popping":
-			h.critter.wear(economy.worn.get(sp, []))
+			h.critter.wear(economy.worn.get(sp, []), economy.dyed.get(sp, {}))
 
 
 func clear_seen_log() -> void:
