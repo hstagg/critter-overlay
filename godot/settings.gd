@@ -63,6 +63,7 @@ const DEFAULTS := {
 		"detail": "detailed",      # detailed | simple
 		"seen_log": true,
 		"onboarded": false,
+		"beta": false,             # beta testers only: odds and tier ranges can be changed (--beta)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
 	},
@@ -160,7 +161,11 @@ func species(id: String) -> Dictionary:
 	if id in ["turtle", "panda"]:
 		out["tier_max"] = "epic"   # v2.0's caps
 	var mine: Dictionary = data.get("species", {}).get(id, {})
+	var keep_tiers := [out.tier_min, out.tier_max]
 	out.merge(mine, true)
+	if not beta():
+		out.tier_min = keep_tiers[0]   # tier ranges are for beta testers only
+		out.tier_max = keep_tiers[1]
 	return out
 
 
@@ -225,7 +230,7 @@ func import_v2(v2: Dictionary) -> void:
 	var ra: Dictionary = v2.get("rarity", {})
 	data.world.rarity = bool(ra.get("enabled", true))
 	data.world.first_bonus = bool(ra.get("first_spawn_of_day_bonus", true))
-	if ra.has("distribution"):
+	if ra.has("distribution") and beta():
 		var o := {}
 		for t in TIERS:
 			o[t] = snappedf(float(ra.distribution.get(t, 0.0)) * 100.0, 0.01)
@@ -262,9 +267,15 @@ func zoom() -> float:
 	return float(value("critters.size")) / 120.0
 
 
+func beta() -> bool:
+	return bool(value("system.beta"))
+
+
 func odds() -> Dictionary:
 	# The odds as fractions. They are relative weights, so they need not add up.
-	var w: Dictionary = value("world.odds")
+	# Only a beta tester's own odds count; everyone else has the game's, so a
+	# Legendary means the same for every player.
+	var w: Dictionary = value("world.odds") if beta() else DEFAULTS.world.odds
 	var total := 0.0
 	for t in TIERS:
 		total += maxf(float(w.get(t, 0.0)), 0.0)

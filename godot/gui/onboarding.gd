@@ -177,8 +177,8 @@ func _hello_art() -> Control:
 
 
 func _hello_body(body: VBoxContainer) -> void:
-	body.add_child(_para("Critter Overlay brings small, very cute critters to the bottom of your screen. They keep you company while you work and never get in your way."))
-	body.add_child(_para("You can click straight through them, or pop one for a squeak."))
+	body.add_child(_para("Critter Overlay brings small, very cute critters onto your screen. They wander wherever they like and keep you company while you work."))
+	body.add_child(_para("Use your computer as normal: only the bits they are standing on are covered. Click one to pop it for a squeak, or grab it and move it somewhere else."))
 
 
 # --- 2 Who should visit ----------------------------------------------------------------

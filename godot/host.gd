@@ -10,6 +10,11 @@ extends Node
 ##   perimeter  the track runs round the screen's edges, and the rig is
 ##              rotated to stand on whichever edge it is on (v2.0's solos)
 ## and owns what happens to it: drag, throw, pop.
+##
+## Throwing (Harrison, 6 Oct): a gentle throw slides across the screen,
+## bounces off its sides and stops; a hard one leaves the screen, at a capped
+## speed so nothing flies off like a cannon. Sliding critters knock into each
+## other like pool balls (main.gd _bumps).
 
 signal gone(host)
 
@@ -22,9 +27,13 @@ const WINDOW := 240.0          # px across at zoom 1: room for a tall hat and a 
 const FOOT_DROP := 50.0        # px at zoom 1 the feet sit below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
 const DRAG_THRESHOLD := 8.0    # px of travel that turns a click into a drag
-const MIN_THROW := 380.0       # px/s: a gentle release still flies
-const THROW_GRAVITY := 1400.0  # px/s^2
-const THROW_DRAG := 0.35       # 1/s, horizontal air drag
+const ESCAPE_SPEED := 1600.0   # px/s: released faster than this, it leaves the screen
+const MAX_THROW := 2000.0      # px/s: the fastest anything goes
+const SLIDE_FRICTION := 1.6    # 1/s
+const SLIDE_DECEL := 220.0     # px/s^2, so a slide comes to a definite stop
+const STOP_SPEED := 30.0       # px/s: slow enough to be back on its feet
+const WALL_BOUNCE := 0.55      # speed kept off a side of the screen
+const BODY_R := 40.0           # px at zoom 1: the round body that bumps
 const POP_TIME := 0.7          # s of particles before the window closes
 
 var main: Node                 # main.gd: the screen, the sound, the pointer
@@ -45,7 +54,7 @@ var edges := PackedFloat32Array()
 var edges_ledge := 0.0
 
 # Drag, throw, pop.
-var state := "live"            # live | held | thrown | popping
+var state := "live"            # live | held | sliding | thrown | popping
 
 # A visit: its rarity, how long it stays (seconds of focus), and leaving.
 var tier := "common":
@@ -207,7 +216,7 @@ func _place() -> void:
 	var rot := 0.0
 	var mirror := false
 	match state:
-		"held", "thrown", "popping":
+		"held", "sliding", "thrown", "popping":
 			feet = foot
 			rot = spin.rotation if state == "popping" else 0.0
 			mirror = spin.scale.x < 0.0 and state == "popping"
@@ -276,10 +285,27 @@ func tick(delta: float) -> void:
 			history.append([Time.get_ticks_msec() / 1000.0, m])
 			while history.size() > 2 and history[-1][0] - history[0][0] > 0.12:
 				history.pop_front()
-		"thrown":
+		"sliding":
 			critter.tick(delta)
-			throw_v.y += THROW_GRAVITY * delta
-			throw_v.x -= throw_v.x * THROW_DRAG * delta
+			var sp := throw_v.length()
+			var nsp := maxf(0.0, sp * exp(-SLIDE_FRICTION * delta) - SLIDE_DECEL * delta)
+			throw_v = throw_v * (nsp / sp) if sp > 0.0 else Vector2.ZERO
+			foot += throw_v * delta
+			# Off the sides of the screen, losing some speed each time.
+			var r: Rect2 = main.area
+			var lo := Vector2(r.position.x + size * 0.3, r.position.y + size * 0.6)
+			var hi := Vector2(r.end.x - size * 0.3, r.end.y)
+			for i in 2:
+				if foot[i] < lo[i] or foot[i] > hi[i]:
+					foot[i] = clampf(foot[i], lo[i], hi[i])
+					throw_v[i] = -throw_v[i] * WALL_BOUNCE
+			# Leaning into the slide, upright again as it slows.
+			critter.rotation = clampf(throw_v.x / 2600.0, -0.35, 0.35)
+			if nsp < STOP_SPEED:
+				_settle()
+		"thrown":
+			# Off the screen in a straight line, tumbling.
+			critter.tick(delta)
 			foot += throw_v * delta
 			critter.rotation += spin_v * delta
 			var bounds := Rect2(main.screen_rect).grow(size)
@@ -304,8 +330,8 @@ func tick(delta: float) -> void:
 			return false)
 	if trail != null:
 		# The body's place on screen, and whether it is going anywhere.
-		var body: Vector2 = (foot if state in ["held", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
-		var moving: bool = state == "thrown" or (state == "live" and critter.mode == "walk" and absf(critter.vx) > 5.0 * zoom)
+		var body: Vector2 = (foot if state in ["held", "sliding", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
+		var moving: bool = state in ["sliding", "thrown"] or (state == "live" and critter.mode == "walk" and absf(critter.vx) > 5.0 * zoom)
 		trail.step(delta, body, moving)
 	_update_hole()
 
@@ -331,14 +357,16 @@ func set_trail(style: String, palette: Array) -> void:
 
 func _on_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed and state == "live" and _critter_box().has_point(event.position):
+		if event.pressed and state in ["live", "sliding"] and _critter_box().has_point(event.position):
+			critter.rotation = 0.0
 			if spin.scale.x < 0.0:
 				critter.facing = -critter.facing
 				critter.want_facing = critter.facing
+			if state == "live":
+				foot = feet_on_screen()
 			state = "held"
 			critter.held = true
 			grab_from = Vector2(DisplayServer.mouse_get_position())
-			foot = feet_on_screen()
 			grab_offset = foot - grab_from
 			moved = 0.0
 			history = [[Time.get_ticks_msec() / 1000.0, grab_from]]
@@ -355,8 +383,8 @@ func release_if_up() -> void:
 
 
 func _release() -> void:
-	critter.held = false
 	if moved < DRAG_THRESHOLD:
+		critter.held = false
 		pop()
 		return
 	var v := Vector2.ZERO
@@ -364,14 +392,80 @@ func _release() -> void:
 		var a = history[0]
 		var b = history[-1]
 		v = (b[1] - a[1]) / maxf(b[0] - a[0], 0.001)
-	if v.length() < MIN_THROW:
-		var d: Vector2 = history[-1][1] - grab_from
-		v = d.normalized() * MIN_THROW if d.length() > 1.0 else Vector2(MIN_THROW * [-1, 1].pick_random(), -MIN_THROW * 0.3)
-	throw_v = v
-	spin_v = clampf(v.x / 120.0, -9.0, 9.0)
-	state = "thrown"
+	launch(v)
 	main.note_throw()
-	main.play_sound(Species.row(species)["sound"], species)
+	if state == "thrown":
+		main.play_sound(Species.row(species)["sound"], species)
+
+
+func launch(v: Vector2) -> void:
+	# Sends it off at v (capped): sliding if gentle, off the screen if hard.
+	# Also how a bump knocks a standing critter (main.gd _bumps).
+	critter.held = true   # no walking until it stops
+	if v.length() > MAX_THROW:
+		v = v.normalized() * MAX_THROW
+	throw_v = v
+	spin_v = clampf(v.x / 160.0, -8.0, 8.0)
+	state = "thrown" if v.length() >= ESCAPE_SPEED else "sliding"
+	if state == "sliding" and v.length() < STOP_SPEED:
+		_settle()
+
+
+func restate() -> void:
+	# After a bump: fast enough to leave, or slowed into a slide.
+	if state == "thrown" and throw_v.length() < ESCAPE_SPEED:
+		state = "sliding"
+	elif state == "sliding" and throw_v.length() >= ESCAPE_SPEED:
+		state = "thrown"
+
+
+func knock(v: Vector2) -> void:
+	# Hit by a sliding critter: off it goes too.
+	if state != "live":
+		throw_v = v
+		return
+	cancel_nap()
+	if critter.is_napping():
+		critter.wake_up()
+	critter.act = ""
+	foot = feet_on_screen()
+	launch(v)
+
+
+func body_centre() -> Vector2:
+	var feet: Vector2 = foot if state in ["held", "sliding", "thrown"] else feet_on_screen()
+	return feet - Vector2(0, 36.0 * zoom)
+
+
+func can_bump() -> bool:
+	# Standing roamers and anything on the move; not climbers on the walls,
+	# not ones tucked inside a showpiece.
+	if not win.visible or leaving:
+		return false
+	if state in ["sliding", "thrown"]:
+		return true
+	return state == "live" and not critter.climbing and nap_prop == null
+
+
+func _settle() -> void:
+	# Stopped: back on its feet where it is. An edge walker thrown into the
+	# middle of the screen stays a free roamer from then on.
+	state = "live"
+	critter.held = false
+	critter.rotation = 0.0
+	throw_v = Vector2.ZERO
+	if kind == "perimeter":
+		kind = "roam"
+		var r: Rect2 = main.area
+		world.left_x = r.position.x + size * 0.3
+		world.right_x = r.end.x - size * 0.3
+		critter.climbing = false
+		critter.climb_turn = 0.0
+		vy = randf_range(-35.0, 35.0)
+	critter.position.x = foot.x
+	critter.vx = 0.0
+	y = foot.y
+	_place()
 
 
 func leave(quietly := false) -> void:

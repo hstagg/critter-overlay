@@ -506,7 +506,8 @@ func _species_detail(sp: String) -> Control:
 	var tip := "Limit the rarity tiers this critter can roll."
 	if cap < 4:
 		tip += " %ss stop at %s." % [name, tiers[-1].capitalize()]
-	right.add_child(_block("Can appear as", "", rng, tip, null, true))
+	if S().beta():
+		right.add_child(_block("Can appear as", "", rng, tip, null, true))   # beta testers only
 	grid.add_child(right)
 
 	var card := PanelContainer.new()
@@ -678,9 +679,10 @@ func _world(body: VBoxContainer) -> void:
 	foot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	odds.add_child(K.margins(foot, 0, 4, 0, 0))
 	var notes_opts := ["off", "rare", "epic", "legendary"]
-	body.add_child(K.section("Rarity", K.card([
-		_toggle_row("Rarity tiers", "Each critter rolls a tier when it arrives. Rarer ones glow softly and leave a trail.", "world.rarity"),
-		K.margins(odds, 20, 14, 20, 16),
+	var rarity_rows := [_toggle_row("Rarity tiers", "Each critter rolls a tier when it arrives. Rarer ones glow softly and leave a trail.", "world.rarity")]
+	if S().beta():
+		rarity_rows.append(K.margins(odds, 20, 14, 20, 16))   # beta testers only
+	body.add_child(K.section("Rarity", K.card(rarity_rows + [
 		_toggle_row("First arrival of the day", "The first critter after midnight is always Rare or better.", "world.first_bonus"),
 		K.row("Rare sighting notes", "A small note in the corner when someone special arrives.",
 			K.seg(["Off", "Rare and up", "Epic and up", "Legendary"], maxi(0, notes_opts.find(S().value("world.notes"))),

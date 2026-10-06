@@ -45,8 +45,11 @@ extends Node2D
 ##   --wear=A,B         every critter wears these (wear.gd ids; testing)
 ##   --wear-sheet=DIR   every clothing item on every critter, saved as
 ##                      DIR/<item>-<species>.png, then quit (--wear=A,B for some)
+##   --throw-demo=SPEED throws the first critter at the second (px/s) after 1.5 s
 ##   --fake-pointer     a pretend pointer for the bond test: it circles the first
 ##                      critter for eight seconds, then rests
+##   --beta             beta-tester mode, kept once set: the rarity odds and
+##                      each critter's tier range can be changed in Settings
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
@@ -123,6 +126,8 @@ var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
 var fake_pointer := false
+var throw_demo := 0.0
+var beta_flag := false
 var wear_flag := []
 var props := {}               # showpiece id -> prop.gd node on the desktop
 var sheet_dir := ""
@@ -227,6 +232,10 @@ func _ready() -> void:
 			wear_flag = Array(v.split(","))
 		elif arg.begins_with("--wear-sheet="):
 			sheet_dir = v
+		elif arg == "--beta":
+			beta_flag = true
+		elif arg.begins_with("--throw-demo="):
+			throw_demo = float(arg.get_slice("=", 1))
 		elif arg == "--fake-pointer":
 			fake_pointer = true
 		elif arg.begins_with("--pair-demo="):
@@ -266,6 +275,8 @@ func _ready() -> void:
 	add_child(settings)
 	var v2 := _v2_settings() if settings_path == "" and seconds <= 0.0 and demo == "" and not FileAccess.file_exists(settings.path) else {}
 	settings.load_file()
+	if beta_flag:
+		settings.set_value("system.beta", true)
 	if not v2.is_empty():
 		settings.import_v2(v2)
 	Palette.theme = settings.value("system.theme")
@@ -813,6 +824,13 @@ func _process(delta: float) -> void:
 		for h in hosts.duplicate():
 			h.release_if_up()
 			h.tick(delta)
+		_bumps()
+		if throw_demo > 0.0 and t > 1.5 and hosts.size() >= 2 and hosts[0].state == "live":
+			var a = hosts[0]
+			a.foot = a.feet_on_screen()
+			a.launch((hosts[1].body_centre() - a.body_centre()).normalized() * throw_demo)
+			print("THROWN ", a.state)
+			throw_demo = 0.0
 	process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
 	fps.append(Engine.get_frames_per_second())
 
@@ -970,7 +988,7 @@ func _run_toast_demo() -> void:
 		func(): toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Collection", "Every kitten met", "500 berries, and a gold frame for its card.", "#E3A72F"),
 	]
 	for i in steps.size():
-		get_tree().create_timer(1.0 + i * 1.2).timeout.connect(steps[i])
+		get_tree().create_timer(1.0 + i * (3.0 if grab_path == "" else 1.2)).timeout.connect(steps[i])
 	if grab_path != "":
 		# --grab=PATH with %d: save each toast's window once all are up.
 		get_tree().create_timer(6.0).timeout.connect(func():
@@ -1174,7 +1192,7 @@ func status() -> Dictionary:
 	var desk := []
 	var species_out := []
 	for h in hosts:
-		if h.state in ["live", "held", "thrown"]:
+		if h.state in ["live", "held", "sliding", "thrown"]:
 			desk.append({"species": h.species, "tier": h.tier, "napping": h.critter.is_napping()})
 			species_out.append(h.species)
 	var boost: float = economy.rare_hour_boost
@@ -1406,6 +1424,48 @@ func _update_tray() -> void:
 
 func note_pop() -> void:
 	pops += 1
+
+
+const BUMP_BOUNCE := 0.9      # pool balls: a little speed lost in each knock
+
+
+func _bumps() -> void:
+	# A critter on the move knocks into others like pool balls: equal
+	# weights, so they trade the push along the line between them, and a
+	# standing one is sent sliding too.
+	var movers := hosts.filter(func(h): return h.state in ["sliding", "thrown"] and h.can_bump())
+	if movers.is_empty():
+		return
+	for a in movers:
+		for b in hosts:
+			if b == a or not b.can_bump():
+				continue
+			var d: Vector2 = b.body_centre() - a.body_centre()
+			var reach: float = (a.BODY_R * a.zoom + b.BODY_R * b.zoom)
+			var dist := d.length()
+			if dist >= reach or dist < 0.5:
+				continue
+			var n := d / dist
+			var vb: Vector2 = b.throw_v if b.state in ["sliding", "thrown"] else Vector2.ZERO
+			var closing: float = (a.throw_v - vb).dot(n)
+			if closing <= 0.0:
+				continue
+			var push: float = closing * (1.0 + BUMP_BOUNCE) * 0.5
+			# Apart, so they do not catch again next frame.
+			var gap := (reach - dist) * 0.5
+			a.foot -= n * gap
+			a.throw_v -= n * push
+			if b.state == "live":
+				b.knock(vb + n * push)
+				b.foot += n * gap
+			else:
+				b.foot += n * gap
+				b.throw_v = vb + n * push
+			a.restate()
+			b.restate()
+			print("BUMP ", a.species, " ", b.species)
+			if push > 120.0:
+				play_sound(Species.row(b.species)["sound"], b.species)
 
 
 func note_throw() -> void:
