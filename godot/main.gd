@@ -68,6 +68,7 @@ const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
 const Wear := preload("res://wear.gd")
+const Prop := preload("res://prop.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
@@ -119,6 +120,7 @@ var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
 var wear_flag := []
+var props := {}               # showpiece id -> prop.gd node on the desktop
 var sheet_dir := ""
 var welcome := ""             # --welcome: show | tour
 var welcome_dir := ""
@@ -342,6 +344,7 @@ func _ready() -> void:
 	presence.came_back.connect(_on_came_back)
 	_apply_all()
 	settings.changed.connect(_on_setting)
+	sync_props()
 
 	if demo in ["climb", "climb_down"]:
 		# Up the right-hand wall, or down the left, for looking at the climb.
@@ -383,6 +386,34 @@ func _ready() -> void:
 			_welcome_tour(w)
 		return
 	_first_critters()
+
+
+func sync_props() -> void:
+	# The showpieces put out in the Shop, standing on the taskbar.
+	for pid in props.keys():
+		if not economy.props_out.has(pid):
+			props[pid].release_all()
+			props[pid].queue_free()
+			props.erase(pid)
+	for pid in economy.props_out:
+		if props.has(pid) or not Prop.PROPS.has(pid):
+			continue
+		var p = Prop.new()
+		add_child(p)
+		p.setup(self, pid, float(economy.props_out[pid]), Critter.zoom)
+		p.moved.connect(func(id, f):
+			economy.props_out[id] = f
+			economy.save())
+		props[pid] = p
+
+
+func put_out(pid: String, out: bool) -> void:
+	if out:
+		economy.props_out[pid] = economy.props_out.get(pid, randf_range(0.15, 0.85))
+	else:
+		economy.props_out.erase(pid)
+	economy.save()
+	sync_props()
 
 
 static func _v2_settings() -> Dictionary:
@@ -567,18 +598,44 @@ func _play(sound: String) -> void:
 # --- Presence -------------------------------------------------------------------
 
 func _on_went_away() -> void:
-	# Settle down over the next few seconds, not all at once.
+	# Settle down over the next few seconds, not all at once. Roamers near a
+	# showpiece with room walk over and curl up in it.
 	if economy != null:
 		economy.went_away()
 	queued.clear()
-	for k in kittens():
-		queued.append([k, randf_range(0.0, 6.0), "sleep"])
+	var sent := {}
+	for h in hosts:
+		if h.kind != "roam" or h.state != "live":
+			continue
+		var best = null
+		var best_d := INF
+		for pid in props:
+			var p = props[pid]
+			var spot: int = p.free_spot()
+			if spot < 0:
+				continue
+			var d: float = absf(p.spot_feet(spot).x - h.critter.position.x)
+			if d < best_d:
+				best_d = d
+				best = p
+		if best != null:
+			var spot: int = best.free_spot()
+			best.sleepers[spot] = h   # held while it walks over
+			h.go_nap_at(best, spot)
+			sent[h] = true
+	for h in hosts:
+		if h.state == "live" and not sent.has(h):
+			queued.append([h.critter, randf_range(0.0, 6.0), "sleep"])
 
 
 func _on_came_back() -> void:
 	if economy != null:
 		economy.came_back(presence.away_after)
 	queued.clear()
+	for h in hosts:
+		h.cancel_nap()
+	for pid in props:
+		props[pid].release_all()
 	for k in kittens():
 		queued.append([k, randf_range(0.3, 2.5), "wake"])
 	if tidied:

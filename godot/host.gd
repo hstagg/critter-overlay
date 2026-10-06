@@ -55,6 +55,11 @@ var tier := "common":
 var aura: Node2D               # rare and up: the aura, behind and in front
 var opacity := 1.0             # Settings > Critters > Opacity
 var foot_drop := FOOT_DROP
+
+# Walking to a showpiece for a nap (main.gd sends it when you step away).
+var nap_goal := Vector2.INF        # screen px for its feet
+var nap_prop: Node = null
+var nap_spot := -1
 var trail: Node2D              # its trail, if it leaves one
 var zoom := 1.0
 var stay_left := INF
@@ -251,7 +256,9 @@ func tick(delta: float) -> void:
 			if leaving and _left_the_screen(delta):
 				_close()
 				return
-			if kind == "roam" and critter.mode == "walk" and not critter.airborne:
+			if nap_goal.x != INF:
+				_walk_to_nap(delta)
+			elif kind == "roam" and critter.mode == "walk" and not critter.airborne:
 				# Drift up or down the screen in step with the walk.
 				if randf() < delta * 0.25:
 					vy = randf_range(-40.0, 40.0)
@@ -384,6 +391,43 @@ func _left_the_screen(delta: float) -> bool:
 	fade -= delta / 1.2
 	spin.modulate.a = clampf(fade, 0.0, 1.0) * opacity
 	return fade <= 0.0
+
+
+func go_nap_at(prop: Node, spot: int) -> void:
+	nap_prop = prop
+	nap_spot = spot
+	nap_goal = prop.spot_feet(spot)
+	critter.hold_nap = false
+	critter.act = ""
+
+
+func cancel_nap() -> void:
+	nap_goal = Vector2.INF
+	nap_prop = null
+	nap_spot = -1
+
+
+func _walk_to_nap(delta: float) -> void:
+	# Over to the spot, level with it, then curl up there.
+	var k = critter
+	var gx: float = clampf(nap_goal.x, world.left_x, world.right_x)
+	var dx: float = gx - k.position.x
+	y = move_toward(y, nap_goal.y, 80.0 * zoom * delta)
+	if absf(dx) > 6.0 * zoom:
+		if k.mode != "walk":
+			k._go_walk()
+		k.mode_left = INF
+		k.want_facing = 1 if dx > 0.0 else -1
+	elif absf(y - nap_goal.y) < 3.0 and absf(k.vx) < 8.0:
+		k.go_to_sleep()
+		if is_instance_valid(nap_prop):
+			nap_prop.take(nap_spot, self)
+		nap_goal = Vector2.INF
+	else:
+		k.want_facing = k.facing
+		if k.mode == "walk":
+			k._go_sit()
+			k.mode_left = INF
 
 
 func set_opacity(o: float) -> void:

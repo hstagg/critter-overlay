@@ -82,6 +82,7 @@ var worn := {}                     # species -> [item ids it wears]
 var dyes_owned := {}               # item -> [dye ids bought for it]
 var dyed := {}                     # species -> {item: dye id}
 var treats := []                   # species called next, in order
+var props_out := {}                # showpiece id -> where it stands (0 left .. 1 right)
 var collection := {}               # "species:tier" -> {"first": unix, "count": n}
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
@@ -394,7 +395,7 @@ func to_dict() -> Dictionary:
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
-		"treats": treats, "saved_at": int(now())}
+		"treats": treats, "props_out": props_out, "saved_at": int(now())}
 
 
 func save() -> void:
@@ -436,6 +437,7 @@ func load_save() -> void:
 	dyes_owned = d.get("dyes_owned", {})
 	dyed = d.get("dyed", {})
 	treats = d.get("treats", [])
+	props_out = d.get("props_out", {})
 	# A long gap since the last save is a long break.
 	var gap := now() - float(d.get("saved_at", now()))
 	if gap >= SESSION_END_S:
