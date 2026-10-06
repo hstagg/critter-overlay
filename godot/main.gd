@@ -40,6 +40,8 @@ extends Node2D
 ##                      as PNGs in DIR, then quit (testing)
 ##   --tier=NAME        every critter arrives at this rarity tier (testing)
 ##   --toast-demo       show one of each toast, a few seconds apart
+##   --welcome          show the first-run welcome even if it has been seen
+##   --welcome-tour=DIR save each step of the welcome as a PNG, then quit
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
@@ -56,6 +58,7 @@ const Collection := preload("res://gui/collection.gd")
 const Toasts := preload("res://gui/toast.gd")
 const Settings := preload("res://settings.gd")
 const SettingsWindow := preload("res://gui/settings_window.gd")
+const Onboarding := preload("res://gui/onboarding.gd")
 const Palette := preload("res://gui/palette.gd")
 const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
@@ -108,6 +111,9 @@ var toasts: Node
 var force_tier := ""
 var toast_demo := false
 var pair_demo := ""
+var welcome := ""             # --welcome: show | tour
+var welcome_dir := ""
+var waiting_welcome := false  # nobody arrives until the welcome is closed
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var save_path := ""
@@ -195,6 +201,11 @@ func _ready() -> void:
 				printerr("Unknown tier '%s'; known: %s" % [v, ", ".join(Economy.TIERS)])
 		elif arg == "--toast-demo":
 			toast_demo = true
+		elif arg == "--welcome":
+			welcome = "show"
+		elif arg.begins_with("--welcome-tour="):
+			welcome = "tour"
+			welcome_dir = v
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
 		elif arg == "--selftest":
@@ -314,11 +325,44 @@ func _ready() -> void:
 		for i in fixed_perimeter:
 			_spawn("perimeter", "walk")
 		return
+	# The first run: the welcome first, then the critters.
+	var test_run := seconds > 0.0 and welcome == ""
+	if welcome != "" or (not test_run and not settings.value("system.onboarded")):
+		waiting_welcome = true
+		var w := Onboarding.new()
+		add_child(w)
+		w.finished.connect(func(open_settings_too):
+			waiting_welcome = false
+			_first_critters()
+			if open_settings_too:
+				open_settings("home"))
+		w.open(self)
+		if welcome == "tour":
+			_welcome_tour(w)
+		return
+	_first_critters()
+
+
+func _first_critters() -> void:
 	for i in mini(int(settings.value("focus.start_with")), _max_out()):
 		_spawn("roam", ["sit", "walk", "walk", "loaf"].pick_random())
-	next_arrival = _gather_every()
-	next_group = _timer_every()
-	next_solo = _solo_every()
+	next_arrival = focus_s + _gather_every()
+	next_group = wall_s + _timer_every()
+	next_solo = (wall_s if settings.value("focus.mode") == "timer" else focus_s) + _solo_every()
+
+
+func _welcome_tour(w: Window) -> void:
+	# --welcome-tour: each step saved for checking by eye.
+	for i in 4:
+		w._go(i)
+		await get_tree().create_timer(1.0).timeout
+		w.get_texture().get_image().save_png(welcome_dir.path_join("welcome-%d.png" % i))
+	w.startup = is_startup()   # leave the real startup entry as it is
+	w._done(false)
+	await get_tree().create_timer(1.0).timeout
+	print("WELCOME closed: onboarded ", settings.value("system.onboarded"), ", critters out ", hosts.size())
+	print("TOUR done")
+	_quit(0)
 
 
 func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := ""):
@@ -767,7 +811,7 @@ func _arrivals(delta: float) -> void:
 	# time whatever you are doing (arrivals while you are away nap at once).
 	# Solo walkers come along the edges in either mode. Nobody comes or goes
 	# while paused.
-	if paused:
+	if paused or waiting_welcome:
 		return
 	var present: bool = not presence.away
 	var timer: bool = settings.value("focus.mode") == "timer"
