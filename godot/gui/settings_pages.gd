@@ -823,8 +823,11 @@ func _sound(body: VBoxContainer) -> void:
 func _collection(body: VBoxContainer) -> void:
 	var page = Collection.new()
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.focus = w.focus_species
 	body.add_child(page)
 	page.setup(w.main.economy)
+	if page.cards.has(w.focus_species):
+		w.scroll_to(page.cards[w.focus_species])
 
 
 # ============================================================ SHOP
