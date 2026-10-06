@@ -75,6 +75,8 @@ const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
 const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
+const RELEASES_URL := "https://github.com/hstagg/critter-overlay/releases/latest"
+const UPDATE_EVERY := 24 * 3600   # s between automatic checks
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
@@ -299,6 +301,16 @@ func _ready() -> void:
 	toasts = Toasts.new()
 	add_child(toasts)
 	toasts.open_collection.connect(func(sp): open_settings("collection", sp))
+	toasts.closed.connect(func(url):
+		if url == RELEASES_URL and _update_seen != "":
+			settings.set_value("system.update_dismissed", _update_seen))
+	if seconds <= 0.0 and demo == "":
+		get_tree().create_timer(20.0).timeout.connect(_auto_update_check)
+		var again := Timer.new()
+		again.wait_time = 6 * 3600
+		again.timeout.connect(_auto_update_check)
+		add_child(again)
+		again.start()
 	if toast_demo:
 		_run_toast_demo()
 
@@ -324,6 +336,13 @@ func _ready() -> void:
 	_apply_all()
 	settings.changed.connect(_on_setting)
 
+	if demo in ["climb", "climb_down"]:
+		# Up the right-hand wall, or down the left, for looking at the climb.
+		var d := area.size.x + area.size.y * 0.3 if demo == "climb" else 2.0 * area.size.x + area.size.y * 1.2
+		var h = _spawn("perimeter", "walk", Vector2(area.position.x + d, 0))
+		h.critter.mode_left = INF
+		h.critter.activity = 0.0
+		return
 	if demo != "":
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
 		h.critter.mode_left = INF
@@ -1035,6 +1054,40 @@ func _redress(sp: String) -> void:
 func clear_seen_log() -> void:
 	economy.clear_seen_log()
 	_update_tray()
+
+
+var _update_seen := ""
+
+
+func _auto_update_check() -> void:
+	# Once a day, quietly: a note only for a newer version not closed before.
+	var now := int(Time.get_unix_time_from_system())
+	if now - int(settings.value("system.update_checked")) < UPDATE_EVERY:
+		return
+	settings.set_value("system.update_checked", now)
+	_latest_release(func(tag):
+		if tag != "" and _newer(tag, VERSION) and tag != settings.value("system.update_dismissed"):
+			_update_seen = tag
+			if not _quiet():
+				toasts.show_update(tag, RELEASES_URL))
+
+
+func _latest_release(done: Callable) -> void:
+	# The newest release's version on GitHub, or "" if it cannot be reached.
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.timeout = 10.0
+	req.request_completed.connect(func(result, code, _headers, body):
+		req.queue_free()
+		var tag := ""
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+			var d = JSON.parse_string(body.get_string_from_utf8())
+			if typeof(d) == TYPE_DICTIONARY:
+				tag = str(d.get("tag_name", "")).trim_prefix("v")
+		done.call(tag))
+	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
+		req.queue_free()
+		done.call("")
 
 
 func check_for_updates(done: Callable) -> void:

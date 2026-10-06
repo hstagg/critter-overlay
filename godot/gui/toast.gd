@@ -11,6 +11,7 @@ extends Node
 ## full-screen app has the screen); this file only draws and stacks them.
 
 signal open_collection(species: String)
+signal closed(url: String)
 
 const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
@@ -41,6 +42,7 @@ class Toast extends RefCounted:
 	var bar: ProgressBar
 	var critter: Node2D
 	var species := ""
+	var url := ""                # an update note opens this instead
 	var left := LIFE
 	var hovered := false
 	var age := 0.0
@@ -113,6 +115,22 @@ func show_rare_hour(until: String, boost: float) -> void:
 	_push(t)
 
 
+func show_update(version: String, url: String) -> void:
+	# A new version is out: click to see it, close to not be told again.
+	var dark := Palette.is_dark()
+	var c := Palette.colours(dark)
+	var t := Toast.new()
+	t.url = url
+	t.left = LIFE * 3.0
+	var well := _well(c.surface, c.outline)
+	var ic := UI.icon(Icons.line("update", 28, c.acc_ink))
+	ic.size = Vector2(60, 60)
+	well.add_child(ic)
+	_build(t, c, c.surface, c.accent, 2, well, UI.label("UPDATE", 12, c.acc_ink, 600, true),
+		"Version %s is out" % version, "Click to see what is new and download it.", c.ink2, c.track)
+	_push(t)
+
+
 func _well(bg: Color, border := Color.TRANSPARENT) -> Control:
 	var well := Control.new()
 	well.custom_minimum_size = Vector2(60, 60)
@@ -146,7 +164,9 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 	card.mouse_exited.connect(func(): t.hovered = false)
 	card.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-			if t.species != "":
+			if t.url != "":
+				OS.shell_open(t.url)
+			elif t.species != "":
 				open_collection.emit(t.species)
 			_dismiss(t))
 	win.add_child(card)
@@ -189,7 +209,9 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 	close.tooltip_text = "Dismiss"
 	close.add_theme_stylebox_override("hover", UI.box(c.div, 15))
 	close.add_theme_stylebox_override("pressed", UI.box(c.track, 15))
-	close.pressed.connect(func(): _dismiss(t))
+	close.pressed.connect(func():
+		closed.emit(t.url)
+		_dismiss(t))
 	row.add_child(close)
 
 	# The time left, running down. Inset and rounded, inside the card.

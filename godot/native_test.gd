@@ -60,14 +60,14 @@ func _init() -> void:
 	print("user_busy: %s (true only while a full-screen app or presentation has the screen)" % n.user_busy())
 	check(n.single_instance("CritterOverlay.native_test"), "first instance takes the lock")
 
-	# Startup entry: round trip, then restore whatever was there.
-	var had: bool = n.is_launch_at_startup()
+	# Startup entry: round trip, then put back exactly what was there (on a
+	# machine with v2.0 installed, its real entry has this name).
+	var run_before: String = n.startup_command()
 	check(n.set_launch_at_startup(true, "C:/Temp/critter test.exe", "--x"), "startup entry written")
-	check(n.is_launch_at_startup(), "startup entry reads back")
+	check(n.is_launch_at_startup() and "critter test.exe" in n.startup_command(), "startup entry reads back")
 	check(n.set_launch_at_startup(false, "", ""), "startup entry removed")
 	check(not n.is_launch_at_startup(), "startup entry gone")
-	if had:
-		print("NOTE: a Critter Overlay startup entry existed before the test and was removed")
+	check(n.set_startup_command(run_before) and n.startup_command() == run_before, "the entry that was there is put back")
 
 	check(not n.hide_from_taskbar(0), "hide_from_taskbar refuses a bad handle")
 	n.stop()
