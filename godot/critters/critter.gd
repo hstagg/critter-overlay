@@ -50,6 +50,7 @@ var head_height := 60.0        # px above the feet that the eyes look out from
 var back_hip := Vector2(205, 224)   # the stretch tips forward about this
 var scratch_hides := ""        # sitting part hidden while scratch-foot is up
 var activity := 1.0            # how often it stops for a behaviour (Settings > Activity)
+var paired := false            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var idles := []                # behaviours this species can do (species.gd)
 
 var world: Node                # host.gd's World: floor_y, left_x, right_x, mouse_local()
@@ -411,7 +412,7 @@ func can_do(b: String) -> bool:
 
 func can_start_behaviour() -> bool:
 	return act == "" and act_pending == "" and not airborne and not entering \
-		and mode != "loaf" and not hold_nap and not held
+		and mode != "loaf" and not hold_nap and not held and not paired
 
 
 func is_napping() -> bool:

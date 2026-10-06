@@ -40,6 +40,8 @@ extends Node2D
 ##                      as PNGs in DIR, then quit (testing)
 ##   --tier=NAME        every critter arrives at this rarity tier (testing)
 ##   --toast-demo       show one of each toast, a few seconds apart
+##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
+##                      (see pairs.gd), again every eight seconds
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -58,6 +60,7 @@ const Palette := preload("res://gui/palette.gd")
 const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
+const Pairs := preload("res://pairs.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
@@ -73,6 +76,7 @@ var t := 0.0
 
 var hosts := []
 var evaluator := Behaviours.new()
+var pairs := Pairs.new()
 var presence: Node
 var gather_flag := -1.0       # --gather-every, over the setting
 var away_flag := -1.0         # --away-after, over the setting
@@ -103,6 +107,7 @@ var tray: Node
 var toasts: Node
 var force_tier := ""
 var toast_demo := false
+var pair_demo := ""
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var save_path := ""
@@ -190,6 +195,8 @@ func _ready() -> void:
 				printerr("Unknown tier '%s'; known: %s" % [v, ", ".join(Economy.TIERS)])
 		elif arg == "--toast-demo":
 			toast_demo = true
+		elif arg.begins_with("--pair-demo="):
+			pair_demo = v
 		elif arg == "--selftest":
 			selftest = true
 
@@ -298,6 +305,9 @@ func _ready() -> void:
 		h.critter.mode_left = INF
 		return
 	presence.start()
+	if pair_demo != "":
+		_run_pair_demo()
+		return
 	if fixed_count > 0 or fixed_perimeter > 0:
 		for i in maxi(fixed_count, 0):
 			_spawn("roam", ["sit", "walk", "walk", "loaf"].pick_random())
@@ -507,6 +517,8 @@ func _process(delta: float) -> void:
 			_time_of_day()
 		if not presence.away and not paused:
 			evaluator.tick(delta, kittens(), maxf(presence.sleep_bias(), night_sleep))
+		pairs.frequency = evaluator.frequency
+		pairs.tick(delta, hosts, Critter.zoom, settings.value("world.pairs") and not presence.away and not paused)
 		if native != null:
 			if native.poll_hotkey() == 1:
 				toggle_pause()
@@ -619,6 +631,30 @@ func _on_rare_hour(on: bool) -> void:
 	_update_tray()
 	if on and not _quiet():
 		toasts.show_rare_hour(economy.rare_hour_ends(), economy.rare_hour_boost)
+
+
+func _run_pair_demo() -> void:
+	# Two critters of the right species in the middle, the interaction
+	# forced every eight seconds.
+	fixed_count = 2
+	var d: Array = Pairs.PAIRS[pair_demo]
+	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
+	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
+	var c := area.get_center() + Vector2(0, 120)
+	var a = _spawn("roam", "sit", c - Vector2(220, 0), sa)
+	var b = _spawn("roam", "sit", c + Vector2(120, 0), sb)
+	var go := func():
+		if is_instance_valid(a) and is_instance_valid(b) and pairs.active.is_empty():
+			a.critter.paired = false
+			b.critter.paired = false
+			pairs.cool.clear()
+			pairs._start(pair_demo, a, b, Critter.zoom)
+	var timer := Timer.new()
+	timer.wait_time = 8.0
+	timer.timeout.connect(go)
+	add_child(timer)
+	timer.start()
+	get_tree().create_timer(1.0).timeout.connect(go)
 
 
 func _run_toast_demo() -> void:
