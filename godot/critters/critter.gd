@@ -19,7 +19,8 @@ extends Node2D
 ## The art faces left.
 
 const Wear := preload("res://wear.gd")
-const PART_SCALE := 0.75       # SVG units -> texture pixels
+const PART_SCALE := 0.75
+const WEAR_HEADROOM := 120.0    # clothes art starts this far above the part frame (tall hats)       # SVG units -> texture pixels
 const ACCEL := 4.0             # how quickly walking speed eases to its target, 1/s
 const GRAVITY := 1800.0        # px/s^2, for hops and pounces
 const REGION_SLACK := 6.0      # px kept clear around a drawn critter
@@ -233,7 +234,7 @@ func wear(items: Array) -> void:
 		var s := Sprite2D.new()
 		s.texture = _wear_textures[key]
 		s.centered = false
-		s.position = -head_pivot * PART_SCALE
+		s.position = (Vector2(0, -WEAR_HEADROOM) - head_pivot) * PART_SCALE
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		head.add_child(s)
 		_sprites.append(s)

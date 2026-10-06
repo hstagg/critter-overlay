@@ -24,7 +24,9 @@ SPECIES = {
 
 
 def svg(body):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" width="300" height="280">'
+    # 120 units of headroom above the part frame, for tall hats (the rig
+    # offsets by the same, see critter.gd wear()).
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -120 300 400" width="300" height="400">'
             + body + '</svg>')
 
 
