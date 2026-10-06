@@ -15,6 +15,7 @@ signal gone(host)
 
 const Region := preload("res://region.gd")
 const Species := preload("res://species.gd")
+const Aura := preload("res://aura.gd")
 
 const FOOT_DROP := 40.0        # feet sit this far below the window's centre
 const LEDGE := 120.0           # px below the top of the screen where top walkers' feet are
@@ -45,7 +46,12 @@ var edges_ledge := 0.0
 var state := "live"            # live | held | thrown | popping
 
 # A visit: its rarity, how long it stays (seconds of focus), and leaving.
-var tier := "common"
+var tier := "common":
+	set(v):
+		tier = v
+		_make_aura()
+var aura: Node2D               # rare and up: the aura, behind and in front
+var zoom := 1.0
 var stay_left := INF
 var leaving := false
 var fade := 1.0
@@ -97,6 +103,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	main = main_ref
 	species = species_id
 	kind = how
+	self.zoom = zoom
 	size = int(200 * zoom)
 
 	win = Window.new()
@@ -340,11 +347,30 @@ func _left_the_screen(delta: float) -> bool:
 	return fade <= 0.0
 
 
+func _make_aura() -> void:
+	# Common critters have none. The aura goes behind the critter's track in
+	# the spin node and its front layer after it.
+	if aura != null:
+		aura.front.queue_free()
+		aura.queue_free()
+		aura = null
+	if spin == null or not Aura.TIER.has(tier):
+		return
+	aura = Aura.new()
+	aura.setup(tier, species, critter, zoom)
+	spin.add_child(aura)
+	spin.move_child(aura, 0)
+	spin.add_child(aura.front)
+
+
 func pop() -> void:
 	# v2.0's click: a burst of particles, the species sound, and gone.
 	state = "popping"
 	foot = feet_on_screen()
 	critter.visible = false
+	if aura != null:
+		aura.visible = false
+		aura.front.visible = false
 	pop_left = POP_TIME
 	var at := Vector2(size, size) * 0.5
 	for i in randi_range(10, 16):

@@ -268,6 +268,8 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
 		_announce(sp, h.tier, roll[1] and force_tier == "")
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
+	elif force_tier != "":
+		h.tier = force_tier   # --demo with --tier: an aura to look at
 	return h
 
 
