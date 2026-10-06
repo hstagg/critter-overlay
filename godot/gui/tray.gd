@@ -32,6 +32,7 @@ var info := {
 	"found": 0,
 	"found_total": 48,
 	"berries": 0,
+	"rare_hour_until": "",      # "22:00" while Rare Hour is on
 }
 
 var indicator: StatusIndicator
@@ -183,6 +184,15 @@ func _build() -> void:
 			row.add_child(_label(right_text, 13, c.ink2, 700))
 			bc.add_child(row)
 			bc.add_child(_bar(info.gift_progress, c))
+			if info.rare_hour_until != "":
+				var rh := HBoxContainer.new()
+				rh.add_theme_constant_override("separation", 6)
+				var moon := TextureRect.new()
+				moon.texture = Icons.line("moon", 16, c.rh_ink)
+				moon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+				rh.add_child(moon)
+				rh.add_child(_label("Rare Hour until %s" % info.rare_hour_until, 13, c.rh_ink, 800))
+				bc.add_child(rh)
 		"paused":
 			bc.add_child(_wrap("Your focus time keeps counting. Resume to bring everyone back.", 13, c.ink2))
 		_:

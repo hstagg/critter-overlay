@@ -9,6 +9,7 @@ const LIGHT := {
 	"sec_line": "#D5C8E8", "nav_h": "#E2D6F3", "tip_bg": "#2F2143", "tip_ink": "#F7F1FF",
 	"dng_bg": "#FFF0F2", "dng_ink": "#A3283F", "accent": "#A07EEA", "outline": "#4A3466", "lip": "#4A3466",
 	"btn": "#7C4DD6", "sp_kitten": "#F3E6D6", "dash": "#C8BBDC", "badge_line": "#4A3466", "ph_bg": "#F5F0FB",
+	"rh_bg": "#E9EEFC", "rh_line": "#9FB2EC", "rh_text": "#3F4C78", "rh_ink": "#33479A",
 }
 const DARK := {
 	"ground": "#1C1524", "side": "#150F1C", "surface": "#271E31", "raised": "#32283F", "line": "#3D3150",
@@ -17,6 +18,7 @@ const DARK := {
 	"sec_line": "#4D3F62", "nav_h": "#241B2F", "tip_bg": "#F0E8FB", "tip_ink": "#251A35",
 	"dng_bg": "#3A1A26", "dng_ink": "#FF9DB0", "accent": "#9C78E8", "outline": "#BBA6E0", "lip": "#0F0A15",
 	"btn": "#7C4DD6", "sp_kitten": "#80746E", "dash": "#55466C", "badge_line": "#1A1124", "ph_bg": "#211A2B",
+	"rh_bg": "#1D2442", "rh_line": "#5C6FB0", "rh_text": "#B8C5EE", "rh_ink": "#A9BBFF",
 }
 # tier: fill, light tint, light ink, dark tint, dark ink
 const TIERS := {

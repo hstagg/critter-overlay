@@ -97,6 +97,7 @@ func _init() -> void:
 
 	# --- Rarity: base odds at luck 1, caps.
 	var r = fresh(path + ".r")
+	r.rare_hour_enabled = false   # Rare Hour is checked on its own below
 	var counts := {"common": 0, "uncommon": 0, "rare": 0, "epic": 0, "legendary": 0}
 	for i in 200000:
 		counts[r.roll_tier()] += 1
@@ -113,6 +114,55 @@ func _init() -> void:
 		if r.roll_tier("epic") == "legendary":
 			capped_ok = false
 	check(capped_ok, "a species capped at epic never rolls legendary")
+
+	# --- Rare Hour: the window, its boost, the signal at each end.
+	var h = fresh(path + ".h")
+	var hour: int = h._local_minute() / 60
+	h.rare_hour_start = hour
+	check(h.in_rare_hour(), "inside Rare Hour when it started this hour")
+	h.rare_hour_start = (hour + 2) % 24
+	check(not h.in_rare_hour(), "outside Rare Hour two hours before it")
+	h.rare_hour_start = (hour + 23) % 24
+	h.rare_hour_min = 120
+	check(h.in_rare_hour(), "a two-hour Rare Hour that began last hour is still on (wraps midnight too)")
+	h.rare_hour_min = 60
+	h.rare_hour_start = hour
+	var boosted := 0
+	for i in 200000:
+		if h.roll_tier() in ["rare", "epic", "legendary"]:
+			boosted += 1
+	check(absf(boosted / 200000.0 - 0.026 * 2.0) < 0.005, "rare+ about doubles in Rare Hour (got %.4f)" % (boosted / 200000.0))
+	h.rare_hour_enabled = false
+	check(not h.in_rare_hour(), "Rare Hour off in settings means never")
+	h.rare_hour_enabled = true
+	var changes := []
+	h.rare_hour_changed.connect(func(on): changes.append(on))
+	h.rare_hour_start = (hour + 1) % 24
+	work(h, 60 - h._local_minute() % 60 + 1)
+	work(h, 61.0)
+	check(changes == [true, false], "Rare Hour signals its start and end once each (got %s)" % [changes])
+	check(h.rare_hour_ends() == "%02d:00" % ((hour + 2) % 24), "Rare Hour end time for the toast (got %s)" % h.rare_hour_ends())
+
+	# --- The day's first visitor is Rare or better, once a day, within caps.
+	var f = fresh(path + ".f")
+	var first = f.roll_arrival()
+	check(first[1] and first[0] in ["rare", "epic", "legendary"], "first visitor of the day is Rare+ (got %s)" % [first])
+	check(not f.roll_arrival()[1], "the bonus is once a day")
+	var bonus := {"rare": 0, "epic": 0, "legendary": 0}
+	for i in 20000:
+		f.first_bonus_day = ""
+		bonus[f.roll_arrival("epic")[0]] += 1
+	check(bonus["legendary"] == 0, "the bonus respects a species capped at Epic")
+	check(absf(bonus["rare"] / 20000.0 - 0.7) < 0.02, "the bonus is about 70%% Rare (got %.3f)" % (bonus["rare"] / 20000.0))
+	f.save()
+	var f2 = fresh(path + ".f")
+	f2.load_save()
+	check(not f2.roll_arrival()[1], "a restart the same day does not pay the bonus again")
+	clock += 86400.0
+	check(f2.roll_arrival()[1], "the next day pays it again")
+	clock -= 86400.0
+	for x in [h, f, f2]:
+		x.free()
 
 	# --- Collection and sightings.
 	check(e.record_sighting("kitten", "rare") == true, "first rare kitten is a first find")

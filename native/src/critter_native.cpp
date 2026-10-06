@@ -5,6 +5,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #endif
 
 #include <atomic>
@@ -253,6 +254,18 @@ bool CritterNative::is_launch_at_startup() const {
 #endif
 }
 
+bool CritterNative::user_busy() const {
+#ifdef _WIN32
+	QUERY_USER_NOTIFICATION_STATE state;
+	if (FAILED(SHQueryUserNotificationState(&state))) {
+		return false;
+	}
+	return state == QUNS_BUSY || state == QUNS_RUNNING_D3D_FULL_SCREEN || state == QUNS_PRESENTATION_MODE;
+#else
+	return false;
+#endif
+}
+
 void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("start", "hotkey_mods", "hotkey_vk"), &CritterNative::start);
 	ClassDB::bind_method(D_METHOD("stop"), &CritterNative::stop);
@@ -265,4 +278,5 @@ void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("single_instance", "name"), &CritterNative::single_instance);
 	ClassDB::bind_method(D_METHOD("set_launch_at_startup", "enabled", "exe_path", "args"), &CritterNative::set_launch_at_startup);
 	ClassDB::bind_method(D_METHOD("is_launch_at_startup"), &CritterNative::is_launch_at_startup);
+	ClassDB::bind_method(D_METHOD("user_busy"), &CritterNative::user_busy);
 }

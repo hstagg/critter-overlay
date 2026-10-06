@@ -32,6 +32,8 @@ extends Node2D
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
 ##   --open=collection  open the Collection at start (testing)
+##   --tier=NAME        every critter arrives at this rarity tier (testing)
+##   --toast-demo       show one of each toast, a few seconds apart
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -43,6 +45,7 @@ const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
 const Tray := preload("res://gui/tray.gd")
 const Collection := preload("res://gui/collection.gd")
+const Toasts := preload("res://gui/toast.gd")
 
 const START_KITTENS := 2
 const MAX_KITTENS := 8
@@ -52,6 +55,7 @@ const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
 const MOD_CTRL_SHIFT := 0x0002 | 0x0004   # Win32 MOD_CONTROL | MOD_SHIFT
 const VK_P := 0x50
+const NOTES_FROM := "rare"      # toasts for this tier and up (a World setting later)
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
@@ -71,6 +75,9 @@ var species_fixed := false
 var economy: Node
 var tray: Node
 var collection: Window
+var toasts: Node
+var force_tier := ""
+var toast_demo := false
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var save_path := ""
@@ -143,6 +150,13 @@ func _ready() -> void:
 			save_path = v
 		elif arg == "--open=collection":
 			open_on_start = "collection"
+		elif arg.begins_with("--tier="):
+			if v in Economy.TIERS:
+				force_tier = v
+			else:
+				printerr("Unknown tier '%s'; known: %s" % [v, ", ".join(Economy.TIERS)])
+		elif arg == "--toast-demo":
+			toast_demo = true
 		elif arg == "--selftest":
 			selftest = true
 
@@ -197,6 +211,13 @@ func _ready() -> void:
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(func(i, b, item): print("GIFT ", i, " +", b, " ", item))
 	economy.welcome_back.connect(func(b): print("WELCOME BACK +", b))
+	economy.rare_hour_changed.connect(_on_rare_hour)
+
+	toasts = Toasts.new()
+	add_child(toasts)
+	toasts.open_collection.connect(func(_sp): open_collection())
+	if toast_demo:
+		_run_toast_demo()
 
 	tray = Tray.new()
 	add_child(tray)
@@ -242,8 +263,9 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1)):
 	# Every visitor rolls its rarity, with the session's luck, and goes in
 	# the Collection. A visit lasts a while, then it leaves.
 	if economy != null and demo == "":
-		h.tier = economy.roll_tier(Species.row(sp).get("rarity_max", "legendary"))
-		economy.record_sighting(sp, h.tier)
+		var roll: Array = economy.roll_arrival(Species.row(sp).get("rarity_max", "legendary"))
+		h.tier = force_tier if force_tier != "" else roll[0]
+		_announce(sp, h.tier, roll[1] and force_tier == "")
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	return h
@@ -377,7 +399,7 @@ func _process(delta: float) -> void:
 		if live_timer <= 0.0:
 			live_timer = 0.5
 			_write_live()
-	if grab_path != "" and t >= grab_next and not hosts.is_empty():
+	if grab_path != "" and not toast_demo and t >= grab_next and not hosts.is_empty():
 		_grab()
 	if seconds > 0.0 and t >= seconds:
 		_write_report()
@@ -416,6 +438,70 @@ func _grab() -> void:
 		grab_next = INF
 
 
+# --- Rarity notes ---------------------------------------------------------------
+
+func _quiet() -> bool:
+	# No toasts while paused, or while a full-screen app, game or
+	# presentation has the screen.
+	return paused or (native != null and native.user_busy())
+
+
+func _announce(sp: String, tier: String, bonus: bool) -> void:
+	# Records the sighting, then shows a toast if it is rare enough.
+	var had_legendary := false
+	for key in economy.collection:
+		if key.ends_with(":legendary"):
+			had_legendary = true
+	var first: bool = economy.record_sighting(sp, tier)
+	if Economy.TIERS.find(tier) < Economy.TIERS.find(NOTES_FROM) or _quiet():
+		return
+	var text := sighting_text(sp, tier, first, bonus, had_legendary,
+		economy.collection.get("%s:%s" % [sp, tier], {}).get("count", 1))
+	toasts.show_sighting(sp, tier, text[0], text[1], text[2])
+
+
+static func sighting_text(sp: String, tier: String, first: bool, bonus: bool, had_legendary: bool, count: int) -> Array:
+	# [kicker, title, line] for a sighting toast.
+	var name := Collection.species_name(sp)
+	var low := name.to_lower()
+	var tier_name := tier.capitalize()
+	var title := "A Legendary %s" % low if tier == "legendary" else "%s %s has arrived" % ["An" if low[0] in "aeiou" else "A", low]
+	var line := ""
+	if bonus:
+		line = "Your first visitor today. The first is always Rare or better."
+	elif tier == "legendary" and not had_legendary:
+		line = "Your first Legendary. Take a moment."
+	elif first:
+		line = "Your first %s %s. Added to your Collection." % [tier_name, low]
+	elif tier == "legendary":
+		line = "Seen once before." if count == 2 else "Seen %d times before." % (count - 1)
+	else:
+		line = "Only about 1 in %d critters is %s." % [int(round(1.0 / Economy.BASE_ODDS[tier])), tier_name]
+	return [tier_name, title, line]
+
+
+func _on_rare_hour(on: bool) -> void:
+	_update_tray()
+	if on and not _quiet():
+		toasts.show_rare_hour(economy.rare_hour_ends(), economy.rare_hour_boost)
+
+
+func _run_toast_demo() -> void:
+	var steps := [
+		func(): toasts.show_sighting("rabbit", "rare", "Rare", "A rabbit has arrived", "Your first Rare rabbit. Added to your Collection."),
+		func(): toasts.show_sighting("duckling", "epic", "Epic", "A duckling has arrived", "Only about 1 in 200 critters is Epic."),
+		func(): toasts.show_sighting("kitten", "legendary", "Legendary", "A Legendary kitten", "Your first Legendary. Take a moment."),
+		func(): toasts.show_rare_hour(economy.rare_hour_ends(), economy.rare_hour_boost),
+	]
+	for i in steps.size():
+		get_tree().create_timer(1.0 + i * 1.2).timeout.connect(steps[i])
+	if grab_path != "":
+		# --grab=PATH with %d: save each toast's window once all are up.
+		get_tree().create_timer(6.0).timeout.connect(func():
+			for i in toasts.toasts.size():
+				toasts.toasts[i].win.get_texture().get_image().save_png(grab_path % i))
+
+
 func open_collection() -> void:
 	if collection == null:
 		collection = Collection.new()
@@ -443,6 +529,7 @@ func _update_tray() -> void:
 	for sp in Species.DATA:
 		total += Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary")) + 1
 	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
+		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": economy.collection.size(),
 		"found_total": total, "berries": economy.berries})

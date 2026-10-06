@@ -49,6 +49,8 @@ func _init() -> void:
 	print("faked F24: injected keys %d -> %d (2 expected if faked keys arrive with no device)" % [keys_before, n.injected_keys()])
 
 	check(n.poll_hotkey() == 0, "no hotkey press reported without one")
+	check(typeof(n.user_busy()) == TYPE_BOOL, "user_busy answers")
+	print("user_busy: %s (true only while a full-screen app or presentation has the screen)" % n.user_busy())
 	check(n.single_instance("CritterOverlay.native_test"), "first instance takes the lock")
 
 	# Startup entry: round trip, then restore whatever was there.
