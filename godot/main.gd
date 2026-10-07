@@ -72,6 +72,7 @@ const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
+const Admin := preload("res://admin.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const Icons := preload("res://gui/icons.gd")
@@ -92,6 +93,9 @@ var t := 0.0
 
 var hosts := []
 var evaluator := Behaviours.new()
+var admin: Node                   # admin.gd: the Admin page's hands
+var admin_flag := false
+var admin_run := ""               # --admin-run=ACTION: an audit Run button, for testing
 var pairs := Pairs.new()
 var presence: Node
 var gather_flag := -1.0       # --gather-every, over the setting
@@ -164,6 +168,8 @@ var grab_next := 2.0
 
 func _ready() -> void:
 	presence = Presence.new()
+	admin = Admin.new(self)
+	add_child(admin)
 	var selftest := false
 	for arg in OS.get_cmdline_user_args():
 		var v := arg.get_slice("=", 1)
@@ -237,6 +243,10 @@ func _ready() -> void:
 			stills_dir = v
 		elif arg == "--beta":
 			beta_flag = true
+		elif arg == "--admin":
+			admin_flag = true
+		elif arg.begins_with("--admin-run="):
+			admin_run = v
 		elif arg.begins_with("--throw-demo="):
 			throw_demo = float(arg.get_slice("=", 1))
 		elif arg == "--fake-pointer":
@@ -280,6 +290,8 @@ func _ready() -> void:
 	settings.load_file()
 	if beta_flag:
 		settings.set_value("system.beta", true)
+	if admin_flag:
+		settings.set_value("system.admin", true)
 	if not v2.is_empty():
 		settings.import_v2(v2)
 	Palette.theme = settings.value("system.theme")
@@ -384,6 +396,10 @@ func _ready() -> void:
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
 		h.critter.mode_left = INF
 		return
+	if admin_run != "":
+		admin.hold = true
+		get_tree().create_timer(1.0).timeout.connect(func(): admin.run(admin_run))
+		return
 	presence.start()
 	if pair_demo != "":
 		_run_pair_demo()
@@ -477,7 +493,7 @@ func _welcome_tour(w: Window) -> void:
 	_quit(0)
 
 
-func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := "", version := ""):
+func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := "", version := "", variant := ""):
 	# Every visitor rolls its rarity, with the session's luck, before it is
 	# made: a Rare or Epic is a different version of the species, and a
 	# Legendary is a special visitor. It goes in the Collection; a visit lasts
@@ -499,8 +515,11 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		tier = force_tier
 	if version == "" and tier != "":
 		version = Species.version_for(sp, tier)
+	if version == "-":
+		version = ""   # the Admin page asking for the Common look at any tier
 	var h = Host.new()
 	h.version = version
+	h.variant = variant
 	add_child(h)
 	h.setup(self, sp, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
@@ -1088,7 +1107,8 @@ func _run_toast_demo() -> void:
 func _tour() -> void:
 	# --settings-tour: every page, top to bottom, saved for checking by eye.
 	await get_tree().create_timer(1.5).timeout
-	for n in SettingsWindow.NAV:
+	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if settings.value("system.admin") else [])
+	for n in tour_pages:
 		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
 			settings_win.pages.shop_try = shop_try_flag.get_slice(":", 0)
 			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag else ""
@@ -1102,7 +1122,7 @@ func _tour() -> void:
 			var sc: ScrollContainer = settings_win._scroll
 			settings_win.get_texture().get_image().save_png(tour_dir.path_join("%s-%d.png" % [n[0], i]))
 			var max_y := int(sc.get_v_scroll_bar().max_value - sc.size.y)
-			if y >= max_y or i >= 5:
+			if y >= max_y or i >= (14 if n[0] == "admin" else 5):
 				break
 			y = mini(y + 600, max_y)
 			i += 1
@@ -1182,7 +1202,7 @@ func _arrivals(delta: float) -> void:
 	# time whatever you are doing (arrivals while you are away nap at once).
 	# Solo walkers come along the edges in either mode. Nobody comes or goes
 	# while paused.
-	if paused or waiting_welcome:
+	if paused or waiting_welcome or admin.hold:
 		return
 	var present: bool = not presence.away
 	var timer: bool = settings.value("focus.mode") == "timer"
