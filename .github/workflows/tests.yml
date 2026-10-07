@@ -1,0 +1,50 @@
+# Runs the v3 headless tests (godot/*_test.gd, through run-tests.ps1) on every
+# push to v3 and every pull request into it. native_test.gd is left out: it
+# needs the native DLL, which is built with godot-cpp and SCons.
+
+name: Tests
+
+on:
+  push:
+    branches: [v3]
+  pull_request:
+    branches: [v3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  godot:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      GODOT_VERSION: 4.7.2
+      # From the GitHub release's asset digest; change both together.
+      GODOT_SHA256: 731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}\godot
+          key: godot-${{ env.GODOT_VERSION }}-win64
+
+      - name: Download Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $name = "Godot_v$env:GODOT_VERSION-stable_win64.exe.zip"
+          $zip = "$env:RUNNER_TEMP\$name"
+          Invoke-WebRequest "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION-stable/$name" -OutFile $zip
+          $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($sha -ne $env:GODOT_SHA256) { throw "The Godot download does not match its SHA-256 (got $sha)" }
+          Expand-Archive $zip "$env:RUNNER_TEMP\godot"
+
+      - name: Run the tests
+        shell: pwsh
+        run: |
+          $env:GODOT = "$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe"
+          .\run-tests.ps1
