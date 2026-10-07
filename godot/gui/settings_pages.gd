@@ -13,7 +13,6 @@ const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
-const AdminPage := preload("res://gui/admin_page.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"
 const TIER_NAMES := ["Common", "Rare", "Epic", "Legendary"]
@@ -49,7 +48,7 @@ func build(page: String, body: VBoxContainer) -> void:
 		"system": _system(body)
 		"admin":
 			if admin_page == null:
-				admin_page = AdminPage.new(w)
+				admin_page = load("res://gui/admin_page.gd").new(w)   # admin build only
 			admin_page.build(body)
 
 
