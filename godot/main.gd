@@ -72,7 +72,10 @@ const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
-const Admin := preload("res://admin.gd")
+# The Admin page (admin.gd, gui/admin_page.gd) is only in the admin build:
+# the player export leaves both files out (export_presets.cfg), so they are
+# loaded by path, never preloaded.
+const ADMIN_SCRIPT := "res://admin.gd"
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const Icons := preload("res://gui/icons.gd")
@@ -93,7 +96,7 @@ var t := 0.0
 
 var hosts := []
 var evaluator := Behaviours.new()
-var admin: Node                   # admin.gd: the Admin page's hands
+var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
 var admin_flag := false
 var admin_run := ""               # --admin-run=ACTION: an audit Run button, for testing
 var pairs := Pairs.new()
@@ -168,8 +171,9 @@ var grab_next := 2.0
 
 func _ready() -> void:
 	presence = Presence.new()
-	admin = Admin.new(self)
-	add_child(admin)
+	if ResourceLoader.exists(ADMIN_SCRIPT):
+		admin = load(ADMIN_SCRIPT).new(self)
+		add_child(admin)
 	var selftest := false
 	for arg in OS.get_cmdline_user_args():
 		var v := arg.get_slice("=", 1)
@@ -290,8 +294,6 @@ func _ready() -> void:
 	settings.load_file()
 	if beta_flag:
 		settings.set_value("system.beta", true)
-	if admin_flag:
-		settings.set_value("system.admin", true)
 	if not v2.is_empty():
 		settings.import_v2(v2)
 	Palette.theme = settings.value("system.theme")
@@ -396,7 +398,7 @@ func _ready() -> void:
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
 		h.critter.mode_left = INF
 		return
-	if admin_run != "":
+	if admin_run != "" and admin != null:
 		admin.hold = true
 		get_tree().create_timer(1.0).timeout.connect(func(): admin.run(admin_run))
 		return
@@ -1107,7 +1109,7 @@ func _run_toast_demo() -> void:
 func _tour() -> void:
 	# --settings-tour: every page, top to bottom, saved for checking by eye.
 	await get_tree().create_timer(1.5).timeout
-	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if settings.value("system.admin") else [])
+	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if admin_on() else [])
 	for n in tour_pages:
 		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
 			settings_win.pages.shop_try = shop_try_flag.get_slice(":", 0)
@@ -1128,6 +1130,11 @@ func _tour() -> void:
 			i += 1
 	print("TOUR done")
 	_quit(0)
+
+
+func admin_on() -> bool:
+	# The admin build always shows the Admin page; running from source, --admin.
+	return admin != null and (OS.has_feature("admin") or admin_flag)
 
 
 func open_settings(page := "", sp := "") -> void:
@@ -1202,7 +1209,7 @@ func _arrivals(delta: float) -> void:
 	# time whatever you are doing (arrivals while you are away nap at once).
 	# Solo walkers come along the edges in either mode. Nobody comes or goes
 	# while paused.
-	if paused or waiting_welcome or admin.hold:
+	if paused or waiting_welcome or (admin != null and admin.hold):
 		return
 	var present: bool = not presence.away
 	var timer: bool = settings.value("focus.mode") == "timer"
