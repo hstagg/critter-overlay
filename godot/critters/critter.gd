@@ -60,6 +60,7 @@ var worn: Array = []            # clothes on the head (wear.gd ids)
 var perk_moves: Array = []      # behaviours its perk clothes give it
 var _wear_nodes: Array = []            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var idles := []                # behaviours this species can do (species.gd)
+var version := ""              # a Rare or Epic version's art folder, "" for the Common look
 
 var world: Node                # host.gd's World: floor_y, left_x, right_x, mouse_local()
 var rng := RandomNumberGenerator.new()
@@ -184,23 +185,35 @@ func setup(world_ref: Node, x: float, face: int, start_mode: String) -> void:
 	squash = 1.0
 
 
+func art_key() -> String:
+	# The texture set this critter draws with: its species, or one of the
+	# species' Rare or Epic versions (art/<species>/<version>/).
+	return species if version == "" else "%s/%s" % [species, version]
+
+
 func _load_textures() -> void:
-	if _textures.has(species):
+	var key := art_key()
+	if _textures.has(key):
 		return
 	var tex := {}
 	for part in pivots.keys():
+		# A version folder holds only the parts it changes; the rest are the
+		# species' own.
+		var path := "res://art/%s/%s.svg" % [key, part]
+		if not FileAccess.file_exists(path):
+			path = "res://art/%s/%s.svg" % [species, part]
 		var img := Image.new()
-		img.load_svg_from_string(FileAccess.get_file_as_string("res://art/%s/%s.svg" % [species, part]), PART_SCALE)
+		img.load_svg_from_string(FileAccess.get_file_as_string(path), PART_SCALE)
 		img.generate_mipmaps()
 		tex[part] = ImageTexture.create_from_image(img)
-	_textures[species] = tex
+	_textures[key] = tex
 
 
 # --- Rig -------------------------------------------------------------------
 
 func _sprite(part: String) -> Sprite2D:
 	var s := Sprite2D.new()
-	s.texture = _textures[species][part]
+	s.texture = _textures[art_key()][part]
 	s.centered = false
 	s.position = -pivots[part] * PART_SCALE
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS

@@ -475,12 +475,13 @@ func _welcome_tour(w: Window) -> void:
 	_quit(0)
 
 
-func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := ""):
+func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := "", version := ""):
 	if sp == "":
 		sp = _pick_species()
 	if sp == "":
 		return null   # every species is switched off
 	var h = Host.new()
+	h.version = version
 	add_child(h)
 	h.setup(self, sp, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
@@ -972,26 +973,44 @@ func _wear_sheet() -> void:
 func _stills() -> void:
 	# --stills: every built species sitting (front) and walking (side), grabbed
 	# from the game itself, for the design boards.
-	fixed_count = Species.DATA.size()
-	var hs := []
-	var i := 0
+	# Every version folder too (art/<species>/<version>/), named species@version.
+	# The specials keep their colours in their own scripts, so they are grabbed
+	# as they come.
+	var jobs := []
 	for sp in Species.DATA.keys():
-		var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 420, 600), sp, "common")
-		h.critter._go_sit()
-		h.critter.mode_left = INF
-		h.critter.activity = 0.0
-		hs.append(h)
-		i += 1
-	await get_tree().create_timer(1.5).timeout
-	for h in hs:
-		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-front.png" % h.species))
-	for h in hs:
-		h.critter._go_walk()
-		h.critter.mode_left = INF
-	await get_tree().create_timer(1.2).timeout
-	for h in hs:
-		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-side.png" % h.species))
-	print("STILLS done ", hs.size())
+		jobs.append([sp, ""])
+		if Species.row(sp).get("special", false):
+			continue
+		for d in DirAccess.get_directories_at("res://art/%s" % sp):
+			jobs.append([sp, d])
+	fixed_count = jobs.size()
+	var done := 0
+	while done < jobs.size():
+		# A batch at a time, so the windows fit along the screen.
+		var batch: Array = jobs.slice(done, done + 4)
+		var hs := []
+		var i := 0
+		for j in batch:
+			var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 420, 600), j[0], "common", j[1])
+			h.critter._go_sit()
+			h.critter.mode_left = INF
+			h.critter.activity = 0.0
+			hs.append([h, j[0] + ("@" + j[1] if j[1] != "" else "")])
+			i += 1
+		await get_tree().create_timer(1.5).timeout
+		for e in hs:
+			e[0].win.get_texture().get_image().save_png(stills_dir.path_join("%s-front.png" % e[1]))
+		for e in hs:
+			e[0].critter._go_walk()
+			e[0].critter.mode_left = INF
+		await get_tree().create_timer(1.2).timeout
+		for e in hs:
+			e[0].win.get_texture().get_image().save_png(stills_dir.path_join("%s-side.png" % e[1]))
+			e[0].queue_free()
+			hosts.erase(e[0])
+		await get_tree().process_frame
+		done += batch.size()
+	print("STILLS done ", jobs.size())
 	_quit(0)
 
 
