@@ -79,7 +79,6 @@ const Icons := preload("res://gui/icons.gd")
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
-const SPECIAL_CHANCE := 0.004   # an arrival is a special visitor (about 1 in 250)
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
 const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
@@ -328,7 +327,10 @@ func _ready() -> void:
 	economy.row_completed.connect(_on_row_completed)
 	economy.bond_grew.connect(_on_bond_grew)
 	for sp in Species.DATA:
-		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "legendary")
+		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "epic")
+		if Species.row(sp).get("special", false):
+			economy.row_variants[sp] = Species.variants(sp)
+	economy.fold_old_tiers()
 	economy.rare_hour_changed.connect(_on_rare_hour)
 
 	toasts = Toasts.new()
@@ -476,10 +478,27 @@ func _welcome_tour(w: Window) -> void:
 
 
 func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := "", version := ""):
-	if sp == "":
+	# Every visitor rolls its rarity, with the session's luck, before it is
+	# made: a Rare or Epic is a different version of the species, and a
+	# Legendary is a special visitor. It goes in the Collection; a visit lasts
+	# a while, then it leaves. A critter redrawn at a new size keeps its tier.
+	var tier := keep_tier
+	var bonus := false
+	var rolled := false
+	if tier == "" and economy != null and demo == "":
+		var r: Array = _roll_visitor(sp)
+		sp = r[0]
+		tier = r[1]
+		bonus = r[2]
+		rolled = true
+	elif sp == "":
 		sp = _pick_species()
 	if sp == "":
 		return null   # every species is switched off
+	if force_tier != "":
+		tier = force_tier
+	if version == "" and tier != "":
+		version = Species.version_for(sp, tier)
 	var h = Host.new()
 	h.version = version
 	add_child(h)
@@ -488,30 +507,46 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	hosts.append(h)
 	_personalise(h)
 	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
-	# Every visitor rolls its rarity, with the session's luck, and goes in
-	# the Collection. A visit lasts a while, then it leaves. A critter
-	# redrawn at a new size keeps its tier.
-	if keep_tier != "":
-		h.tier = keep_tier
-	elif economy != null and demo == "":
-		var row: Dictionary = settings.species(sp)
-		var cap: String = Species.row(sp).get("rarity_max", "legendary")
-		if Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(cap):
-			cap = row.tier_max
-		var roll: Array = economy.roll_arrival(cap, row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
-		var rarity_on: bool = settings.value("world.rarity")
-		var tier: String = roll[0] if rarity_on else "common"
-		if Species.row(sp).get("special", false):
-			tier = "legendary"   # special visitors only ever come as Legendaries
-		h.tier = force_tier if force_tier != "" else tier
-		_announce(sp, h.tier, roll[1] and force_tier == "" and rarity_on)
+	if tier != "":
+		h.tier = tier
+	if rolled:
+		_announce(sp, h.tier, bonus and force_tier == "", str(h.critter.get("variant") if "variant" in h.critter else ""))
 		_maybe_bring(h)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
-	elif force_tier != "":
-		h.tier = force_tier   # --demo with --tier: an aura to look at
 	_trail_for(h)
 	return h
+
+
+func _roll_visitor(sp: String) -> Array:
+	# [species, tier, whether it was the day's first-visitor bonus]. The
+	# everyday species top out at Epic; a Legendary roll brings a special
+	# visitor instead (unless a species was asked for).
+	if sp == "":
+		sp = _pick_species()
+	if sp == "":
+		return ["", "", false]
+	if Species.is_special(sp):
+		return [sp, "legendary", false]
+	var rarity_on: bool = settings.value("world.rarity")
+	var row: Dictionary = settings.species(sp)
+	var roll: Array = economy.roll_arrival("legendary", row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
+	var tier: String = roll[0] if rarity_on else "common"
+	if tier == "legendary" and not species_fixed:
+		var special := _pick_special()
+		if special != "":
+			return [special, "legendary", roll[1]]
+	var top: String = Species.row(sp).get("rarity_max", "epic")
+	if Economy.TIERS.find(row.tier_max) >= 0 and Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(top):
+		top = row.tier_max
+	if Economy.TIERS.find(tier) > Economy.TIERS.find(top):
+		tier = top
+	return [sp, tier, roll[1]]
+
+
+func _pick_special() -> String:
+	var pool := Species.DATA.keys().filter(func(s): return Species.is_special(s) and settings.sp(s, "enabled"))
+	return pool.pick_random() if not pool.is_empty() else ""
 
 
 func _on_gift(index: int, berries: int, item: String) -> void:
@@ -657,13 +692,6 @@ func _pick_species() -> String:
 		economy.save()
 		if Species.has(called) and settings.sp(called, "enabled"):
 			return called
-	# Now and then a special visitor (unicorn, golden kitten) instead: they
-	# always arrive Legendary (see _spawn). A stand-in rate until the
-	# rarity redesign (vault plan, 7 Oct) settles how specials are found.
-	if randf() < SPECIAL_CHANCE:
-		var specials := Species.DATA.keys().filter(func(s): return Species.row(s).get("special", false) and settings.sp(s, "enabled"))
-		if not specials.is_empty():
-			return specials.pick_random()
 	var pool := []
 	var weights := []
 	var total := 0.0
@@ -903,13 +931,13 @@ func _quiet() -> bool:
 	return paused or (native != null and native.user_busy())
 
 
-func _announce(sp: String, tier: String, bonus: bool) -> void:
+func _announce(sp: String, tier: String, bonus: bool, variant := "") -> void:
 	# Records the sighting, then shows a toast if it is rare enough.
 	var had_legendary := false
 	for key in economy.collection:
 		if key.ends_with(":legendary"):
 			had_legendary = true
-	var first: bool = economy.record_sighting(sp, tier)
+	var first: bool = economy.record_sighting(sp, tier, variant)
 	var notes: String = settings.value("world.notes")
 	if notes == "off" or Economy.TIERS.find(tier) < Economy.TIERS.find(notes) or _quiet():
 		return
@@ -1224,11 +1252,18 @@ func quit_app() -> void:
 func collection_counts() -> Array:
 	var total := 0
 	var found := 0
+	# The Collection's slots: Common, Rare and Epic of each everyday species,
+	# and each colour variant of a Legendary visitor.
 	for sp in Species.DATA:
-		var cap := Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary"))
-		total += cap + 1
-		for i in cap + 1:
-			if economy.collection.has("%s:%s" % [sp, Economy.TIERS[i]]):
+		var keys := []
+		if Species.is_special(sp):
+			keys = Species.variants(sp).map(func(v): return "%s:legendary:%s" % [sp, v])
+		else:
+			for i in Economy.TIERS.find(Species.row(sp).get("rarity_max", "epic")) + 1:
+				keys.append("%s:%s" % [sp, Economy.TIERS[i]])
+		total += keys.size()
+		for k in keys:
+			if economy.collection.has(k):
 				found += 1
 	return [found, total]
 
@@ -1473,14 +1508,12 @@ func _update_tray() -> void:
 	var gift_min := -1.0
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
-	var total := 0
-	for sp in Species.DATA:
-		total += Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary")) + 1
+	var counts := collection_counts()
 	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
-		"away_min": presence.idle_s / 60.0, "found": economy.collection.size(),
-		"found_total": total, "berries": economy.berries})
+		"away_min": presence.idle_s / 60.0, "found": counts[0],
+		"found_total": counts[1], "berries": economy.berries})
 
 
 func note_pop() -> void:
