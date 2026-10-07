@@ -64,6 +64,7 @@ const DEFAULTS := {
 		"seen_log": true,
 		"onboarded": false,
 		"beta": false,             # beta testers only: odds and tier ranges can be changed (--beta)
+		"admin": false,            # the developer's Admin page (five clicks on the version, or --admin)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
 	},
