@@ -76,6 +76,17 @@ Turn each task into something verifiable before starting: a failing test, a `--s
 
 `.claude/skills/design-taste-frontend/` (Leonxlnx/taste-skill, MIT, pinned at ce26fc2) is for the marketing site and store page. Do not apply it to the Godot app's own UI, and skip its image-generation steps. It is large (about 22k tokens), so invoke it only for web page work.
 
+### The Admin page lands with every feature (v3)
+
+The v3 app has a developer-only Admin page (`godot/admin.gd`, `godot/gui/admin_page.gd`): spawn anything, play every move, force pairs and events, and the audit checklist. It lives on `main` like everything else, but only the admin build carries it:
+
+- `.\build-v3.ps1` builds the player installer (export preset "Windows Desktop"), which leaves both admin files out. Never ship anything else.
+- `.\build-v3.ps1 -Admin` builds `CritterOverlaySetup-<version>-admin.exe` (preset "Windows Admin", feature tag `admin`) for the developer's own machine.
+- From source: `godot --path godot -- --admin`. `--admin-run=ACTION` presses an audit Run button, for testing.
+- Nothing outside those two files may preload them: `main.gd` loads `admin.gd` by path only if it exists, and `main.admin` is null in the player build.
+
+**Rule:** a change that adds something the player can see or trigger also adds its Admin control and its audit check, in the same change. New species, versions, colours, moves, pairs and clothes appear on the page by themselves (it reads the game's own tables); a new kind of feature (a new event, a new screen, a new system) needs its own button in `admin.gd` and a line in `checks()` in `admin_page.gd`.
+
 ### Changes that require discussion first
 
 Before implementing any of these, stop and discuss:
