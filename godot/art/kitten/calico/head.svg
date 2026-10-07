@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" width="300" height="280"><ellipse cx="150" cy="122" rx="92" ry="74" fill="#FFF8F0" stroke="#6B4A3A" stroke-width="4"/><clipPath id="p5595"><ellipse cx="150.0" cy="122.0" rx="90.0" ry="72.0"/></clipPath><g clip-path="url(#p5595)"><ellipse cx="99.4" cy="88.7" rx="38.6" ry="28.1" fill="#F2A65E"/><ellipse cx="205.2" cy="107.2" rx="33.1" ry="31.1" fill="#4A4048"/></g>
+<ellipse cx="150" cy="153" rx="34" ry="22" fill="#FFF1E2"/>
+<path d="M138 60 q4 12 0 22 M150 56 q4 14 0 26 M162 60 q4 12 0 22" stroke="#FFF8F0" stroke-width="5" stroke-linecap="round" fill="none"/>
+<path d="M62 116 l16 3 M62 128 l14 0 M238 116 l-16 3 M238 128 l-14 0" stroke="#FFF8F0" stroke-width="4" stroke-linecap="round"/>
+<ellipse cx="88" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<ellipse cx="212" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<path d="M144 145 Q150 141 156 145 Q153 151 150 152 Q147 151 144 145 Z" fill="#E7837F" stroke="#6B4A3A" stroke-width="2" stroke-linejoin="round"/>
+<path d="M140 157 Q145 163 150 157 Q155 163 160 157" stroke="#6B4A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M60 146 l-20 -3 M60 154 l-20 3 M240 146 l20 -3 M240 154 l20 3" stroke="#6B4A3A" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>

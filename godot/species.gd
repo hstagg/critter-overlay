@@ -6,8 +6,12 @@ extends RefCounted
 ##   sound        sounds/<name>.wav, played on pop and throw
 ##   pop          particle colours for the pop burst (v2.0 PARTICLE_COLORS)
 ##   idles        the behaviours it can do (v2.0 IDLE_WHITELIST, by v3 name)
-##   rarity_max   the highest rarity tier it can spawn at (v2.0 rarity_max)
-##   special      a visitor that does not come in groups (unicorn, golden kitten)
+##   rarity_max   the highest tier it can arrive at: Epic for the everyday
+##                species, Legendary for the special visitors
+##   versions     its Rare and Epic looks: tier -> art folder in art/<species>/
+##                (none yet: it arrives in its Common look with the tier's glow)
+##   special      a Legendary visitor, never in groups (unicorn, golden kitten);
+##                its colour variants are its script's VARIANTS
 ##   gait         how it walks, in words, for Settings
 ##
 ## Speeds, gait and proportions live in each species' own script, since they
@@ -24,7 +28,7 @@ const DATA := {
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
 			"ear_flick", "tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen",
 			"hunt", "chase_tail"],
-		"rarity_max": "legendary",
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"rabbit": {
@@ -35,7 +39,7 @@ const DATA := {
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
 			"ear_flick", "tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen",
 			"nose_twitch", "stand_lookout"],
-		"rarity_max": "legendary",
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"duckling": {
@@ -46,7 +50,7 @@ const DATA := {
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
 			"ear_flick", "tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen",
 			"preen", "peck_ground"],
-		"rarity_max": "legendary",
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"hedgehog": {
@@ -57,7 +61,7 @@ const DATA := {
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
 			"ear_flick", "sneeze", "shake_off", "look_at_cursor", "listen",
 			"snuffle", "ball_up"],
-		"rarity_max": "legendary",
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"turtle": {
@@ -67,7 +71,8 @@ const DATA := {
 		"pop": [Color8(75, 148, 75), Color8(100, 175, 90), Color8(180, 220, 100)],
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "sneeze", "shake_off",
 			"look_at_cursor", "listen", "head_tuck"],
-		"rarity_max": "legendary",
+		"versions": {"rare": "sprout", "epic": "hatchling"},
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"squirrel": {
@@ -77,7 +82,8 @@ const DATA := {
 		"pop": [Color8(224, 130, 63), Color8(244, 176, 122), Color8(255, 240, 221)],
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "ear_flick",
 			"tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen", "chitter"],
-		"rarity_max": "legendary",
+		"versions": {"rare": "cinnamon"},
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"otter": {
@@ -87,7 +93,7 @@ const DATA := {
 		"pop": [Color8(125, 85, 55), Color8(192, 158, 125), Color8(215, 195, 168)],
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "ear_flick",
 			"tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen", "belly_roll"],
-		"rarity_max": "legendary",
+		"rarity_max": "epic",
 		"special": false,
 	},
 	"panda": {
@@ -97,7 +103,8 @@ const DATA := {
 		"pop": [Color8(242, 242, 242), Color8(59, 52, 55), Color8(160, 160, 160)],
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "ear_flick",
 			"sneeze", "shake_off", "look_at_cursor", "listen", "panda_roll"],
-		"rarity_max": "legendary",
+		"versions": {"rare": "bamboo", "epic": "brown"},
+		"rarity_max": "epic",
 		"special": false,
 	},
 	# Special visitors: Legendary only, never in groups, each in secret
@@ -124,6 +131,23 @@ const DATA := {
 		"special": true,
 	},
 }
+
+
+static func is_special(id: String) -> bool:
+	return bool(row(id).get("special", false))
+
+
+static func version_for(id: String, tier: String) -> String:
+	# The art folder for this species at this tier, "" for its Common look.
+	return row(id).get("versions", {}).get(tier, "")
+
+
+static func variants(id: String) -> Array:
+	# A Legendary visitor's colour variants, commonest first.
+	var consts: Dictionary = row(id)["script"].get_script_constant_map()
+	if not consts.has("VARIANTS"):
+		return []
+	return consts["VARIANTS"].map(func(v): return v[0])
 
 
 static func has(id: String) -> bool:

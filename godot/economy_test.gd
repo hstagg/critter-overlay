@@ -99,17 +99,18 @@ func _init() -> void:
 	# --- Rarity: base odds at luck 1, caps.
 	var r = fresh(path + ".r")
 	r.rare_hour_enabled = false   # Rare Hour is checked on its own below
-	var counts := {"common": 0, "uncommon": 0, "rare": 0, "epic": 0, "legendary": 0}
+	var counts := {"common": 0, "rare": 0, "epic": 0, "legendary": 0}
 	for i in 200000:
 		counts[r.roll_tier()] += 1
-	check(absf(counts["rare"] / 200000.0 - 0.02) < 0.003, "rare near 2%% at luck 1 (got %.4f)" % (counts["rare"] / 200000.0))
-	check(absf(counts["uncommon"] / 200000.0 - 0.07) < 0.005, "uncommon near 7%%")
+	check(absf(counts["rare"] / 200000.0 - 0.04) < 0.004, "rare near 4%% at luck 1 (got %.4f)" % (counts["rare"] / 200000.0))
+	check(absf(counts["epic"] / 200000.0 - 0.009) < 0.002, "epic near 0.9%% (got %.4f)" % (counts["epic"] / 200000.0))
+	check(absf(counts["common"] / 200000.0 - 0.95) < 0.005, "common near 95%%, Uncommon gone")
 	r.session_min = 120.0
 	var lucky := 0
 	for i in 200000:
 		if r.roll_tier() in ["rare", "epic", "legendary"]:
 			lucky += 1
-	check(absf(lucky / 200000.0 - 0.026 * 3.0) < 0.006, "rare+ about triples at full luck (got %.4f)" % (lucky / 200000.0))
+	check(absf(lucky / 200000.0 - 0.05 * 3.0) < 0.008, "rare+ about triples at full luck (got %.4f)" % (lucky / 200000.0))
 	var capped_ok := true
 	for i in 50000:
 		if r.roll_tier("epic") == "legendary":
@@ -132,7 +133,7 @@ func _init() -> void:
 	for i in 200000:
 		if h.roll_tier() in ["rare", "epic", "legendary"]:
 			boosted += 1
-	check(absf(boosted / 200000.0 - 0.026 * 2.0) < 0.005, "rare+ about doubles in Rare Hour (got %.4f)" % (boosted / 200000.0))
+	check(absf(boosted / 200000.0 - 0.05 * 2.0) < 0.006, "rare+ about doubles in Rare Hour (got %.4f)" % (boosted / 200000.0))
 	h.rare_hour_enabled = false
 	check(not h.in_rare_hour(), "Rare Hour off in settings means never")
 	h.rare_hour_enabled = true
@@ -154,7 +155,7 @@ func _init() -> void:
 		f.first_bonus_day = ""
 		bonus[f.roll_arrival("epic")[0]] += 1
 	check(bonus["legendary"] == 0, "the bonus respects a species capped at Epic")
-	check(absf(bonus["rare"] / 20000.0 - 0.7) < 0.02, "the bonus is about 70%% Rare (got %.3f)" % (bonus["rare"] / 20000.0))
+	check(absf(bonus["rare"] / 20000.0 - 0.78) < 0.02, "the bonus is about 78%% Rare (got %.3f)" % (bonus["rare"] / 20000.0))
 	f.save()
 	var f2 = fresh(path + ".f")
 	f2.load_save()
@@ -231,11 +232,30 @@ func _init() -> void:
 	check(ff.berries == b_before + 40, "a first Rare find pays 40 berries")
 	ff.record_sighting("panda", "rare")
 	check(ff.berries == b_before + 40, "a repeat pays nothing")
-	for t in ["common", "uncommon", "epic"]:
+	for t in ["common", "epic"]:
 		ff.record_sighting("panda", t)
 	check(rows == ["panda"] and ff.row_complete("panda"), "meeting every tier a species can roll completes its row, once")
-	check(ff.berries == b_before + 40 + 5 + 15 + 100 + 500, "first finds and the row bonus add up (got %d)" % (ff.berries - b_before))
+	check(ff.berries == b_before + 40 + 5 + 100 + 500, "first finds and the row bonus add up (got %d)" % (ff.berries - b_before))
+	# A Legendary visitor: a slot per secret colour, each a first find.
+	ff.row_variants = {"unicorn": ["lavender", "sky"]}
+	check(ff.record_sighting("unicorn", "legendary", "lavender"), "a Legendary visitor's first colour is a first find")
+	check(ff.record_sighting("unicorn", "legendary", "sky"), "and so is a new colour of it")
+	check(not ff.record_sighting("unicorn", "legendary", "sky"), "a colour met before is not")
+	check(ff.row_complete("unicorn") and rows == ["panda", "unicorn"], "every colour met completes a visitor's row")
+	check(ff.sightings[-1].get("variant") == "sky", "the diary keeps the colour")
 	ff.free()
+
+	# --- Saves from before four tiers fold in.
+	var fo = fresh(path + ".fo")
+	fo.row_caps = {"kitten": "epic", "unicorn": "legendary"}
+	fo.row_variants = {"unicorn": ["lavender"]}
+	fo.collection = {"kitten:uncommon": {"first": 5, "count": 3}, "kitten:common": {"first": 9, "count": 2},
+		"kitten:legendary": {"first": 7, "count": 1}, "unicorn:legendary": {"first": 8, "count": 1}}
+	fo.fold_old_tiers()
+	check(not fo.collection.has("kitten:uncommon") and fo.collection["kitten:common"]["count"] == 5 and fo.collection["kitten:common"]["first"] == 5, "an Uncommon find becomes Common (got %s)" % [fo.collection])
+	check(not fo.collection.has("kitten:legendary") and fo.collection.has("kitten:epic"), "an everyday Legendary becomes Epic")
+	check(fo.collection.has("unicorn:legendary"), "a visitor's Legendary stays")
+	fo.free()
 
 	# --- Bond.
 	var bd = fresh(path + ".bond")

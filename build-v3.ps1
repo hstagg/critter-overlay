@@ -2,6 +2,7 @@
 #
 #   .\build-v3.ps1                  # version 3.0.0
 #   .\build-v3.ps1 -Version 3.0.1
+#   .\build-v3.ps1 -Admin           # the developer's build, with the Admin page
 #
 # Steps: native DLL (release) -> Godot export -> exe icon and version
 # (rcedit) -> Inno Setup installer in installer\output\.
@@ -13,10 +14,15 @@
 #   SCons for the native DLL      SCONS_PYTHON (a python with scons), and
 #                                 godot-cpp beside this repo (see native\README.md)
 # -SkipNative uses the DLL already in godot\bin.
+# -Admin exports the "Windows Admin" preset (feature tag "admin", with
+# admin.gd and gui/admin_page.gd) to build-admin\ and names the installer
+# CritterOverlaySetup-<version>-admin.exe. Never ship it: the player preset
+# ("Windows Desktop") leaves the Admin page out entirely.
 
 param(
     [string]$Version = "3.0.0",
-    [switch]$SkipNative
+    [switch]$SkipNative,
+    [switch]$Admin
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +40,7 @@ function Find([string]$envName, [string[]]$names, [string[]]$paths) {
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 3.0.0" }
 
 $godot = Find "GODOT" @("godot_console", "godot") @()
-$rcedit = Find "RCEDIT" @("rcedit-x64.exe", "rcedit") @()
+$rcedit = Find "RCEDIT" @("rcedit-x64.exe", "rcedit") @("$Root\..\tools\rcedit-x64.exe")
 $iscc = Find "ISCC" @("ISCC.exe") @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe", "C:\Program Files\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe")
 
 # The version shown in the app (main.gd VERSION) must match.
@@ -63,10 +69,11 @@ Get-ChildItem "$Root\godot\art" -Recurse -Filter *.svg | ForEach-Object {
 }
 & $godot --headless --path "$Root\godot" --import
 
-$out = "$Root\build"
+$preset = if ($Admin) { "Windows Admin" } else { "Windows Desktop" }
+$out = if ($Admin) { "$Root\build-admin" } else { "$Root\build" }
 if (Test-Path $out) { Remove-Item "$out\*" -Recurse -Force }
 New-Item -ItemType Directory -Force $out | Out-Null
-& $godot --headless --path "$Root\godot" --export-release "Windows Desktop" "$out\CritterOverlay.exe"
+& $godot --headless --path "$Root\godot" --export-release $preset "$out\CritterOverlay.exe"
 if (-not (Test-Path "$out\CritterOverlay.exe")) { throw "export failed" }
 
 Step "[3/4] Icon and version"
@@ -79,9 +86,10 @@ if ($LASTEXITCODE -ne 0) { throw "rcedit failed" }
 
 Step "[4/4] Installer"
 Push-Location "$Root\installer"
-& $iscc "/DMyAppVersion=$Version" "installer-v3.iss"
+$setup = if ($Admin) { "CritterOverlaySetup-$Version-admin" } else { "CritterOverlaySetup-$Version" }
+& $iscc "/DMyAppVersion=$Version" "/DBuildDir=$out" "/F$setup" "installer-v3.iss"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Inno Setup failed" }
 Pop-Location
 
 Write-Host ""
-Write-Host "Built installer\output\CritterOverlaySetup-$Version.exe" -ForegroundColor Green
+Write-Host "Built installer\output\$setup.exe" -ForegroundColor Green
