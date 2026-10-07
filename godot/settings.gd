@@ -22,7 +22,7 @@ const ACTIVITY_NAMES := ["wired", "active", "normal", "lazy", "sleepy", "narcole
 const VISITS := [0.1, 1.0, 3.0, 5.0]
 const VISIT_NAMES := ["Seldom", "Normal", "Often", "Constant"]
 const TRAILS := ["none", "dots", "stars", "sparkles", "bubbles", "glitter", "hearts"]
-const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
+const TIERS := ["common", "rare", "epic", "legendary"]
 
 const DEFAULTS := {
 	"critters": {"size": 120, "opacity": 100},
@@ -47,7 +47,7 @@ const DEFAULTS := {
 		"behaviour_freq": 1.0,     # 0.3 to 2.0
 		"pairs": true,
 		"rarity": true,
-		"odds": {"common": 90.4, "uncommon": 7.0, "rare": 2.0, "epic": 0.5, "legendary": 0.1},
+		"odds": {"common": 95.0, "rare": 4.0, "epic": 0.9, "legendary": 0.1},
 		"first_bonus": true,
 		"notes": "rare",           # off | rare | epic | legendary
 		"rare_hour": true,
@@ -65,13 +65,14 @@ const DEFAULTS := {
 		"onboarded": false,
 		"beta": false,             # beta testers only: odds and tier ranges can be changed (--beta)
 		"updates": "download",     # off | tell | download (and tell)
+		"admin": false,            # the developer's Admin page (five clicks on the version, or --admin)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
 	},
 }
 
 const SPECIES_DEFAULTS := {"enabled": true, "visits": 1, "speed": 2, "activity": 2, "trail": "none",
-	"tier_min": "common", "tier_max": "legendary", "sound": true}
+	"tier_min": "common", "tier_max": "epic", "sound": true}
 
 var path := "user://settings.json"
 var data := {}
@@ -159,14 +160,19 @@ func species(id: String) -> Dictionary:
 	var out := SPECIES_DEFAULTS.duplicate()
 	if id == "kitten":
 		out["visits"] = 2          # v2.0: kittens come often
-	if id in ["turtle", "panda"]:
-		out["tier_max"] = "epic"   # v2.0's caps
 	var mine: Dictionary = data.get("species", {}).get(id, {})
 	var keep_tiers := [out.tier_min, out.tier_max]
 	out.merge(mine, true)
 	if not beta():
 		out.tier_min = keep_tiers[0]   # tier ranges are for beta testers only
 		out.tier_max = keep_tiers[1]
+	# Saved before the four tiers: Uncommon became Common, and an everyday
+	# species tops out at Epic (Legendary is the special visitors).
+	for k in ["tier_min", "tier_max"]:
+		if out[k] == "uncommon" or not out[k] in TIERS:
+			out[k] = "common" if k == "tier_min" else "epic"
+		elif out[k] == "legendary":
+			out[k] = "epic"
 	return out
 
 

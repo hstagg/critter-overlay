@@ -4,6 +4,7 @@ extends Node
 
 const Economy := preload("res://economy.gd")
 const Collection := preload("res://gui/collection.gd")
+const Species := preload("res://species.gd")
 
 var grab := ""
 var seconds := 0.0
@@ -22,14 +23,17 @@ func _ready() -> void:
 	var e = Economy.new()
 	e.save_path = OS.get_temp_dir().path_join("critter_collection_demo.json")
 	var now := Time.get_unix_time_from_system()
-	var made := [["kitten", "common", 9], ["kitten", "uncommon", 2], ["kitten", "rare", 1],
-		["rabbit", "common", 6], ["rabbit", "rare", 1], ["rabbit", "epic", 1]]
+	for sp in Species.DATA:
+		if Species.is_special(sp):
+			e.row_variants[sp] = Species.variants(sp)
+	var made := [["kitten", "common", 9], ["kitten", "rare", 2], ["kitten", "epic", 1],
+		["rabbit", "common", 6], ["rabbit", "rare", 1], ["unicorn", "legendary", 1, "lavender"]]
 	var clock := now - 5 * 86400.0
 	for m in made:
 		for i in m[2]:
 			clock += 3600.0 * 7
 			e.now_fn = func() -> float: return clock
-			e.record_sighting(m[0], m[1])
+			e.record_sighting(m[0], m[1], m[3] if m.size() > 3 else "")
 	add_child(e)
 	# The Collection is a Settings page now; here it sits in a plain window.
 	win = Window.new()

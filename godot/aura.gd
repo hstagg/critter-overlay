@@ -6,25 +6,37 @@ extends Node2D
 ## `front` in front of it. Both sit in the host's spin node, so they turn with
 ## an edge walker and fade with a leaving critter.
 ##
-##   Uncommon   a soft mint glow, leaves drifting up
-##   Rare       a blue glow, diamonds, twinkling glints
-##   Epic       a rose glow, stars, glints, stars orbiting the body
-##   Legendary  a gold glow, turning sunburst rays, a spinning prism ring,
-##              rainbow sparkles, two pulse rings, orbiting sparkles, and a
-##              crown that floats above the head
+##   Rare       a faint blue glow, a few diamonds, the odd glint
+##   Epic       a soft rose glow, stars, glints, two stars orbiting the body
+##   Legendary  a calm glow of the visitor's own (LEGENDARY): the unicorn's
+##              pastel stars rising and orbiting; the golden kitten's gold
+##              glints and a faint, slow sunburst, and for its royal colour
+##              a crown floating above the head
+##
+## Made subtler on 7 Oct 2026, when the tiers became four: a Rare or Epic is
+## a different version of the critter now, so the look carries the rarity
+## and the aura only hints at it.
 ##
 ## Sizes are the canvas's, which drew the window at twice game size: one
 ## canvas px is half a game px, times the critter zoom.
 
 const TIER := {
 	#            colour     deep       glow  min  max   rise motes glints orbs
-	"uncommon": ["#86D9B0", "#2F9E6C", 240, 0.30, 0.50, 120, 4, 0, 0],
-	"rare": ["#7FBCF5", "#2F7FD0", 270, 0.40, 0.65, 150, 6, 3, 0],
-	"epic": ["#F590B4", "#D6457C", 300, 0.50, 0.78, 165, 8, 4, 3],
-	"legendary": ["#FFCF5C", "#D9961A", 330, 0.60, 0.92, 185, 12, 6, 5],
+	"rare": ["#7FBCF5", "#2F7FD0", 240, 0.20, 0.36, 130, 3, 2, 0],
+	"epic": ["#F590B4", "#D6457C", 270, 0.28, 0.46, 150, 5, 3, 2],
+	"legendary": ["#FFCF5C", "#D9961A", 290, 0.32, 0.52, 150, 5, 3, 0],
+}
+# Each Legendary visitor's own aura, over the Legendary row. motes/orbs: the
+# colours of the rising and orbiting shapes; rays: the sunburst's strength
+# (0 for none); crown: the colour variants that wear one.
+const LEGENDARY := {
+	"unicorn": {"row": ["#E9B8F2", "#A77BD6", 290, 0.30, 0.50, 165, 7, 3, 4],
+		"shape": "epic", "motes": ["#F7B6D2", "#C8A8FF", "#A8D8FF", "#FFF0A8", "#B8F0D4"],
+		"orbs": ["#F7B6D2", "#C8A8FF", "#A8D8FF", "#FFF0A8"], "rays": 0.0, "crown": []},
+	"golden_kitten": {"row": ["#FFCF5C", "#D9961A", 290, 0.32, 0.52, 150, 4, 5, 0],
+		"shape": "legendary", "motes": ["#FFE08A", "#FFFFFF"], "orbs": [], "rays": 0.16, "crown": ["royal"]},
 }
 const SHAPE := {
-	"uncommon": "M10 3c4 3.2 5.6 6.2 5.6 8.6a5.6 5.6 0 0 1-11.2 0C4.4 9.2 6 6.2 10 3z",
 	"rare": "M10 2.5 16.8 10 10 17.5 3.2 10z",
 	"epic": "M10 2.4l2.3 4.8 5.2.6-3.9 3.6 1.1 5.2L10 14l-4.7 2.6 1.1-5.2-3.9-3.6 5.2-.6z",
 	"legendary": "M10 1.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z",
@@ -32,9 +44,8 @@ const SHAPE := {
 const Wear := preload("res://wear.gd")
 const SPARKLE := "M10 1.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z"
 const CROWN := "M3 15.5h14l1.2-9.2-4.6 3.6L10 3.8 6.4 9.9 1.8 6.3z"
-# Legendary sparkles cycle through these (the prism look).
+# A Legendary visitor without its own aura: rainbow sparkles.
 const RAINBOW := ["#F590B4", "#FFFFFF", "#7FBCF5", "#FFFFFF", "#86D9B0", "#FFFFFF"]
-const PRISM := ["#FFCF5C", "#F590B4", "#C8A8FF", "#7FBCF5", "#86D9B0", "#FFE08A", "#FFCF5C"]
 const RASTER := 64.0              # px the shapes are rasterised at
 
 # The crown floats this far above the head's pivot, in canvas px.
@@ -55,7 +66,9 @@ var _deep: Color
 var _glow: Texture2D
 var _mote: Array = []             # a texture per mote
 var _glint: Texture2D
-var _orb: Texture2D
+var _orb: Array = []              # a texture per orbiting shape
+var _rays := 0.0                  # the sunburst's strength
+var _crowned := false
 var _crown: Texture2D
 var _spark: Texture2D
 
@@ -69,6 +82,18 @@ func setup(tier_name: String, species_id: String, critter_node, zoom: float, foo
 	critter = critter_node
 	k = 0.5 * zoom
 	_row = TIER[tier]
+	var shape: String = SHAPE[tier]
+	var motes := [_row[0]]
+	var orbs := [_row[0]]
+	if tier == "legendary":
+		var own: Dictionary = LEGENDARY.get(species, {})
+		_row = own.get("row", _row)
+		shape = SHAPE[own.get("shape", "legendary")]
+		motes = own.get("motes", RAINBOW)
+		orbs = own.get("orbs", [])
+		_rays = own.get("rays", 0.0)
+		var variant = critter.get("variant") if critter != null else null
+		_crowned = variant != null and str(variant) in own.get("crown", [])
 	_c = Color(_row[0])
 	_deep = Color(_row[1])
 	# The feet sit `foot_drop` px below the window's middle, the body's middle 36 px
@@ -77,10 +102,10 @@ func setup(tier_name: String, species_id: String, critter_node, zoom: float, foo
 	_glow = _glow_texture(_row[0])
 	var n: int = _row[6]
 	for i in n:
-		var fill: String = RAINBOW[i % RAINBOW.size()] if tier == "legendary" else _row[0]
-		_mote.append(_shape(SHAPE[tier], fill, _row[1]))
+		_mote.append(_shape(shape, motes[i % motes.size()], _row[1]))
 	_glint = _shape(SPARKLE, "#FFFFFF", _row[1])
-	_orb = _shape(SHAPE[tier], _row[0], _row[1])
+	for i in _row[8]:
+		_orb.append(_shape(shape, orbs[i % orbs.size()] if not orbs.is_empty() else _row[0], _row[1]))
 	_crown = _shape(CROWN, "#FFCF5C", "#A86F00", '<circle cx="10" cy="12.2" r="1.6" fill="#FFFFFF"/>')
 	_spark = _shape(SPARKLE, "#FFFFFF", "#D9961A")
 	front = Node2D.new()
@@ -177,23 +202,15 @@ func _draw() -> void:
 
 	if simple:
 		return
-	if tier == "legendary":
+	if _rays > 0.0:
 		_draw_rays()
-		_draw_prism()
-		for delay in [0.0, 2.25]:
-			_draw_ring(fposmod(t + delay, 4.5) / 4.5)
 	_draw_orbs(self, false)
 
 
 func _draw_rays() -> void:
-	# Twelve rays 7 degrees wide, turning once in 26 s; the burst breathes.
-	var a := lerpf(0.55, 0.95, 0.5 - 0.5 * cos(TAU * t / 4.0))
-	_spin_texture(_rays_texture(_row[0]), RAYS_R, TAU * t / 26.0, a)
-
-
-func _draw_prism() -> void:
-	# The rainbow ring, turning once in 9 s.
-	_spin_texture(_prism_texture(), PRISM_R, TAU * t / 9.0, 1.0)
+	# Twelve rays 7 degrees wide, turning once a minute; the burst breathes.
+	var a := _rays * lerpf(0.6, 1.0, 0.5 - 0.5 * cos(TAU * t / 6.0))
+	_spin_texture(_rays_texture(_row[0]), RAYS_R, TAU * t / 60.0, a)
 
 
 func _spin_texture(tex: Texture2D, canvas_r: float, rot: float, alpha: float) -> void:
@@ -203,10 +220,9 @@ func _spin_texture(tex: Texture2D, canvas_r: float, rot: float, alpha: float) ->
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-# The sunburst and the prism ring are drawn once into textures and turned,
-# not built from polygons each frame (that cost 40 fps with eight).
+# The sunburst is drawn once into a texture and turned, not built from
+# polygons each frame (that cost 40 fps with eight).
 const RAYS_R := 173.0             # canvas px: rays fade in from 46, full at 76, gone by 173
-const PRISM_R := 122.0            # canvas px: ring fades 110-113 in, 118-122 out
 const BAKE := 256                 # px across
 
 
@@ -242,60 +258,19 @@ static func _rays_texture(colour: String) -> Texture2D:
 	return tex
 
 
-static func _prism_texture() -> Texture2D:
-	if _cache.has("prism"):
-		return _cache["prism"]
-	var img := Image.create(BAKE, BAKE, false, Image.FORMAT_RGBA8)
-	var half := BAKE * 0.5
-	var px := PRISM_R / half
-	for y in BAKE:
-		for x in BAKE:
-			var d := Vector2(x + 0.5 - half, y + 0.5 - half)
-			var r := d.length() * px
-			var a := 0.0
-			if r > 109.6 and r < 113.1:
-				a = (r - 109.6) / 3.5
-			elif r >= 113.1 and r <= 118.5:
-				a = 1.0
-			elif r > 118.5 and r < 122.0:
-				a = (122.0 - r) / 3.5
-			# CSS conic: from the top, clockwise.
-			var f := fposmod(d.angle() + PI * 0.5, TAU) / TAU
-			img.set_pixel(x, y, Color(_prism_colour(f), 0.9 * a))
-	var tex := ImageTexture.create_from_image(img)
-	_cache["prism"] = tex
-	return tex
-
-
-static func _prism_colour(f: float) -> Color:
-	var x := f * (PRISM.size() - 1)
-	var i := mini(int(x), PRISM.size() - 2)
-	return Color(PRISM[i]).lerp(Color(PRISM[i + 1]), x - i)
-
-
-func _draw_ring(p: float) -> void:
-	# A ring 150 canvas px across grows to 2.3 times and fades, in the first
-	# 45% of its 4.5 s.
-	if p >= 0.45:
-		return
-	var scale := lerpf(1.0, 2.3, _ease_out(p / 0.45))
-	var a := _keys(p, [[0.0, 0.0], [0.08, 0.9], [0.45, 0.0]], false)
-	draw_arc(centre, 75.0 * k * scale, 0.0, TAU, 64, Color(_c, a), maxf(3.0 * k, 1.0), true)
-
-
 func _draw_orbs(on: CanvasItem, near: bool) -> void:
 	# Round an ellipse 122 by 34 canvas px, 14 below the middle, once in
 	# 5.5 s; in front of the critter on the near half, behind it (dimmer) on
 	# the far half.
-	var n: int = _row[8]
+	var n: int = _orb.size()
 	for i in n:
-		var p := fposmod(t / 5.5 + float(i) / n, 1.0)
+		var p := fposmod(t / 7.0 + float(i) / n, 1.0)
 		var front_half := p < 0.5
 		if front_half != near:
 			continue
 		var th := TAU * p
 		var at := _at(Vector2(122.0 * cos(th), 14.0 + 34.0 * sin(th)))
-		_sprite(on, _orb, at, 13.0, 0.0, 1.0 if near else 0.75)
+		_sprite(on, _orb[i], at, 12.0, 0.0, 0.85 if near else 0.55)
 
 
 # --- In front of the critter ------------------------------------------------------
@@ -326,7 +301,7 @@ func _draw_front() -> void:
 	if not simple:
 		_draw_orbs(front, true)
 
-	if tier == "legendary" and critter != null and is_instance_valid(critter) and critter.head != null:
+	if _crowned and critter != null and is_instance_valid(critter) and critter.head != null:
 		var head := front.to_local(critter.head.global_position)
 		var lift: float = CROWN_LIFT.get(species, 95.0)
 		for id in critter.worn:

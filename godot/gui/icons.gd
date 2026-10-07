@@ -37,7 +37,6 @@ const LINE := {
 # Each tier has its own shape as well as its colour, so tiers read without colour.
 const TIER_SHAPE := {
 	"common": '<circle cx="10" cy="10" r="6.5"/>',
-	"uncommon": '<path d="M10 3c4 3.2 5.6 6.2 5.6 8.6a5.6 5.6 0 0 1-11.2 0C4.4 9.2 6 6.2 10 3z"/>',
 	"rare": '<path d="M10 2.5 16.8 10 10 17.5 3.2 10z"/>',
 	"epic": '<path d="M10 2.4l2.3 4.8 5.2.6-3.9 3.6 1.1 5.2L10 14l-4.7 2.6 1.1-5.2-3.9-3.6 5.2-.6z"/>',
 	"legendary": '<path d="M3 15.5h14l1.2-9.2-4.6 3.6L10 3.8 6.4 9.9 1.8 6.3z"/>',
