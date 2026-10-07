@@ -7,6 +7,14 @@
 ; AppId is v2.0's, unchanged: installing v3 upgrades a v2.0 install in place
 ; (same folder, same Start menu entry), and the startup entry keeps v2.0's
 ; name (CritterOverlay), so a user's start-with-Windows choice carries over.
+;
+; One-click updates (godot/updater.gd) run this installer with:
+;   /SILENT or /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS
+;   /LOG=<file>  /UPDATE=1  [/RELAUNCH=<path to CritterOverlay.exe>]
+; /UPDATE=1 waits for the app, which has just been told to quit, to let go of
+; its mutex. /RELAUNCH starts the app again afterwards, whether the install
+; went through or not, so nobody is left without their critters. A manual
+; install behaves as before.
 
 #define MyAppName "Critter Overlay"
 #define MyAppPublisher "hstagg"
@@ -70,6 +78,34 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 
 var
   ShouldDeleteAppData: Boolean;
+
+function InitializeSetup(): Boolean;
+var
+  Waited: Integer;
+begin
+  // The app's single-instance mutex (main.gd). Restart Manager
+  // (CloseApplications) remains the backstop if it is still held.
+  if ExpandConstant('{param:UPDATE|0}') = '1' then
+  begin
+    Waited := 0;
+    while CheckForMutexes('CritterOverlay.v3') and (Waited < 15000) do
+    begin
+      Sleep(250);
+      Waited := Waited + 250;
+    end;
+  end;
+  Result := True;
+end;
+
+procedure DeinitializeSetup();
+var
+  Path: String;
+  Code: Integer;
+begin
+  Path := ExpandConstant('{param:RELAUNCH|}');
+  if (Path <> '') and FileExists(Path) then
+    ExecAsOriginalUser(Path, '', '', SW_SHOWNORMAL, ewNoWait, Code);
+end;
 
 function InitializeUninstall(): Boolean;
 begin
