@@ -64,6 +64,7 @@ const DEFAULTS := {
 		"seen_log": true,
 		"onboarded": false,
 		"beta": false,             # beta testers only: odds and tier ranges can be changed (--beta)
+		"updates": "download",     # off | tell | download (and tell)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
 	},

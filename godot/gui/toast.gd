@@ -5,13 +5,12 @@ extends Node
 ## the taskbar. Up to three: the newest sits nearest the corner and older ones
 ## move up. Each stays six seconds, shown by the bar running down; hovering
 ## pauses it. A toast never takes keyboard focus. Clicking one opens the
-## Collection; the cross dismisses it.
+## Collection (an update note does what it says instead); the cross dismisses it.
 ##
 ## main.gd decides when to show one (and stays quiet while paused or while a
 ## full-screen app has the screen); this file only draws and stacks them.
 
 signal open_collection(species: String)
-signal closed(url: String)
 
 const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
@@ -42,7 +41,8 @@ class Toast extends RefCounted:
 	var bar: ProgressBar
 	var critter: Node2D
 	var species := ""
-	var url := ""                # an update note opens this instead
+	var click := Callable()      # an update note does this instead
+	var on_close := Callable()   # and this when closed with the cross
 	var left := LIFE
 	var hovered := false
 	var age := 0.0
@@ -115,19 +115,21 @@ func show_rare_hour(until: String, boost: float) -> void:
 	_push(t)
 
 
-func show_update(version: String, url: String) -> void:
-	# A new version is out: click to see it, close to not be told again.
+func show_update(kicker: String, title: String, sub: String, click: Callable, on_close := Callable()) -> void:
+	# About a new version: ready to install, out, installed, or not. Clicking
+	# does click; main.gd uses on_close to not tell of that version again.
 	var dark := Palette.is_dark()
 	var c := Palette.colours(dark)
 	var t := Toast.new()
-	t.url = url
+	t.click = click
+	t.on_close = on_close
 	t.left = LIFE * 3.0
 	var well := _well(c.surface, c.outline)
 	var ic := UI.icon(Icons.line("update", 28, c.acc_ink))
 	ic.size = Vector2(60, 60)
 	well.add_child(ic)
-	_build(t, c, c.surface, c.accent, 2, well, UI.label("UPDATE", 12, c.acc_ink, 600, true),
-		"Version %s is out" % version, "Click to see what is new and download it.", c.ink2, c.track)
+	_build(t, c, c.surface, c.accent, 2, well, UI.label(kicker.to_upper(), 12, c.acc_ink, 600, true),
+		title, sub, c.ink2, c.track)
 	_push(t)
 
 
@@ -178,8 +180,8 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 	card.mouse_exited.connect(func(): t.hovered = false)
 	card.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-			if t.url != "":
-				OS.shell_open(t.url)
+			if t.click.is_valid():
+				t.click.call()
 			elif t.species != "":
 				open_collection.emit(t.species)
 			_dismiss(t))
@@ -224,7 +226,8 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 	close.add_theme_stylebox_override("hover", UI.box(c.div, 15))
 	close.add_theme_stylebox_override("pressed", UI.box(c.track, 15))
 	close.pressed.connect(func():
-		closed.emit(t.url)
+		if t.on_close.is_valid():
+			t.on_close.call()
 		_dismiss(t))
 	row.add_child(close)
 

@@ -19,7 +19,6 @@ const TIER_NAMES := ["Common", "Rare", "Epic", "Legendary"]
 
 var w: Window                      # settings_window.gd
 var shortcut_note := ""
-var update_note := ""
 var admin_page: RefCounted
 
 
@@ -283,8 +282,11 @@ static func _when(unix: int) -> String:
 
 
 func refresh(live: Dictionary, s: Dictionary) -> void:
-	# The Home page's live numbers, once a second.
+	# The Home page's live numbers, once a second; and an update's download.
 	var c := K.c
+	if live.has("u_bar"):
+		live.u_desc.text = _download_text(w.main.updater)
+		live.u_bar.value = _download_frac(w.main.updater)
 	if live.has("h_focus"):
 		live.h_focus.text = w._mins(s.focus_min)
 		live.h_focus_bar.value = s.next_progress
@@ -309,6 +311,85 @@ func refresh(live: Dictionary, s: Dictionary) -> void:
 			live.h_rh_title.text = "Rare Hour tonight" if rh.start_h >= 17 else "Rare Hour today"
 			live.h_rh_text.text = "%s to %s. Rare and better are %s." % [rh.start, rh.end, rh.how]
 			live.h_rh_when.text = "Starts in %s" % w._mins(rh.starts_in_min)
+
+
+func _update_rows() -> Array:
+	# System > Updates: where the newest version has got to, and what can
+	# be done about it. main.gd rebuilds the page when the state changes;
+	# the download's progress is refreshed once a second (refresh()).
+	var u = w.main.updater
+	var mode: String = S().value("system.updates")
+	var v := str(u.release.get("version", ""))
+	var newer: bool = v != "" and u.newer(v, w.main.VERSION)
+	var page := str(u.release.get("page", REPO + "/releases")) if newer else REPO + "/releases"
+	var desc := ""
+	var btns := K.hbox(8)
+	btns.add_child(K.button("What is new", "bq", "", true, func(): OS.shell_open(page)))
+	match u.state:
+		"checking":
+			desc = "Checking..."
+		"current":
+			desc = "You are up to date. " + u.note
+		"offline":
+			desc = "Could not reach GitHub. Try again later."
+		"busy":
+			desc = u.note
+		"available":
+			desc = "Version %s is out." % v
+		"downloading":
+			desc = _download_text(u)
+		"verifying":
+			desc = "Checking the download..."
+		"ready":
+			desc = "Version %s is ready. Critter Overlay closes, updates and opens again by itself." % v
+		"installing":
+			desc = "Starting the installer..."
+		"failed":
+			desc = u.note
+		_:
+			desc = "Checks GitHub once a day." if mode != "off" else "Press Check now to look for a newer version."
+	match u.state:
+		"available":
+			if u.one_click():
+				btns.add_child(K.button("Download", "bp", "update", true, func(): u.download()))
+			else:
+				btns.add_child(K.button("Get it", "bs", "update", true, func(): OS.shell_open(page)))
+		"downloading":
+			btns.add_child(K.button("Cancel", "bs", "", true, func(): u.cancel()))
+		"ready":
+			btns.add_child(K.button("Restart and update", "bp", "update", true, func(): w.main.install_update()))
+		"failed":
+			if newer and u.one_click():
+				btns.add_child(K.button("Try again", "bs", "", true, func(): u.retry()))
+			btns.add_child(K.button("Download it yourself", "bs", "update", true, func(): OS.shell_open(page)))
+		"verifying", "installing":
+			pass
+		_:
+			var b := K.button("Check now", "bs", "update", true, func(): w.main.check_updates_now())
+			b.disabled = u.state == "checking"
+			btns.add_child(b)
+	var r := K.row("Version %s" % w.main.VERSION, desc, btns)
+	if u.state == "downloading":
+		var text: VBoxContainer = r.get_child(0).get_child(0)   # K.row: margins > hbox > words
+		w.live["u_desc"] = text.get_child(1)
+		w.live["u_bar"] = UI.bar(_download_frac(u), K.c.track, K.c.accent, 8)
+		text.add_child(w.live.u_bar)
+	var modes := ["off", "tell", "download"]
+	return [r, K.row("Automatic updates", "Download for me gets a new version ready in the background. It installs only when you say, or when you quit.",
+		K.seg(["Off", "Tell me", "Download for me"], maxi(0, modes.find(mode)), func(i): set_value("system.updates", modes[i], true)))]
+
+
+static func _download_frac(u) -> float:
+	var p: Vector2i = u.progress()
+	return float(p.x) / float(p.y) if p.y > 0 else 0.0
+
+
+static func _download_text(u) -> String:
+	var p: Vector2i = u.progress()
+	var mb := [str(u.release.get("version", "")), p.x / 1048576.0, p.y / 1048576.0]
+	if u.fetch == null:
+		return "Downloading %s: waiting for the connection, %.1f of %.1f MB so far." % mb
+	return "Downloading %s: %.1f of %.1f MB." % mb
 
 
 static func _words(n: int) -> String:
@@ -1376,17 +1457,7 @@ func _system(body: VBoxContainer) -> void:
 	ph.add_child(pr)
 	body.add_child(K.section("Custom critters", ph))
 
-	var up := K.hbox(8)
-	up.add_child(K.button("What is new", "bq", "", true, func(): OS.shell_open(REPO + "/releases")))
-	up.add_child(K.button("Check now", "bs", "update", true, func():
-		update_note = "Checking..."
-		w.main.check_for_updates(func(text):
-			update_note = text
-			w.rebuild())
-		w.rebuild()))
-	body.add_child(K.section("Updates", K.card([
-		K.row("Version %s" % w.main.VERSION, update_note if update_note != "" else "Checks GitHub for a newer release when you press Check now.", up),
-	])))
+	body.add_child(K.section("Updates", K.card(_update_rows())))
 
 	body.add_child(K.section("Reset and quit", K.card([
 		K.row("Reset all settings", "Critters, odds and shortcuts go back to how they started. Your Collection is kept.",
@@ -1431,7 +1502,7 @@ To know when you are working, it checks how long it has been since your last key
 
 Your Collection, berries and settings are saved in this computer's app data folder and nowhere else.
 
-The only time it goes online is when you press Check now under Updates, which asks GitHub for the newest version number."""
+It goes online once a day to ask GitHub for the newest version number and, when one is out, to download it. Under Updates you can have it only tell you, or not check at all. Nothing about you or your critters is sent."""
 
 
 func _credits() -> String:

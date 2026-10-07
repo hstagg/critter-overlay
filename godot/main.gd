@@ -52,6 +52,10 @@ extends Node2D
 ##                      each critter's tier range can be changed in Settings
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
+##   --update-url=URL   ask URL for the newest release instead of GitHub
+##                      (testing updates against a local server)
+##   --when-ready=WHAT  once an update is downloaded and checked, act as if
+##                      Restart and update (install) or Quit (quit) was pressed
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -79,14 +83,13 @@ const ADMIN_SCRIPT := "res://admin.gd"
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const Icons := preload("res://gui/icons.gd")
+const Updater := preload("res://updater.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
-const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
-const RELEASES_URL := "https://github.com/hstagg/critter-overlay/releases/latest"
 const UPDATE_EVERY := 24 * 3600   # s between automatic checks
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
@@ -144,6 +147,9 @@ var welcome_dir := ""
 var waiting_welcome := false  # nobody arrives until the welcome is closed
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
+var updater: Node
+var update_url := ""            # --update-url
+var when_ready := ""            # --when-ready
 var save_path := ""
 var tray_in := 0.0
 var open_on_start := ""
@@ -257,6 +263,10 @@ func _ready() -> void:
 			fake_pointer = true
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
+		elif arg.begins_with("--update-url="):
+			update_url = arg.substr(13)
+		elif arg.begins_with("--when-ready="):
+			when_ready = v
 		elif arg == "--selftest":
 			selftest = true
 
@@ -350,10 +360,15 @@ func _ready() -> void:
 	toasts = Toasts.new()
 	add_child(toasts)
 	toasts.open_collection.connect(func(sp): open_settings("collection", sp))
-	toasts.closed.connect(func(url):
-		if url == RELEASES_URL and _update_seen != "":
-			settings.set_value("system.update_dismissed", _update_seen))
+	updater = Updater.new()
+	updater.version = VERSION
+	if update_url != "":
+		updater.api_url = update_url
+		updater.allow_http = update_url.begins_with("http://127.0.0.1")
+	add_child(updater)
+	updater.changed.connect(_on_update_changed)
 	if seconds <= 0.0 and demo == "":
+		_after_update(updater.on_launch())
 		get_tree().create_timer(20.0).timeout.connect(_auto_update_check)
 		var again := Timer.new()
 		again.wait_time = 6 * 3600
@@ -1273,6 +1288,11 @@ func toggle_pause() -> void:
 
 
 func quit_app() -> void:
+	# A downloaded update goes in quietly on the way out, unless it would
+	# need an admin prompt (an install for all users).
+	if updater.state == "ready" and updater.per_user() and settings.value("system.updates") != "off":
+		settings.save()
+		updater.install(false)
 	_quit(0)
 
 
@@ -1390,71 +1410,87 @@ func clear_seen_log() -> void:
 	_update_tray()
 
 
-var _update_seen := ""
+# --- Updates (updater.gd does the work) ----------------------------------------------
+
+var _update_told := ""   # the version an update note was shown for this run
 
 
 func _auto_update_check() -> void:
-	# Once a day, quietly: a note only for a newer version not closed before.
+	# Once a day, quietly. Stamped only when GitHub answered, so a check
+	# made offline is tried again at the next six-hourly timer. Between
+	# checks, carry on from what is known: finish a download, show the note.
+	if settings.value("system.updates") == "off":
+		return
 	var now := int(Time.get_unix_time_from_system())
 	if now - int(settings.value("system.update_checked")) < UPDATE_EVERY:
+		updater.resume()
+		_on_update_changed()
 		return
-	settings.set_value("system.update_checked", now)
-	_latest_release(func(tag):
-		if tag != "" and _newer(tag, VERSION) and tag != settings.value("system.update_dismissed"):
-			_update_seen = tag
-			if not _quiet():
-				toasts.show_update(tag, RELEASES_URL))
+	updater.check(false, func(ok):
+		if ok:
+			settings.set_value("system.update_checked", now))
 
 
-func _latest_release(done: Callable) -> void:
-	# The newest release's version on GitHub, or "" if it cannot be reached.
-	var req := HTTPRequest.new()
-	add_child(req)
-	req.timeout = 10.0
-	req.request_completed.connect(func(result, code, _headers, body):
-		req.queue_free()
-		var tag := ""
-		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
-			var d = JSON.parse_string(body.get_string_from_utf8())
-			if typeof(d) == TYPE_DICTIONARY:
-				tag = str(d.get("tag_name", "")).trim_prefix("v")
-		done.call(tag))
-	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
-		req.queue_free()
-		done.call("")
+func check_updates_now() -> void:
+	# System > Updates > Check now.
+	updater.check(true, func(ok):
+		if ok:
+			settings.set_value("system.update_checked", int(Time.get_unix_time_from_system())))
 
 
-func check_for_updates(done: Callable) -> void:
-	# System > Updates > Check now: the newest release on GitHub.
-	var req := HTTPRequest.new()
-	add_child(req)
-	req.timeout = 10.0
-	req.request_completed.connect(func(result, code, _headers, body):
-		req.queue_free()
-		var stamp := "Checked today at %s." % Time.get_time_string_from_system().substr(0, 5)
-		if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-			done.call("Could not reach GitHub. Try again later.")
-			return
-		var d = JSON.parse_string(body.get_string_from_utf8())
-		var tag: String = str(d.get("tag_name", "")).trim_prefix("v") if typeof(d) == TYPE_DICTIONARY else ""
-		if tag != "" and _newer(tag, VERSION):
-			done.call("Version %s is out. Press What is new to get it. %s" % [tag, stamp])
+func install_update() -> void:
+	# The update note or Settings: save, start the installer, and go. The
+	# installer brings the new version up when it is done.
+	settings.save()
+	var err: String = updater.install(true)
+	if err == "":
+		_quit(0)
+	elif settings_win == null or not settings_win.visible:
+		toasts.show_update("Update", "Could not update", err, func(): open_settings("system"))
+
+
+func _on_update_changed() -> void:
+	if when_ready != "" and updater.state == "ready":
+		(install_update if when_ready == "install" else quit_app).call_deferred()
+		when_ready = ""
+		return
+	if settings_win != null and settings_win.visible and settings_win.page == "system":
+		settings_win.rebuild()
+	# The note, once per version per run, and never for one closed before.
+	var v := str(updater.release.get("version", ""))
+	var mode: String = settings.value("system.updates")
+	if v == "" or v == _update_told or v == settings.value("system.update_dismissed") or mode == "off":
+		return
+	if _quiet() or (settings_win != null and settings_win.visible):
+		return
+	var forget := func(): settings.set_value("system.update_dismissed", v)
+	if updater.state == "ready":
+		_update_told = v
+		toasts.show_update("Update", "Version %s is ready" % v, "Click to restart and update. It takes a few seconds.",
+			install_update, forget)
+	elif updater.state == "available" and not updater.one_click():
+		_update_told = v
+		var page := str(updater.release.get("page", Updater.RELEASES_URL))
+		toasts.show_update("Update", "Version %s is out" % v, "Click to see what is new and download it.",
+			func(): OS.shell_open(page), forget)
+	elif updater.state == "available" and mode == "tell":
+		_update_told = v
+		toasts.show_update("Update", "Version %s is out" % v, "Click to download and install it from Settings.",
+			func(): open_settings("system"), forget)
+
+
+func _after_update(after: Dictionary) -> void:
+	# The first launch after an install: say how it went.
+	if after.is_empty():
+		return
+	var v := str(after.version)
+	get_tree().create_timer(4.0).timeout.connect(func():
+		if after.result == "updated":
+			toasts.show_update("Updated", "Updated to %s" % v, "Click to see what is new.",
+				func(): OS.shell_open(Updater.RELEASES_URL.replace("latest", "tag/v" + v)))
 		else:
-			done.call("You are up to date. " + stamp))
-	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
-		req.queue_free()
-		done.call("Could not reach GitHub. Try again later.")
-
-
-static func _newer(a: String, b: String) -> bool:
-	var x := a.split(".")
-	var y := b.split(".")
-	for i in 3:
-		var p := int(x[i]) if i < x.size() else 0
-		var q := int(y[i]) if i < y.size() else 0
-		if p != q:
-			return p > q
-	return false
+			toasts.show_update("Update", "Could not update to %s" % v, "Your critters are fine. Click to try again from Settings.",
+				func(): open_settings("system")))
 
 
 # --- Applying settings ------------------------------------------------------------
@@ -1474,6 +1510,10 @@ func _on_setting(key: String) -> void:
 			settings_win.rebuild()
 	if under.call("system.detail"):
 		Aura.simple = settings.value("system.detail") == "simple"
+	if under.call("system.updates"):
+		updater.auto_download = settings.value("system.updates") == "download"
+		if updater.auto_download and updater.state == "available":
+			updater.download()
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
 	if under.call("world"):
