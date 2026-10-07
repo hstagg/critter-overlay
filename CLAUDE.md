@@ -193,13 +193,17 @@ The full pipeline is automated by `release.ps1`. For any release:
 
 ```powershell
 # Patch / hotfix
-.\release.ps1 -Version 1.9.1 -Title "fix startup mutex lockout"
+.\release.ps1 -Version 3.0.1 -Title "fix startup mutex lockout"
 
 # Minor / major (write release notes first, then pass the file)
-.\release.ps1 -Version 2.0.0 -Title "critter sharing" -NotesFile release-notes-v2.0.md
+.\release.ps1 -Version 3.1.0 -Title "critter sharing" -NotesFile release-notes-v3.1.md
+
+# Add -SkipNative to reuse the native DLL already in godot\bin
 ```
 
-The script: validates inputs → checks git is clean on main → bumps `src/version.py` and `installer/version_info.txt` → runs `build.ps1` → commits and pushes → creates the GitHub release with the installer attached.
+The script: validates inputs → checks the tag is new and git is clean on main → bumps `VERSION` in `godot/main.gd` and the exe version in `godot/export_presets.cfg` → runs `build-v3.ps1` (the player build) → refuses if the exe carries the Admin page → commits and pushes → creates the GitHub release with the installer attached. (v2's `build.ps1`, `src/version.py` and `installer/version_info.txt` are no longer part of a release.)
+
+A v3 release is also what v2.0 installs' update checker will offer, since both read the repo's latest GitHub release.
 
 **Before running for a minor/major release:**
 1. Update `README.md` with what changed
