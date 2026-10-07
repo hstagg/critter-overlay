@@ -49,6 +49,14 @@ def marks(f, a0, a1, rows, per, lean, seed=5, color=FLECK, size=(8.5, 3.0)):
     return out
 
 
+def leg(x, y, top, fill):
+    """A short leg rising from a foot at (x, y), toes forward (to -x)."""
+    d = (f'M{x + 8} {top} L{x + 8} {y + 1} Q{x + 8} {y + 6.5} {x + 1} {y + 6.5} '
+         f'L{x - 9} {y + 6.5} Q{x - 15} {y + 6.5} {x - 15} {y + 1} Q{x - 15} {y - 5} {x - 8} {y - 6} '
+         f'L{x - 8} {top} Z')
+    return path(d, fill, 3.5)
+
+
 def sym_lean(v):
     # Front views: tips lean away from the crown, down both sides.
     return lambda a: v if (a % 360) > 270 or (a % 360) < 90 else -v
@@ -77,9 +85,12 @@ def side(p):
     cx, cy, rx, ry = p['coat']
     f = egg(cx, cy, rx, ry, p['back'], p['top'])
     out = shadow(cx - 10, rx * 0.95)
-    # far feet, behind everything
+    # legs: short stubs whose tops tuck up under the body, far pair darker
+    top = p['belly'] - 10
     for x, y in p['far_feet']:
-        out += ell(x, y, 12, 6, COAT_DK, 3.5)
+        out += leg(x, y, top, COAT_DK)
+    for x, y in p['feet']:
+        out += leg(x, y, top, FEET)
     # peach face and underbody, one shape
     fx, fy = p['forehead']
     bx, by = p['brow']
@@ -117,10 +128,12 @@ def side(p):
     ex, ey, er = p['ear']
     out += ell(ex, ey, er, er * 1.05, FACE, 3.5) + ell(ex - 1, ey + 1, er * 0.55, er * 0.6, EAR_IN, 0)
     # near feet
-    for x, y in p['feet']:
-        out += ell(x, y, 13, 6.5, FEET, 3.5)
     # face details
-    out += eye(*p['eye'])
+    if p.get('closed'):
+        x, y, rx, ry = p['eye']
+        out += line('M%.1f %.1f Q%.1f %.1f %.1f %.1f' % (x - rx, y, x, y + ry * 0.7, x + rx, y), OL, 3)
+    else:
+        out += eye(*p['eye'])
     out += blush(*p['cheek'], 11, 6)
     out += nose(*p['nose'])
     out += line(p['mouth'], OL, 2.6)
