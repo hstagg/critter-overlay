@@ -54,6 +54,8 @@ extends Node2D
 ##                      (see pairs.gd), again every eight seconds
 ##   --update-url=URL   ask URL for the newest release instead of GitHub
 ##                      (testing updates against a local server)
+##   --when-ready=WHAT  once an update is downloaded and checked, act as if
+##                      Restart and update (install) or Quit (quit) was pressed
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -141,6 +143,7 @@ var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
 var updater: Node
 var update_url := ""            # --update-url
+var when_ready := ""            # --when-ready
 var save_path := ""
 var tray_in := 0.0
 var open_on_start := ""
@@ -249,6 +252,8 @@ func _ready() -> void:
 			pair_demo = v
 		elif arg.begins_with("--update-url="):
 			update_url = arg.substr(13)
+		elif arg.begins_with("--when-ready="):
+			when_ready = v
 		elif arg == "--selftest":
 			selftest = true
 
@@ -1364,6 +1369,10 @@ func install_update() -> void:
 
 
 func _on_update_changed() -> void:
+	if when_ready != "" and updater.state == "ready":
+		(install_update if when_ready == "install" else quit_app).call_deferred()
+		when_ready = ""
+		return
 	if settings_win != null and settings_win.visible and settings_win.page == "system":
 		settings_win.rebuild()
 	# The note, once per version per run, and never for one closed before.
