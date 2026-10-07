@@ -131,6 +131,7 @@ var beta_flag := false
 var wear_flag := []
 var props := {}               # showpiece id -> prop.gd node on the desktop
 var sheet_dir := ""
+var stills_dir := ""
 var welcome := ""             # --welcome: show | tour
 var welcome_dir := ""
 var waiting_welcome := false  # nobody arrives until the welcome is closed
@@ -232,6 +233,8 @@ func _ready() -> void:
 			wear_flag = Array(v.split(","))
 		elif arg.begins_with("--wear-sheet="):
 			sheet_dir = v
+		elif arg.begins_with("--stills="):
+			stills_dir = v
 		elif arg == "--beta":
 			beta_flag = true
 		elif arg.begins_with("--throw-demo="):
@@ -384,6 +387,9 @@ func _ready() -> void:
 		return
 	if sheet_dir != "":
 		_wear_sheet()
+		return
+	if stills_dir != "":
+		_stills()
 		return
 	if fixed_count > 0 or fixed_perimeter > 0:
 		for i in maxi(fixed_count, 0):
@@ -950,6 +956,32 @@ func _wear_sheet() -> void:
 			if Wear.fits(id, h.species):
 				h.win.get_texture().get_image().save_png(sheet_dir.path_join("%s-%s.png" % [id, h.species]))
 	print("SHEET done ", ids.size())
+	_quit(0)
+
+
+func _stills() -> void:
+	# --stills: every built species sitting (front) and walking (side), grabbed
+	# from the game itself, for the design boards.
+	fixed_count = Species.DATA.size()
+	var hs := []
+	var i := 0
+	for sp in Species.DATA.keys():
+		var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 420, 600), sp, "common")
+		h.critter._go_sit()
+		h.critter.mode_left = INF
+		h.critter.activity = 0.0
+		hs.append(h)
+		i += 1
+	await get_tree().create_timer(1.5).timeout
+	for h in hs:
+		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-front.png" % h.species))
+	for h in hs:
+		h.critter._go_walk()
+		h.critter.mode_left = INF
+	await get_tree().create_timer(1.2).timeout
+	for h in hs:
+		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-side.png" % h.species))
+	print("STILLS done ", hs.size())
 	_quit(0)
 
 
