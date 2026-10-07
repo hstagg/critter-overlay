@@ -1,14 +1,22 @@
-# release.ps1 - Full release pipeline for Critter Overlay
+# release.ps1 - Full release pipeline for Critter Overlay (v3, the Godot build)
 #
-# Bumps version files, builds the installer, commits, pushes, and creates the
-# GitHub release in one command. build.ps1 handles the PyInstaller + Inno Setup
-# step; this script owns everything around it.
+# Bumps the version, builds the player installer, commits, pushes, and creates
+# the GitHub release in one command. build-v3.ps1 handles the native DLL,
+# Godot export, exe version stamp and Inno Setup step; this script owns
+# everything around it.
 #
 # Usage:
-#   .\release.ps1 -Version 1.9.1 -Title "fix startup mutex lockout"
-#   .\release.ps1 -Version 2.0.0 -Title "critter sharing" -NotesFile release-notes-v2.0.md
+#   .\release.ps1 -Version 3.0.1 -Title "fix startup mutex lockout"
+#   .\release.ps1 -Version 3.1.0 -Title "critter sharing" -NotesFile release-notes-v3.1.md
+#   .\release.ps1 -Version 3.0.1 -Title "..." -SkipNative    # reuse the DLL in godot\bin
 #
-# Prerequisites: Python, PyInstaller, Inno Setup 6, gh CLI (authenticated)
+# Prerequisites (build-v3.ps1 finds them on PATH, by env var, or in the
+# usual places): Godot 4.7 with export templates (GODOT), rcedit (RCEDIT),
+# Inno Setup 6 (ISCC), SCons for the native DLL unless -SkipNative, and the
+# gh CLI, authenticated.
+#
+# Always the player build: the Admin page (build-v3.ps1 -Admin) is never
+# released, and step [4] refuses an installer whose exe carries it.
 
 param(
     [Parameter(Mandatory=$true)]
@@ -17,7 +25,9 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$Title,
 
-    [string]$NotesFile = ""
+    [string]$NotesFile = "",
+
+    [switch]$SkipNative
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,18 +46,14 @@ function Ok([string]$msg)   { Write-Host "  $msg" -ForegroundColor Green }
 function Fail([string]$msg) { Write-Error $msg; exit 1 }
 
 # ---------------------------------------------------------------------------
-# [0] Validate version format
+# [0] Validate inputs
 # ---------------------------------------------------------------------------
 
 Step "[0] Validating inputs..."
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Fail "Version must be X.Y.Z (e.g. 1.9.1). Got: $Version"
+    Fail "Version must be X.Y.Z (e.g. 3.0.1). Got: $Version"
 }
-
-$parts   = $Version -split '\.'
-$tuple   = "($($parts[0]), $($parts[1]), $($parts[2]), 0)"
-$vstring = "$Version.0"
 
 Ok "Version : $Version"
 Ok "Title   : $Title"
@@ -59,27 +65,10 @@ if ($NotesFile) {
 }
 
 # ---------------------------------------------------------------------------
-# [1] Prerequisites
+# [1] Prerequisites (build-v3.ps1 finds the build tools itself)
 # ---------------------------------------------------------------------------
 
 Step "[1] Checking prerequisites..."
-
-foreach ($cmd in @("python","pyinstaller")) {
-    if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-        Fail "$cmd not found on PATH."
-    }
-    Ok "$cmd found"
-}
-
-$innoSearchPaths = @(
-    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-    "C:\Program Files\Inno Setup 6\ISCC.exe",
-    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
-)
-$isccFound = $false
-foreach ($p in $innoSearchPaths) { if (Test-Path $p) { $isccFound = $true; break } }
-if (-not $isccFound) { Fail "Inno Setup 6 (ISCC.exe) not found." }
-Ok "Inno Setup found"
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Fail "gh CLI not found. Install with: winget install GitHub.cli"
@@ -87,6 +76,10 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 $ghStatus = gh auth status 2>&1
 if ($LASTEXITCODE -ne 0) { Fail "gh is not authenticated. Run: gh auth login" }
 Ok "gh authenticated"
+
+git fetch --tags --quiet origin
+if (git tag --list "v$Version") { Fail "Tag v$Version already exists." }
+Ok "v$Version is a new tag"
 
 # ---------------------------------------------------------------------------
 # [2] Git working tree must be clean
@@ -115,36 +108,42 @@ Ok "On main"
 
 Step "[3] Bumping version files to $Version..."
 
-# src/version.py
-$versionPy = Join-Path $ProjectRoot "src\version.py"
-(Get-Content $versionPy) -replace 'APP_VERSION\s*=\s*"[^"]*"', "APP_VERSION = `"$Version`"" |
-    Set-Content $versionPy -Encoding utf8
-Ok "src/version.py -> $Version"
+# godot/main.gd: the version the app shows and compares for updates
+$mainGd = Join-Path $ProjectRoot "godot\main.gd"
+$text = [IO.File]::ReadAllText($mainGd)
+$text = $text -replace 'const VERSION := "[^"]*"', "const VERSION := `"$Version`""
+[IO.File]::WriteAllText($mainGd, $text)
+Ok "godot/main.gd -> $Version"
 
-# installer/version_info.txt  (tuple and string fields)
-$viFile = Join-Path $ProjectRoot "installer\version_info.txt"
-$vi = Get-Content $viFile -Raw
-$vi = $vi -replace 'filevers=\(\d+,\s*\d+,\s*\d+,\s*\d+\)', "filevers=$tuple"
-$vi = $vi -replace 'prodvers=\(\d+,\s*\d+,\s*\d+,\s*\d+\)', "prodvers=$tuple"
-$vi = $vi -replace "u'FileVersion',\s*u'[^']*'",    "u'FileVersion',      u'$vstring'"
-$vi = $vi -replace "u'ProductVersion',\s*u'[^']*'", "u'ProductVersion',   u'$vstring'"
-Set-Content $viFile $vi -Encoding utf8
-Ok "installer/version_info.txt -> $vstring"
+# godot/export_presets.cfg: the exe's file and product version (both presets)
+$presets = Join-Path $ProjectRoot "godot\export_presets.cfg"
+$text = [IO.File]::ReadAllText($presets)
+$text = $text -replace 'application/file_version="[^"]*"', "application/file_version=`"$Version.0`""
+$text = $text -replace 'application/product_version="[^"]*"', "application/product_version=`"$Version.0`""
+[IO.File]::WriteAllText($presets, $text)
+Ok "godot/export_presets.cfg -> $Version.0"
 
 # ---------------------------------------------------------------------------
-# [4] Build
+# [4] Build (the player build, never -Admin)
 # ---------------------------------------------------------------------------
 
-Step "[4] Building installer (build.ps1 -Version $Version)..."
+Step "[4] Building installer (build-v3.ps1 -Version $Version)..."
 
-& "$ProjectRoot\build.ps1" -Version $Version
-if ($LASTEXITCODE -ne 0) { Fail "build.ps1 failed." }
+if ($SkipNative) {
+    & "$ProjectRoot\build-v3.ps1" -Version $Version -SkipNative
+} else {
+    & "$ProjectRoot\build-v3.ps1" -Version $Version
+}
 
 $installerPath = Join-Path $ProjectRoot "installer\output\CritterOverlaySetup-$Version.exe"
 if (-not (Test-Path $installerPath)) {
     Fail "Installer not found at expected path: $installerPath"
 }
-Ok "Installer ready: $installerPath"
+$exe = [IO.File]::ReadAllBytes((Join-Path $ProjectRoot "build\CritterOverlay.exe"))
+if ([Text.Encoding]::ASCII.GetString($exe).Contains("admin_page.gd")) {
+    Fail "The built exe carries the Admin page. Check the 'Windows Desktop' export preset's exclude filter."
+}
+Ok "Installer ready, no Admin page: $installerPath"
 
 # ---------------------------------------------------------------------------
 # [5] Commit and push
@@ -152,7 +151,7 @@ Ok "Installer ready: $installerPath"
 
 Step "[5] Committing version bump..."
 
-git add src\version.py installer\version_info.txt sounds\*.wav
+git add godot\main.gd godot\export_presets.cfg
 git commit -m "release: v$Version - $Title"
 if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
 Ok "Committed"

@@ -40,7 +40,7 @@ function Find([string]$envName, [string[]]$names, [string[]]$paths) {
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 3.0.0" }
 
 $godot = Find "GODOT" @("godot_console", "godot") @()
-$rcedit = Find "RCEDIT" @("rcedit-x64.exe", "rcedit") @()
+$rcedit = Find "RCEDIT" @("rcedit-x64.exe", "rcedit") @("$Root\..\tools\rcedit-x64.exe")
 $iscc = Find "ISCC" @("ISCC.exe") @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe", "C:\Program Files\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe")
 
 # The version shown in the app (main.gd VERSION) must match.
