@@ -13,8 +13,9 @@
 ;   /LOG=<file>  /UPDATE=1  [/RELAUNCH=<path to CritterOverlay.exe>]
 ; /UPDATE=1 waits for the app, which has just been told to quit, to let go of
 ; its mutex. /RELAUNCH starts the app again afterwards, whether the install
-; went through or not, so nobody is left without their critters. A manual
-; install behaves as before.
+; went through or not, so nobody is left without their critters. An update
+; also moves the old files aside first and puts them back if it fails part
+; way (see PrepareToInstall). A manual install behaves as before.
 
 #define MyAppName "Critter Overlay"
 #define MyAppPublisher "hstagg"
@@ -78,6 +79,9 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 
 var
   ShouldDeleteAppData: Boolean;
+  Updating: Boolean;       // started by the app (/UPDATE=1)
+  Finished: Boolean;       // the install went through
+  Moved: TArrayOfString;   // the old files, moved aside
 
 function InitializeSetup(): Boolean;
 var
@@ -85,7 +89,8 @@ var
 begin
   // The app's single-instance mutex (main.gd). Restart Manager
   // (CloseApplications) remains the backstop if it is still held.
-  if ExpandConstant('{param:UPDATE|0}') = '1' then
+  Updating := ExpandConstant('{param:UPDATE|0}') = '1';
+  if Updating then
   begin
     Waited := 0;
     while CheckForMutexes('CritterOverlay.v3') and (Waited < 15000) do
@@ -97,11 +102,93 @@ begin
   Result := True;
 end;
 
+// Inno does not put back files it replaced when an install fails part way,
+// which could leave a new exe beside an old DLL. So an update first moves
+// the old files into update-backup (a rename, on the same disk), and puts
+// them back if the install does not finish. If they cannot be moved, the
+// update stops before anything is touched.
+
+function BackupDir(): String;
+begin
+  Result := ExpandConstant('{app}\update-backup');
+end;
+
+procedure PutBack();
+var
+  I: Integer;
+  Name: String;
+begin
+  for I := 0 to GetArrayLength(Moved) - 1 do
+  begin
+    Name := ExpandConstant('{app}\') + Moved[I];
+    if FileExists(Name) then
+      DeleteFile(Name);
+    RenameFile(BackupDir() + '\' + Moved[I], Name);
+  end;
+  SetArrayLength(Moved, 0);
+  DelTree(BackupDir(), True, True, True);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  FindRec: TFindRec;
+  Names: TArrayOfString;
+  I, N: Integer;
+begin
+  Result := '';
+  if not Updating then
+    Exit;
+  N := 0;
+  if FindFirst(ExpandConstant('{app}\*'), FindRec) then
+  try
+    repeat
+      if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY = 0) and (Pos('unins', Lowercase(FindRec.Name)) <> 1) then
+      begin
+        SetArrayLength(Names, N + 1);
+        Names[N] := FindRec.Name;
+        N := N + 1;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+  DelTree(BackupDir(), True, True, True);
+  ForceDirectories(BackupDir());
+  for I := 0 to N - 1 do
+  begin
+    if not RenameFile(ExpandConstant('{app}\') + Names[I], BackupDir() + '\' + Names[I]) then
+    begin
+      Result := 'Could not move ' + Names[I] + ' aside to update it.';
+      Log(Result);
+      PutBack();
+      Exit;
+    end;
+    SetArrayLength(Moved, GetArrayLength(Moved) + 1);
+    Moved[GetArrayLength(Moved) - 1] := Names[I];
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssDone then
+  begin
+    Finished := True;
+    if Updating then
+      DelTree(BackupDir(), True, True, True);
+  end;
+end;
+
 procedure DeinitializeSetup();
 var
   Path: String;
   Code: Integer;
 begin
+  if Updating and not Finished and (GetArrayLength(Moved) > 0) then
+  begin
+    Log('The update did not finish: putting the old files back.');
+    PutBack();
+  end;
+  // Start the app again, updated or not, so nobody is left without critters.
   Path := ExpandConstant('{param:RELAUNCH|}');
   if (Path <> '') and FileExists(Path) then
     ExecAsOriginalUser(Path, '', '', SW_SHOWNORMAL, ewNoWait, Code);
