@@ -20,9 +20,8 @@ const PRESETS := {
 }
 # With rarity tiers on and no trail chosen for the species, the tier's own
 # (v2.0 rarity.py), in its colours.
-const TIER_TRAIL := {"uncommon": "dots", "rare": "sparkles", "epic": "glitter", "legendary": "hearts"}
+const TIER_TRAIL := {"rare": "sparkles", "epic": "glitter", "legendary": "hearts"}
 const TIER_COLOURS := {
-	"uncommon": ["#86D9B0", "#CFF3E1", "#FFFFFF"],
 	"rare": ["#7FBCF5", "#D5E9FC", "#FFFFFF"],
 	"epic": ["#F590B4", "#FCD9E6", "#FFFFFF"],
 	"legendary": ["#FFCF5C", "#FFF0C2", "#F590B4", "#7FBCF5", "#FFFFFF"],

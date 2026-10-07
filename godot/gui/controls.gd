@@ -129,7 +129,7 @@ static func pill(text: String, bg: Color, fg: Color) -> PanelContainer:
 
 
 static func new_pill() -> PanelContainer:
-	var t := Palette.tier("uncommon", dark)
+	var t := Palette.tier("fresh", dark)
 	return pill("New", t.tint, t.ink)
 
 

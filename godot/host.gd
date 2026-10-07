@@ -39,6 +39,8 @@ const POP_TIME := 0.7          # s of particles before the window closes
 
 var main: Node                 # main.gd: the screen, the sound, the pointer
 var species := ""
+var version := ""              # set before setup(): a Rare or Epic version's art
+var variant := ""              # a Legendary visitor's colour, "" for a random one
 var critter: Node2D
 var win: Window
 var spin: Node2D               # rotated to the edge being walked on
@@ -173,6 +175,9 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 
 	critter = Species.row(species)["script"].new()
 	critter.idles = Species.row(species)["idles"]
+	critter.version = version
+	if variant != "" and critter.has_method("set_variant"):
+		critter.set_variant(variant)
 	track.add_child(critter)
 	var face: int = [-1, 1].pick_random()
 	var x0: float
