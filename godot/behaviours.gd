@@ -41,6 +41,7 @@ const REGISTRY := {
 	"chitter":        {"dur": [0.8, 1.5], "cool": 35.0, "w": 1.0, "sleep": 0.0},
 	"belly_roll":     {"dur": [2.0, 3.5], "cool": 90.0, "w": 1.0, "sleep": 0.0},
 	"panda_roll":     {"dur": [1.6, 2.2], "cool": 90.0, "w": 1.0, "sleep": -0.2},
+	"prance":         {"dur": [1.0, 1.4], "cool": 40.0, "w": 1.0, "sleep": -0.4},
 	# From perk clothes (wear.gd PERKS): only a critter wearing one does them.
 	"dance":          {"dur": [3.0, 5.0], "cool": 40.0, "w": 1.2, "sleep": -0.5},
 	"fly":            {"dur": [3.5, 5.0], "cool": 60.0, "w": 1.0, "sleep": -0.5},

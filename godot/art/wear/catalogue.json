@@ -97,6 +97,66 @@
   "small",
   "hedgehog"
  ],
+ "leaf_umbrella": [
+  "Leaf umbrella",
+  "head",
+  "medium",
+  "turtle"
+ ],
+ "bubble_scarf": [
+  "Bubble scarf",
+  "neck",
+  "small",
+  "turtle"
+ ],
+ "acorn_cap": [
+  "Acorn cap",
+  "head",
+  "medium",
+  "squirrel"
+ ],
+ "acorn_pendant": [
+  "Acorn on a cord",
+  "neck",
+  "small",
+  "squirrel"
+ ],
+ "shell_clip": [
+  "Seashell clip",
+  "head",
+  "small",
+  "otter"
+ ],
+ "kelp_scarf": [
+  "Kelp scarf",
+  "neck",
+  "medium",
+  "otter"
+ ],
+ "bamboo_hat": [
+  "Bamboo hat",
+  "head",
+  "medium",
+  "panda"
+ ],
+ "bamboo_sprig": [
+  "Bamboo sprig",
+  "head",
+  "small",
+  "panda"
+ ],
+ "cloud_scarf": [
+  "Cloud scarf",
+  "neck",
+  "large",
+  "unicorn"
+ ],
+ "rainbow_bow": [
+  "Rainbow bow",
+  "head",
+  "medium",
+  "unicorn"
+ ],
  "heart_clip": [
   "Heart clip",
   "head",

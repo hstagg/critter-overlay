@@ -28,6 +28,18 @@ SPECIES = {
     # The sitting face (round-1 G): the heart-shaped mask, quills above it.
     "hedgehog": dict(cx=150, cy=136, rx=80, ry=58, eye_y=140, eye_dx=28, eye_r=12, chin=194,
                      gap=(140, 170), side=0.85),
+    "turtle": dict(cx=162, cy=184, rx=52, ry=48, eye_y=181, eye_dx=22, eye_r=12, chin=232,
+                   gap=(181, 210), side=0.8),
+    "squirrel": dict(cx=134, cy=140, rx=70, ry=60, eye_y=139, eye_dx=28, eye_r=15, chin=194,
+                     gap=(139, 170), side=0.9),
+    "otter": dict(cx=124, cy=128, rx=60, ry=50, eye_y=124, eye_dx=25, eye_r=15, chin=174,
+                  gap=(124, 160), side=0.9),
+    "panda": dict(cx=150, cy=130, rx=72, ry=60, eye_y=127, eye_dx=29, eye_r=11, chin=181,
+                  gap=(127, 166), side=1.0),
+    "unicorn": dict(cx=150, cy=130, rx=64, ry=56, eye_y=132, eye_dx=26, eye_r=14, chin=183,
+                    gap=(132, 168), side=0.9),
+    "golden_kitten": dict(cx=150, cy=122, rx=92, ry=74, eye_y=124, eye_dx=38, eye_r=18, chin=196,
+                          gap=(122, 178), side=1.0),
 }
 
 
@@ -291,6 +303,103 @@ def autumn_leaves(m):
     return svg(leaf(x - 10, y + 4, -40, "#F2994A", "#C2692A") + leaf(x + 8, y - 4, 12, "#F6C453", "#C9962E"))
 
 
+def leaf_umbrella(m):
+    # Turtle: a big round leaf held over its head like an umbrella.
+    cx, y = m["cx"] + 6, top(m, m["cx"]) - 18
+    leaf = (f'<path d="M{cx - 46} {y + 6} Q{cx - 40} {y - 30} {cx} {y - 34} Q{cx + 40} {y - 30} {cx + 46} {y + 6} '
+            f'Q{cx + 30} {y - 2} {cx + 16} {y + 6} Q{cx} {y - 4} {cx - 16} {y + 6} Q{cx - 30} {y - 2} {cx - 46} {y + 6} Z" '
+            f'fill="#7CC36A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+            f'<path d="M{cx} {y - 30} L{cx} {y + 2} M{cx} {y - 18} l-20 10 M{cx} {y - 18} l20 10" stroke="#4F9A45" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+            f'<path d="M{cx} {y + 2} L{cx + 2} {y + 26}" stroke="#4F9A45" stroke-width="4" stroke-linecap="round"/>')
+    return svg(leaf)
+
+
+def bubble_scarf(m):
+    # Turtle: a sea-blue scarf with a row of little bubbles.
+    out = neck_arc(m, "#5FB7D9", 14)
+    cx, y = m["cx"], m["chin"] - 2
+    for i, dx in enumerate((-22, -8, 8, 22)):
+        out += f'<circle cx="{cx + dx}" cy="{y + 4 + abs(dx) * -0.2:.1f}" r="{3 + i % 2}" fill="#FFFFFF" opacity="0.85"/>'
+    return svg(out)
+
+
+def acorn_cap(m):
+    # Squirrel: an acorn cup worn as a cap, stalk on top.
+    cx, base = m["cx"], top(m, m["cx"]) + 12
+    cap = (f'<path d="M{cx - 38} {base} Q{cx - 38} {base - 38} {cx} {base - 40} Q{cx + 38} {base - 38} {cx + 38} {base} Z" '
+           f'fill="#8A5A35" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>')
+    cap += ''.join(f'<path d="M{cx + dx - 6} {base - 8 - k * 9} l6 -6 l6 6" stroke="#6E4528" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+                   for k in range(3) for dx in (-20, 0, 20) if abs(dx) < 34 - k * 8)
+    cap += f'<path d="M{cx} {base - 40} q2 -10 8 -12" stroke="{LINE}" stroke-width="4" fill="none" stroke-linecap="round"/>'
+    return svg(cap)
+
+
+def acorn_pendant(m):
+    # Squirrel: its acorn, on a cord round its neck (the acorn it held in the studio).
+    cx, y = m["cx"], m["chin"] + 6
+    cord = f'<path d="M{cx - 34} {y - 14} Q{cx} {y + 6} {cx + 34} {y - 14}" stroke="#B9874F" stroke-width="3" fill="none"/>'
+    nut = (f'<path d="M{cx - 9} {y + 2} Q{cx - 10} {y + 18} {cx} {y + 22} Q{cx + 10} {y + 18} {cx + 9} {y + 2} Z" fill="#C98B4E" stroke="{LINE}" stroke-width="3"/>'
+           f'<path d="M{cx - 12} {y + 4} Q{cx - 12} {y - 6} {cx} {y - 7} Q{cx + 12} {y - 6} {cx + 12} {y + 4} Z" fill="#8A5A35" stroke="{LINE}" stroke-width="3"/>')
+    return svg(cord + nut)
+
+
+def shell_clip(m):
+    # Otter: a pink scallop shell clipped by one ear.
+    x, y = clip_at(m, -1, 0.5)
+    d = f'M{x - 14} {y + 6} Q{x - 16} {y - 12} {x} {y - 14} Q{x + 16} {y - 12} {x + 14} {y + 6} Z'
+    rays = ' '.join(f'M{x} {y + 6} L{x + dx} {y - 10}' for dx in (-9, -3, 3, 9))
+    return svg(f'<path d="{d}" fill="#F7C9C0" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>'
+               f'<path d="{rays}" stroke="#D99A8E" stroke-width="2" fill="none"/>')
+
+
+def kelp_scarf(m):
+    # Otter: a ribbon of kelp, wavy green ends trailing.
+    out = neck_arc(m, "#4E9A6A", 12)
+    cx, y = m["cx"] + m["rx"] * 0.3, m["chin"] + 4
+    out += (f'<path d="M{cx} {y} q8 10 0 20 q-8 10 2 20" stroke="{LINE}" stroke-width="{12 + 2 * W}" fill="none" stroke-linecap="round"/>'
+            f'<path d="M{cx} {y} q8 10 0 20 q-8 10 2 20" stroke="#4E9A6A" stroke-width="12" fill="none" stroke-linecap="round"/>')
+    return svg(out)
+
+
+def bamboo_hat(m):
+    # Panda: a woven conical hat.
+    cx, base = m["cx"], top(m, m["cx"]) + 14
+    w = m["rx"] * 0.95
+    hat = (f'<path d="M{cx - w:.1f} {base} L{cx} {base - 46} L{cx + w:.1f} {base} Q{cx} {base + 10} {cx - w:.1f} {base} Z" '
+           f'fill="#E6C27A" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>')
+    hat += ''.join(f'<path d="M{cx} {base - 46} L{cx + dx:.1f} {base + 2}" stroke="#C49A4E" stroke-width="2" opacity="0.8"/>'
+                   for dx in (-w * 0.6, -w * 0.2, w * 0.2, w * 0.6))
+    hat += f'<path d="M{cx - w * 0.5:.1f} {base - 20} Q{cx} {base - 14} {cx + w * 0.5:.1f} {base - 20}" stroke="#B5463C" stroke-width="5" fill="none"/>'
+    return svg(hat)
+
+
+def bamboo_sprig(m):
+    # Panda: a little sprig of bamboo leaves tucked by one ear.
+    x, y = clip_at(m, 1, 0.55)
+    return svg(f'<path d="M{x} {y + 10} L{x + 4} {y - 16}" stroke="#7DB352" stroke-width="5" stroke-linecap="round"/>'
+               f'<path d="M{x + 3} {y - 8} q18 -12 26 -2 q-12 8 -26 2 Z" fill="#9CCB6B" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>'
+               f'<path d="M{x + 2} {y - 14} q-16 -14 -24 -6 q10 10 24 6 Z" fill="#B8E082" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>')
+
+
+def cloud_scarf(m):
+    # Unicorn: a puffy cloud wrapped round its neck.
+    cx, y = m["cx"], m["chin"] - 2
+    pts = [(cx - 34, y - 6, 12), (cx - 16, y + 2, 14), (cx + 4, y + 4, 14), (cx + 22, y, 13), (cx + 36, y - 8, 11)]
+    out = ''.join(f'<circle cx="{x}" cy="{yy}" r="{r}" fill="#FFFFFF" stroke="{LINE}" stroke-width="7"/>' for x, yy, r in pts)
+    out += ''.join(f'<circle cx="{x}" cy="{yy}" r="{r}" fill="#FFFFFF"/>' for x, yy, r in pts)
+    return svg(out)
+
+
+def rainbow_bow(m):
+    # Unicorn: a striped rainbow bow beside its horn.
+    x, y = clip_at(m, -1, 0.42)
+    stripes = ''.join(f'<path d="M{x} {y} L{x - 22} {y - 12 + i * 5} L{x - 22} {y - 8 + i * 5} Z M{x} {y} L{x + 22} {y - 12 + i * 5} L{x + 22} {y - 8 + i * 5} Z" fill="{c}"/>'
+                      for i, c in enumerate(("#F7A8B8", "#FFD59A", "#B9E8B0", "#A9D4F5", "#C9B6F2")))
+    outline = (f'<path d="M{x} {y} L{x - 22} {y - 14} L{x - 22} {y + 14} Z M{x} {y} L{x + 22} {y - 14} L{x + 22} {y + 14} Z" '
+               f'fill="none" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>')
+    return svg(stripes + outline + f'<circle cx="{x}" cy="{y}" r="6" fill="#F7A8B8" stroke="{LINE}" stroke-width="3"/>')
+
+
 # id: (draw, name, slot, tier) or (draw, name, slot, tier, only species)
 ITEMS = {
     "bow": (bow, "Ribbon bow", "head", "small"),
@@ -311,6 +420,16 @@ ITEMS = {
     "swim_ring": (swim_ring, "Swim ring", "neck", "large", "duckling"),
     "quill_apple": (quill_apple, "Apple on the quills", "head", "medium", "hedgehog"),
     "autumn_leaves": (autumn_leaves, "Autumn leaves", "head", "small", "hedgehog"),
+    "leaf_umbrella": (leaf_umbrella, "Leaf umbrella", "head", "medium", "turtle"),
+    "bubble_scarf": (bubble_scarf, "Bubble scarf", "neck", "small", "turtle"),
+    "acorn_cap": (acorn_cap, "Acorn cap", "head", "medium", "squirrel"),
+    "acorn_pendant": (acorn_pendant, "Acorn on a cord", "neck", "small", "squirrel"),
+    "shell_clip": (shell_clip, "Seashell clip", "head", "small", "otter"),
+    "kelp_scarf": (kelp_scarf, "Kelp scarf", "neck", "medium", "otter"),
+    "bamboo_hat": (bamboo_hat, "Bamboo hat", "head", "medium", "panda"),
+    "bamboo_sprig": (bamboo_sprig, "Bamboo sprig", "head", "small", "panda"),
+    "cloud_scarf": (cloud_scarf, "Cloud scarf", "neck", "large", "unicorn"),
+    "rainbow_bow": (rainbow_bow, "Rainbow bow", "head", "medium", "unicorn"),
 }
 
 

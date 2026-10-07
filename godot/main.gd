@@ -79,6 +79,7 @@ const Icons := preload("res://gui/icons.gd")
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
+const SPECIAL_CHANCE := 0.004   # an arrival is a special visitor (about 1 in 250)
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
 const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
@@ -499,6 +500,8 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		var roll: Array = economy.roll_arrival(cap, row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
 		var rarity_on: bool = settings.value("world.rarity")
 		var tier: String = roll[0] if rarity_on else "common"
+		if Species.row(sp).get("special", false):
+			tier = "legendary"   # special visitors only ever come as Legendaries
 		h.tier = force_tier if force_tier != "" else tier
 		_announce(sp, h.tier, roll[1] and force_tier == "" and rarity_on)
 		_maybe_bring(h)
@@ -653,6 +656,13 @@ func _pick_species() -> String:
 		economy.save()
 		if Species.has(called) and settings.sp(called, "enabled"):
 			return called
+	# Now and then a special visitor (unicorn, golden kitten) instead: they
+	# always arrive Legendary (see _spawn). A stand-in rate until the
+	# rarity redesign (vault plan, 7 Oct) settles how specials are found.
+	if randf() < SPECIAL_CHANCE:
+		var specials := Species.DATA.keys().filter(func(s): return Species.row(s).get("special", false) and settings.sp(s, "enabled"))
+		if not specials.is_empty():
+			return specials.pick_random()
 	var pool := []
 	var weights := []
 	var total := 0.0
