@@ -197,9 +197,9 @@ ITEMS = {
 
 # Parts of the wearer hidden while an item is on: item -> species -> parts.
 HIDES = {
-    "frog_hood": {"kitten": ["ears"], "duckling": ["tuft"]},
-    "dino_hood": {"kitten": ["ears"], "duckling": ["tuft"]},
-    "bear_hood": {"kitten": ["ears"], "duckling": ["tuft"]},
-    "flower_bonnet": {"kitten": ["ears"], "duckling": ["tuft"]},
+    "frog_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
+    "dino_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
+    "bear_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
+    "flower_bonnet": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
     "lion_mane": {"kitten": ["ears"]},
 }

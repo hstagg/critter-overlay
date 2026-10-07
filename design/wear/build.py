@@ -25,6 +25,9 @@ SPECIES = {
                    gap=(142, 158), side=0.9),
     "duckling": dict(cx=150, cy=128, rx=72, ry=72, eye_y=132, eye_dx=30, eye_r=17, chin=200,
                      gap=(132, 168), side=0.85),
+    # The sitting face (round-1 G): the heart-shaped mask, quills above it.
+    "hedgehog": dict(cx=150, cy=136, rx=80, ry=58, eye_y=140, eye_dx=28, eye_r=12, chin=194,
+                     gap=(140, 170), side=0.85),
 }
 
 
@@ -259,6 +262,35 @@ def swim_ring(m):
     return svg(tube)
 
 
+def quill_apple(m):
+    # Hedgehog: a little red apple caught on the quills, up on the right,
+    # the storybook hedgehog's favourite thing.
+    x = m["cx"] + m["rx"] * 0.62
+    y = top(m, x) - 20
+    apple = (f'<g transform="rotate(14 {x:.1f} {y:.1f})">'
+             f'<path d="M{x:.1f} {y - 12:.1f} C {x - 8:.1f} {y - 18:.1f} {x - 20:.1f} {y - 12:.1f} {x - 19:.1f} {y + 1:.1f} '
+             f'C {x - 18:.1f} {y + 14:.1f} {x - 8:.1f} {y + 20:.1f} {x:.1f} {y + 16:.1f} C {x + 8:.1f} {y + 20:.1f} {x + 18:.1f} {y + 14:.1f} {x + 19:.1f} {y + 1:.1f} '
+             f'C {x + 20:.1f} {y - 12:.1f} {x + 8:.1f} {y - 18:.1f} {x:.1f} {y - 12:.1f} Z" fill="#E2554F" stroke="{LINE}" stroke-width="{W}" stroke-linejoin="round"/>'
+             f'<path d="M{x - 11:.1f} {y - 6:.1f} q 3 -5 8 -5" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>'
+             f'<path d="M{x:.1f} {y - 12:.1f} q 1 -8 4 -12" stroke="{LINE}" stroke-width="3" fill="none" stroke-linecap="round"/>'
+             f'<path d="M{x + 3:.1f} {y - 20:.1f} q 12 -8 18 -1 q -9 8 -18 1 Z" fill="#6CC27A" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/></g>')
+    return svg(apple)
+
+
+def autumn_leaves(m):
+    # Hedgehog: two autumn leaves stuck in the quills on the left, as if it
+    # has just come out of a leaf pile.
+    def leaf(cx, cy, rot, fill, vein):
+        return (f'<g transform="rotate({rot} {cx:.1f} {cy:.1f})">'
+                f'<path d="M{cx:.1f} {cy - 18:.1f} C {cx + 12:.1f} {cy - 10:.1f} {cx + 12:.1f} {cy + 8:.1f} {cx:.1f} {cy + 16:.1f} '
+                f'C {cx - 12:.1f} {cy + 8:.1f} {cx - 12:.1f} {cy - 10:.1f} {cx:.1f} {cy - 18:.1f} Z" fill="{fill}" stroke="{LINE}" stroke-width="3" stroke-linejoin="round"/>'
+                f'<path d="M{cx:.1f} {cy - 12:.1f} L {cx:.1f} {cy + 22:.1f} M{cx:.1f} {cy - 2:.1f} l -6 -5 M{cx:.1f} {cy + 6:.1f} l 6 -5" '
+                f'stroke="{vein}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g>')
+    x = m["cx"] - m["rx"] * 0.55
+    y = top(m, x) - 16
+    return svg(leaf(x - 10, y + 4, -40, "#F2994A", "#C2692A") + leaf(x + 8, y - 4, 12, "#F6C453", "#C9962E"))
+
+
 # id: (draw, name, slot, tier) or (draw, name, slot, tier, only species)
 ITEMS = {
     "bow": (bow, "Ribbon bow", "head", "small"),
@@ -277,6 +309,8 @@ ITEMS = {
     "carrot_scarf": (carrot_scarf, "Carrot scarf", "neck", "medium", "rabbit"),
     "sailor_hat": (sailor_hat, "Sailor hat", "head", "medium", "duckling"),
     "swim_ring": (swim_ring, "Swim ring", "neck", "large", "duckling"),
+    "quill_apple": (quill_apple, "Apple on the quills", "head", "medium", "hedgehog"),
+    "autumn_leaves": (autumn_leaves, "Autumn leaves", "head", "small", "hedgehog"),
 }
 
 

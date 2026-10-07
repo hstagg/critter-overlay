@@ -35,6 +35,8 @@ const REGISTRY := {
 	"chase_tail":     {"dur": [1.2, 2.0], "cool": 90.0, "w": 0.6, "sleep": -0.3},
 	"preen":          {"dur": [2.0, 3.5], "cool": 40.0, "w": 1.0, "sleep": 0.2},
 	"peck_ground":    {"dur": [1.0, 1.5], "cool": 25.0, "w": 1.0, "sleep": 0.0},
+	"snuffle":        {"dur": [1.0, 2.0], "cool": 30.0, "w": 1.0, "sleep": 0.0},   # v2.0 snuffle_pause
+	"ball_up":        {"dur": [1.5, 2.5], "cool": 45.0, "w": 3.5, "sleep": 0.5},
 	# From perk clothes (wear.gd PERKS): only a critter wearing one does them.
 	"dance":          {"dur": [3.0, 5.0], "cool": 40.0, "w": 1.2, "sleep": -0.5},
 	"fly":            {"dur": [3.5, 5.0], "cool": 60.0, "w": 1.0, "sleep": -0.5},
