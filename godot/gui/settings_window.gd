@@ -142,7 +142,7 @@ func _sidebar() -> Control:
 	head.add_child(avatar)
 	var names := K.vbox(2)
 	names.add_child(UI.label("Critter Overlay", 18, c.ink, 600, true))
-	names.add_child(UI.label("Version %s" % main.VERSION.substr(0, 3), 12, c.ink3, 600))
+	names.add_child(UI.label("Version %s%s" % [main.VERSION.substr(0, 3), " · admin" if main.admin_on() else ""], 12, c.ink3, 600))
 	head.add_child(names)
 	_draggable(head)
 	v.add_child(K.margins(head, 6, 2, 0, 0))
@@ -179,9 +179,14 @@ func _sidebar() -> Control:
 	v.add_child(st)
 
 	# The pages.
-	var nav := K.vbox(4)
+	var admin_on: bool = main.admin_on()
+	var nav := K.vbox(2 if admin_on else 4)
 	for n in NAV:
 		nav.add_child(_nav_button(n[0], n[1], n[2]))
+	if admin_on:
+		nav.add_child(_nav_button("admin", "Admin", "sliders"))
+		for b in nav.get_children():
+			b.custom_minimum_size.y = 39   # room for a ninth page
 	v.add_child(nav)
 
 	var spacer := Control.new()
@@ -287,6 +292,9 @@ func _draggable(node: Control) -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
+	if live.has("admin_now") and is_instance_valid(live.admin_now):
+		var now: String = main.admin.now_playing
+		live.admin_now.text = "Now: " + now if now != "" else ""
 	_refresh_in -= delta
 	if _refresh_in <= 0.0:
 		_refresh_in = 1.0
