@@ -294,7 +294,7 @@ func _ready() -> void:
 		if not test_run and not native.single_instance("CritterOverlay.v3"):
 			print("Critter Overlay is already running")
 			set_process(false)
-			get_tree().quit()
+			_quit(0)   # not get_tree().quit(): the Intel GL teardown crash
 			return
 		var pk: Dictionary = settings.value("system.pause_key")
 		native.start(int(pk.mods), int(pk.vk))
@@ -847,10 +847,11 @@ func _process(delta: float) -> void:
 			a.launch((hosts[1].body_centre() - a.body_centre()).normalized() * throw_demo)
 			print("THROWN ", a.state)
 			throw_demo = 0.0
-	process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
-	fps.append(Engine.get_frames_per_second())
-
 	if report_path != "":
+		# Timings only for the report: kept every frame, they would grow
+		# for as long as the app runs.
+		process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
+		fps.append(Engine.get_frames_per_second())
 		live_timer -= delta
 		if live_timer <= 0.0:
 			live_timer = 0.5
