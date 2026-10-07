@@ -1,7 +1,8 @@
 ; installer-v3.iss - Inno Setup 6 script for Critter Overlay v3 (the Godot build)
 ;
 ; Build with build-v3.ps1, or:  ISCC.exe /DMyAppVersion=3.0.0 installer-v3.iss
-; Input:  ..\build\  (CritterOverlay.exe and critter_native DLL from the Godot export)
+; Input:  ..\build\  (CritterOverlay.exe and critter_native DLL from the Godot export),
+;         or the folder given by /DBuildDir= (build-v3.ps1 -Admin passes ..\build-admin)
 ; Output: installer\output\CritterOverlaySetup-<version>.exe
 ;
 ; AppId is v2.0's, unchanged: installing v3 upgrades a v2.0 install in place
@@ -24,6 +25,9 @@
 
 #ifndef MyAppVersion
   #define MyAppVersion "3.0.0"
+#endif
+#ifndef BuildDir
+  #define BuildDir "..\build"
 #endif
 
 [Setup]
@@ -65,7 +69,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
-Source: "..\build\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

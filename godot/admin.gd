@@ -1,8 +1,8 @@
 extends Node
 ## The Admin page's hands (Settings > Admin, the developer's audit page):
 ## spawn exactly what is asked for, play every move of a species in turn,
-## force a pair, try clothes on, and set off events. Turned on by clicking
-## the version in the Settings sidebar five times, or --admin.
+## force a pair, try clothes on, and set off events. Only in the admin build
+## (build-v3.ps1 -Admin); running from source, --admin.
 ##
 ## Nothing here touches the save except "Give berries" and, when asked,
 ## counting a spawn in the Collection. Dressing is for the look only: the

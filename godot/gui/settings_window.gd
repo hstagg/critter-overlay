@@ -142,10 +142,7 @@ func _sidebar() -> Control:
 	head.add_child(avatar)
 	var names := K.vbox(2)
 	names.add_child(UI.label("Critter Overlay", 18, c.ink, 600, true))
-	var ver := UI.label("Version %s" % main.VERSION.substr(0, 3), 12, c.ink3, 600)
-	ver.mouse_filter = Control.MOUSE_FILTER_STOP
-	ver.gui_input.connect(_on_version_click)
-	names.add_child(ver)
+	names.add_child(UI.label("Version %s%s" % [main.VERSION.substr(0, 3), " · admin" if main.admin_on() else ""], 12, c.ink3, 600))
 	head.add_child(names)
 	_draggable(head)
 	v.add_child(K.margins(head, 6, 2, 0, 0))
@@ -182,7 +179,7 @@ func _sidebar() -> Control:
 	v.add_child(st)
 
 	# The pages.
-	var admin_on: bool = main.settings.value("system.admin")
+	var admin_on: bool = main.admin_on()
 	var nav := K.vbox(2 if admin_on else 4)
 	for n in NAV:
 		nav.add_child(_nav_button(n[0], n[1], n[2]))
@@ -202,24 +199,6 @@ func _sidebar() -> Control:
 		rebuild())
 	v.add_child(pause)
 	return p
-
-
-var _version_clicks := []
-
-
-func _on_version_click(e: InputEvent) -> void:
-	# Five clicks on the version within three seconds: the Admin page on or off.
-	if not (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT):
-		return
-	var now := Time.get_ticks_msec()
-	_version_clicks = _version_clicks.filter(func(t): return now - t < 3000)
-	_version_clicks.append(now)
-	if _version_clicks.size() >= 5:
-		_version_clicks.clear()
-		var on: bool = not main.settings.value("system.admin")
-		main.settings.set_value("system.admin", on)
-		page = "admin" if on else ("home" if page == "admin" else page)
-		rebuild(false)
 
 
 func _nav_button(key: String, label: String, icon: String) -> Button:

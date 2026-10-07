@@ -7,8 +7,8 @@ extends RefCounted
 ## the app's data folder (%APPDATA%\Critter Overlay), where Claude reads them,
 ## and "Copy for Claude" puts the same text on the clipboard.
 ##
-## Hidden from everyone else: five clicks on the version in the sidebar turn
-## it on and off (settings system.admin), or launch with --admin.
+## Only in the admin build (build-v3.ps1 -Admin); the player build leaves this
+## file and admin.gd out. Running from source: --admin.
 
 const Palette := preload("res://gui/palette.gd")
 const UI := preload("res://gui/ui.gd")
@@ -100,7 +100,7 @@ func build(body: VBoxContainer) -> void:
 	var c := K.c
 	var h := K.vbox(6)
 	h.add_child(UI.label("Admin", 32, c.ink, 600, true))
-	var sub := UI.label("For auditing the build. Only you see this page: five clicks on the version in the sidebar hide it again.", 15, c.ink2, 400)
+	var sub := UI.label("For auditing the build. Only the admin build has this page; players never get it.", 15, c.ink2, 400)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	h.add_child(sub)
 	body.add_child(h)
