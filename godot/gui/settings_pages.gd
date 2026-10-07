@@ -946,7 +946,7 @@ func _dressing_room(sp: String, worn: Array, trying: Array, dyes: Dictionary) ->
 		var nm := UI.label(Wear.item_name(id), 22, c.ink, 600, true)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tr.add_child(nm)
-		tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(price), 15, Palette.tier("uncommon", w.dark).ink if owned else c.ink, 800))
+		tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(price), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
 		info.add_child(tr)
 		var btns := K.hbox(8)
 		var main_btn: Button
@@ -1179,7 +1179,7 @@ func _tile_prop(pid: String) -> Control:
 	t.add_child(UI.label(Prop.prop_name(pid), 13, c.ink, 800))
 	var owned: bool = eco.owns(pid)
 	var line := "Out on your desk" if eco.props_out.has(pid) else ("Yours" if owned else "%s berries" % _thousands(Prop.PRICE))
-	t.add_child(UI.label(line, 12, Palette.tier("uncommon", w.dark).ink if owned else c.ink2, 700))
+	t.add_child(UI.label(line, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
 	b.pressed.connect(func():
@@ -1217,7 +1217,7 @@ func _prop_panel(pid: String) -> Control:
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tr.add_child(nm)
 	var owned: bool = eco.owns(pid)
-	tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("uncommon", w.dark).ink if owned else c.ink, 800))
+	tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
 	info.add_child(tr)
 	var what := UI.label("It stands on your taskbar; drag it where you like. When you step away, sleepy critters curl up in it." + (" They go inside the cottage." if Prop.PROPS[pid][3] else ""), 13, c.ink2, 400)
 	what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1283,7 +1283,7 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	if Wear.PERKS.has(id):
 		t.add_child(UI.label(Wear.PERKS[id].text, 11, Palette.tier("legendary", w.dark).ink, 800))
 	var price_text := "Wearing" if id in worn else ("Yours" if owned else "%s berries" % _thousands(Wear.price(id)))
-	t.add_child(UI.label(price_text, 12, Palette.tier("uncommon", w.dark).ink if owned else c.ink2, 700))
+	t.add_child(UI.label(price_text, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
 	b.pressed.connect(func():

@@ -39,13 +39,13 @@ func _init() -> void:
 	check(s.value("species.duckling.trail") == "none", "a species field reads its default by path")
 
 	# Odds are the game's unless this is a beta tester's copy.
-	s.set_value("world.odds", {"common": 0, "uncommon": 0, "rare": 0, "epic": 100, "legendary": 0})
-	check(is_equal_approx(s.odds()["epic"], 0.005), "outside beta, changed odds are ignored")
+	s.set_value("world.odds", {"common": 0, "rare": 0, "epic": 100, "legendary": 0})
+	check(is_equal_approx(s.odds()["epic"], 0.009), "outside beta, changed odds are ignored")
 	s.set_value("system.beta", true)
 	# Odds are relative weights.
-	s.set_value("world.odds", {"common": 50, "uncommon": 25, "rare": 25, "epic": 0, "legendary": 0})
+	s.set_value("world.odds", {"common": 50, "rare": 25, "epic": 25, "legendary": 0})
 	var o: Dictionary = s.odds()
-	check(is_equal_approx(o["common"], 0.5) and is_equal_approx(o["rare"], 0.25) and o["epic"] == 0.0, "odds normalise (got %s)" % [o])
+	check(is_equal_approx(o["common"], 0.5) and is_equal_approx(o["rare"], 0.25) and o["legendary"] == 0.0, "odds normalise (got %s)" % [o])
 
 	# Saving keeps unknown keys from a newer version.
 	s.data["future"] = {"thing": 1}
@@ -92,9 +92,12 @@ func _init() -> void:
 	check(m.value("critters.size") == 100 and m.value("critters.opacity") == 90, "v2.0 size and opacity carry over")
 	check(m.value("sound.pops") == false and m.value("sound.volume") == 30, "v2.0 sound carries over")
 	check(m.value("world.rare_hour_start") == 4 and not m.value("world.pairs"), "v2.0 world settings carry over")
-	check(is_equal_approx(m.odds()["rare"], 0.02), "v2.0 odds do not carry over outside beta")
+	check(is_equal_approx(m.odds()["rare"], 0.04), "v2.0 odds do not carry over outside beta")
 	check(m.sp("duckling", "visits") == 2 and m.sp("duckling", "speed") == 3 and m.sp("duckling", "activity") == 4, "v2.0 duck becomes the duckling, stops matched")
 	check(m.sp("duckling", "trail") == "sparkles" and not m.sp("turtle", "enabled"), "trails and switched-off species carry over")
+	m.set_value("system.beta", true)
+	m.set_value("species.kitten.tier_min", "uncommon")
+	check(m.sp("duckling", "tier_max") == "epic" and m.sp("kitten", "tier_min") == "common", "old tier ranges read as the four tiers")
 	m.free()
 
 	# Day and night pacing (time_of_day.gd, v2.0's buckets).
