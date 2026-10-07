@@ -172,7 +172,9 @@ scripts/
 
 ## Testing
 
-No automated test suite. Manual testing checklist for any non-trivial change:
+v3 has headless tests (`godot/*_test.gd`). `.\run-tests.ps1` runs them all but `native_test.gd` (`-Native` adds it; it needs the DLL), and the Tests workflow (`.github/workflows/tests.yml`) runs the same on every push to `v3` and every PR into it. A new `*_test.gd` is picked up by both without any change.
+
+The v2 Python app has no automated tests. Manual testing checklist for any non-trivial change:
 
 1. Does the app launch without a console window (`run.bat`)?
 2. Does the tray icon appear (green paw)?
