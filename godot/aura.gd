@@ -38,7 +38,8 @@ const PRISM := ["#FFCF5C", "#F590B4", "#C8A8FF", "#7FBCF5", "#86D9B0", "#FFE08A"
 const RASTER := 64.0              # px the shapes are rasterised at
 
 # The crown floats this far above the head's pivot, in canvas px.
-const CROWN_LIFT := {"kitten": 131.0, "rabbit": 149.0, "duckling": 132.0, "hedgehog": 135.0}
+const CROWN_LIFT := {"kitten": 131.0, "rabbit": 149.0, "duckling": 132.0, "hedgehog": 135.0,
+	"turtle": 86.0, "squirrel": 130.0, "otter": 100.0, "panda": 108.0, "unicorn": 138.0, "golden_kitten": 131.0}
 
 var tier := "rare"
 var species := "kitten"

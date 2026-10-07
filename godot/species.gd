@@ -100,6 +100,29 @@ const DATA := {
 		"rarity_max": "legendary",
 		"special": false,
 	},
+	# Special visitors: Legendary only, never in groups, each in secret
+	# colour tiers chosen by its own script (VARIANTS).
+	"unicorn": {
+		"gait": "a glide",
+		"script": preload("res://critters/unicorn.gd"),
+		"sound": "unicorn",
+		"pop": [Color8(245, 166, 200), Color8(198, 156, 240), Color8(255, 240, 170)],
+		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "tail_swish", "sneeze",
+			"shake_off", "look_at_cursor", "listen", "prance"],
+		"rarity_max": "legendary",
+		"special": true,
+	},
+	"golden_kitten": {
+		"gait": "a pounce-pause",
+		"script": preload("res://critters/golden_kitten.gd"),
+		"sound": "golden_kitten",
+		"pop": [Color8(250, 210, 96), Color8(255, 240, 180), Color8(214, 150, 40)],
+		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
+			"ear_flick", "tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen",
+			"hunt", "chase_tail"],
+		"rarity_max": "legendary",
+		"special": true,
+	},
 }
 
 

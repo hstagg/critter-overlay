@@ -197,9 +197,9 @@ ITEMS = {
 
 # Parts of the wearer hidden while an item is on: item -> species -> parts.
 HIDES = {
-    "frog_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
-    "dino_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
-    "bear_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
-    "flower_bonnet": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"]},
+    "frog_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"], "squirrel": ["ears"], "otter": ["ears"], "panda": ["ears"]},
+    "dino_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"], "squirrel": ["ears"], "otter": ["ears"], "panda": ["ears"]},
+    "bear_hood": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"], "squirrel": ["ears"], "otter": ["ears"], "panda": ["ears"]},
+    "flower_bonnet": {"kitten": ["ears"], "duckling": ["tuft"], "hedgehog": ["ears"], "squirrel": ["ears"], "otter": ["ears"], "panda": ["ears"]},
     "lion_mane": {"kitten": ["ears"]},
 }

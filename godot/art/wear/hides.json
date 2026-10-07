@@ -8,6 +8,15 @@
   ],
   "hedgehog": [
    "ears"
+  ],
+  "squirrel": [
+   "ears"
+  ],
+  "otter": [
+   "ears"
+  ],
+  "panda": [
+   "ears"
   ]
  },
  "dino_hood": {
@@ -18,6 +27,15 @@
    "tuft"
   ],
   "hedgehog": [
+   "ears"
+  ],
+  "squirrel": [
+   "ears"
+  ],
+  "otter": [
+   "ears"
+  ],
+  "panda": [
    "ears"
   ]
  },
@@ -30,6 +48,15 @@
   ],
   "hedgehog": [
    "ears"
+  ],
+  "squirrel": [
+   "ears"
+  ],
+  "otter": [
+   "ears"
+  ],
+  "panda": [
+   "ears"
   ]
  },
  "flower_bonnet": {
@@ -40,6 +67,15 @@
    "tuft"
   ],
   "hedgehog": [
+   "ears"
+  ],
+  "squirrel": [
+   "ears"
+  ],
+  "otter": [
+   "ears"
+  ],
+  "panda": [
    "ears"
   ]
  },
