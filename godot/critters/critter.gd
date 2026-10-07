@@ -1054,7 +1054,7 @@ func _apply(p: Dictionary) -> void:
 		closed = 1.0 - sin(clampf(1.0 - blink_left / blink_len, 0.0, 1.0) * PI)
 	if p.eyes_closed and eyes_shut == null:
 		closed = 0.0
-	eyes_open.scale = Vector2(1.0, maxf(0.08, closed))
+	eyes.scale = Vector2(1.0, 1.0 if shut else maxf(0.08, closed))
 	if mouth_open != null:
 		mouth_open.visible = p.mouth > 0.02
 		mouth_open.scale = Vector2(0.8 + 0.2 * p.mouth, p.mouth)
