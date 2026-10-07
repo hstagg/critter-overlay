@@ -258,7 +258,9 @@ func _act(p: Pair) -> void:
 			p.b.world.look_at = heads.call(p.a)
 			kb.start_behaviour("look_at_cursor", p.length)
 		"hedgehog_defence":
-			ka.start_behaviour("sit_and_look", p.length)
+			# The kitten comes close and the hedgehog rolls up; the kitten
+			# listens, puzzled.
+			ka.start_behaviour("ball_up" if ka.can_do("ball_up") else "sit_and_look", p.length)
 			kb.start_behaviour("listen", p.length)
 
 

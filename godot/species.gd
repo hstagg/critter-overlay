@@ -49,6 +49,17 @@ const DATA := {
 		"rarity_max": "legendary",
 		"special": false,
 	},
+	"hedgehog": {
+		"gait": "a snuffle",
+		"script": preload("res://critters/hedgehog.gd"),
+		"sound": "hedgehog",
+		"pop": [Color8(135, 92, 60), Color8(205, 165, 122), Color8(245, 220, 180)],
+		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
+			"ear_flick", "sneeze", "shake_off", "look_at_cursor", "listen",
+			"snuffle", "ball_up"],
+		"rarity_max": "legendary",
+		"special": false,
+	},
 }
 
 

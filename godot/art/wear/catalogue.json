@@ -85,6 +85,18 @@
   "large",
   "duckling"
  ],
+ "quill_apple": [
+  "Apple on the quills",
+  "head",
+  "medium",
+  "hedgehog"
+ ],
+ "autumn_leaves": [
+  "Autumn leaves",
+  "head",
+  "small",
+  "hedgehog"
+ ],
  "heart_clip": [
   "Heart clip",
   "head",

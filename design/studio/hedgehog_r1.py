@@ -129,7 +129,9 @@ def side(p):
     out += ell(ex, ey, er, er * 1.05, FACE, 3.5) + ell(ex - 1, ey + 1, er * 0.55, er * 0.6, EAR_IN, 0)
     # near feet
     # face details
-    if p.get('closed'):
+    if p.get('eye_hidden'):
+        pass   # the rig draws the eyes as their own parts
+    elif p.get('closed'):
         x, y, rx, ry = p['eye']
         out += line('M%.1f %.1f Q%.1f %.1f %.1f %.1f' % (x - rx, y, x, y + ry * 0.7, x + rx, y), OL, 3)
     else:

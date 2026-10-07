@@ -940,7 +940,7 @@ func _wear_sheet() -> void:
 	wear_flag = []
 	var hs := []
 	var i := 0
-	for sp in ["kitten", "rabbit", "duckling"]:
+	for sp in Species.DATA.keys():
 		var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 520, 600), sp, "common")
 		h.critter._go_sit()
 		h.critter.mode_left = INF
