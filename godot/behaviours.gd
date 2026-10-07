@@ -37,6 +37,10 @@ const REGISTRY := {
 	"peck_ground":    {"dur": [1.0, 1.5], "cool": 25.0, "w": 1.0, "sleep": 0.0},
 	"snuffle":        {"dur": [1.0, 2.0], "cool": 30.0, "w": 1.0, "sleep": 0.0},   # v2.0 snuffle_pause
 	"ball_up":        {"dur": [1.5, 2.5], "cool": 45.0, "w": 3.5, "sleep": 0.5},
+	"head_tuck":      {"dur": [2.0, 4.0], "cool": 120.0, "w": 1.0, "sleep": 0.4},
+	"chitter":        {"dur": [0.8, 1.5], "cool": 35.0, "w": 1.0, "sleep": 0.0},
+	"belly_roll":     {"dur": [2.0, 3.5], "cool": 90.0, "w": 1.0, "sleep": 0.0},
+	"panda_roll":     {"dur": [1.6, 2.2], "cool": 90.0, "w": 1.0, "sleep": -0.2},
 	# From perk clothes (wear.gd PERKS): only a critter wearing one does them.
 	"dance":          {"dur": [3.0, 5.0], "cool": 40.0, "w": 1.2, "sleep": -0.5},
 	"fly":            {"dur": [3.5, 5.0], "cool": 60.0, "w": 1.0, "sleep": -0.5},
