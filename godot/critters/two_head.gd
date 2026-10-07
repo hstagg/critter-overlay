@@ -112,10 +112,10 @@ func _apply_extras(p: Dictionary) -> void:
 	if eye_side != null:
 		eye_side_open.visible = eyes_open.visible
 		eye_side_shut.visible = eyes_shut.visible
-		eye_side.scale = eyes_open.scale if eyes_open.visible else Vector2.ONE
+		eye_side.scale = eyes.scale
 	if loaf_eyes != null:
 		loaf_open.visible = eyes_open.visible
 		loaf_shut.visible = eyes_shut.visible
-		loaf_eyes.scale = eyes_open.scale if eyes_open.visible else Vector2.ONE
+		loaf_eyes.scale = eyes.scale
 	if mouth_open != null and not _sit_like(pose):
 		mouth_open.visible = false
