@@ -15,7 +15,8 @@ as long as they last. Run them on a spare machine or VM, not a PC in use.
 | `soak_monitor.gd` | Per sample: frame-time p50/p95/p99, hitches over 50 ms, critters, tiers, static memory, object/node/orphan counts, window count, anomalies (non-finite or off-screen critters, stuck throws) |
 | `sample.ps1` | From outside: working set, private bytes, handles, threads, GDI and USER objects, CPU seconds |
 | `relrun.ps1` | Runs an exported build (which ignores `-s`) with the same sampler |
-| `exit_test.ps1` | Exit cleanliness: N launches, exit codes (`timed`, `second`, `wmclose`) |
+| `exit_test.ps1` | Exit cleanliness: N launches, exit codes (`timed`, `second`, `wmclose`); `-Settings` for a silent settings file |
+| `night_exit.ps1` | The whole exit test unattended (20 timed, 10 second-instance, 10 WM_CLOSE, sound off) plus crash events from the Application log; for a one-off scheduled task |
 | `soak_settings.json` | Settings for the runs: 10 to start, 12 max, pairs on, beta odds with about 15% Legendary |
 
 ## Modes (`--soak-mode=`)
