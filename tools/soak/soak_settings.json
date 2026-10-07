@@ -1,0 +1,3 @@
+{"focus": {"start_with": 10, "max_out": 12},
+ "world": {"pairs": true, "rarity": true, "odds": {"common": 50, "uncommon": 15, "rare": 10, "epic": 10, "legendary": 15}},
+ "system": {"beta": true, "onboarded": true}}
