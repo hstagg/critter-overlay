@@ -24,10 +24,11 @@ const DARK := {
 	"ok_ring": "#1E3A2E", "ph_ink": "#8C80A2", "acc_ink_h": "#DEC9FF", "zz": "#A9BBDD",
 	"rh_bg": "#1D2442", "rh_line": "#5C6FB0", "rh_text": "#B8C5EE", "rh_ink": "#A9BBFF",
 }
-# tier: fill, light tint, light ink, dark tint, dark ink
+# tier: fill, light tint, light ink, dark tint, dark ink ("fresh" is not a
+# tier: the green for New and Yours, once Uncommon's)
 const TIERS := {
 	"common": ["#D9CEC2", "#F3EEE8", "#66594C", "#3A3330", "#DCCFC2"],
-	"uncommon": ["#86D9B0", "#E0F6EB", "#22795A", "#183A2E", "#8FE3BA"],
+	"fresh": ["#86D9B0", "#E0F6EB", "#22795A", "#183A2E", "#8FE3BA"],
 	"rare": ["#7FBCF5", "#E1EFFD", "#2363A8", "#182D47", "#9CCBFA"],
 	"epic": ["#F590B4", "#FDE7EF", "#A62A5C", "#45192C", "#FFA6C6"],
 	"legendary": ["#FFCF5C", "#FFF2CC", "#8C5A00", "#3D2E0C", "#FFD77A"],

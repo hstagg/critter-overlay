@@ -114,6 +114,10 @@ func _apply_extras(p: Dictionary) -> void:
 	# shell), the feet pull up under the rim.
 	var t: float = p.get("tuck", 0.0)
 	var k := 1.0 - 0.85 * t
+	if version == "hatchling":
+		# The Epic hatchling: a bigger head on a smaller shell.
+		k *= 1.22
+		body.scale *= 0.84
 	head.scale = Vector2(k, k)
 	if t > 0.0:
 		var pull := Vector2(16.0, 4.0) if pose == "walk" else Vector2(0, 10.0)

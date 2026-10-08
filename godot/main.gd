@@ -52,6 +52,10 @@ extends Node2D
 ##                      each critter's tier range can be changed in Settings
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
+##   --update-url=URL   ask URL for the newest release instead of GitHub
+##                      (testing updates against a local server)
+##   --when-ready=WHAT  once an update is downloaded and checked, act as if
+##                      Restart and update (install) or Quit (quit) was pressed
 ##   --selftest         check the click-through polygon and quit
 
 const Critter := preload("res://critters/critter.gd")
@@ -72,18 +76,20 @@ const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
 const TimeOfDay := preload("res://time_of_day.gd")
 const Pairs := preload("res://pairs.gd")
+# The Admin page (admin.gd, gui/admin_page.gd) is only in the admin build:
+# the player export leaves both files out (export_presets.cfg), so they are
+# loaded by path, never preloaded.
+const ADMIN_SCRIPT := "res://admin.gd"
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const Icons := preload("res://gui/icons.gd")
+const Updater := preload("res://updater.gd")
 
 const VERSION := "3.0.0"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
-const SPECIAL_CHANCE := 0.004   # an arrival is a special visitor (about 1 in 250)
 const STAY_MAX := 50.0 * 60.0
 const TRAY_EVERY := 0.5
-const UPDATE_URL := "https://api.github.com/repos/hstagg/critter-overlay/releases/latest"
-const RELEASES_URL := "https://github.com/hstagg/critter-overlay/releases/latest"
 const UPDATE_EVERY := 24 * 3600   # s between automatic checks
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
@@ -93,6 +99,9 @@ var t := 0.0
 
 var hosts := []
 var evaluator := Behaviours.new()
+var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
+var admin_flag := false
+var admin_run := ""               # --admin-run=ACTION: an audit Run button, for testing
 var pairs := Pairs.new()
 var presence: Node
 var gather_flag := -1.0       # --gather-every, over the setting
@@ -138,6 +147,9 @@ var welcome_dir := ""
 var waiting_welcome := false  # nobody arrives until the welcome is closed
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
+var updater: Node
+var update_url := ""            # --update-url
+var when_ready := ""            # --when-ready
 var save_path := ""
 var tray_in := 0.0
 var open_on_start := ""
@@ -165,6 +177,9 @@ var grab_next := 2.0
 
 func _ready() -> void:
 	presence = Presence.new()
+	if ResourceLoader.exists(ADMIN_SCRIPT):
+		admin = load(ADMIN_SCRIPT).new(self)
+		add_child(admin)
 	var selftest := false
 	for arg in OS.get_cmdline_user_args():
 		var v := arg.get_slice("=", 1)
@@ -238,12 +253,20 @@ func _ready() -> void:
 			stills_dir = v
 		elif arg == "--beta":
 			beta_flag = true
+		elif arg == "--admin":
+			admin_flag = true
+		elif arg.begins_with("--admin-run="):
+			admin_run = v
 		elif arg.begins_with("--throw-demo="):
 			throw_demo = float(arg.get_slice("=", 1))
 		elif arg == "--fake-pointer":
 			fake_pointer = true
 		elif arg.begins_with("--pair-demo="):
 			pair_demo = v
+		elif arg.begins_with("--update-url="):
+			update_url = arg.substr(13)
+		elif arg.begins_with("--when-ready="):
+			when_ready = v
 		elif arg == "--selftest":
 			selftest = true
 
@@ -328,16 +351,24 @@ func _ready() -> void:
 	economy.row_completed.connect(_on_row_completed)
 	economy.bond_grew.connect(_on_bond_grew)
 	for sp in Species.DATA:
-		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "legendary")
+		economy.row_caps[sp] = Species.row(sp).get("rarity_max", "epic")
+		if Species.row(sp).get("special", false):
+			economy.row_variants[sp] = Species.variants(sp)
+	economy.fold_old_tiers()
 	economy.rare_hour_changed.connect(_on_rare_hour)
 
 	toasts = Toasts.new()
 	add_child(toasts)
 	toasts.open_collection.connect(func(sp): open_settings("collection", sp))
-	toasts.closed.connect(func(url):
-		if url == RELEASES_URL and _update_seen != "":
-			settings.set_value("system.update_dismissed", _update_seen))
+	updater = Updater.new()
+	updater.version = VERSION
+	if update_url != "":
+		updater.api_url = update_url
+		updater.allow_http = update_url.begins_with("http://127.0.0.1")
+	add_child(updater)
+	updater.changed.connect(_on_update_changed)
 	if seconds <= 0.0 and demo == "":
+		_after_update(updater.on_launch())
 		get_tree().create_timer(20.0).timeout.connect(_auto_update_check)
 		var again := Timer.new()
 		again.wait_time = 6 * 3600
@@ -381,6 +412,10 @@ func _ready() -> void:
 	if demo != "":
 		var h = _spawn("roam", "walk" if demo == "walk" else "sit", area.get_center() + Vector2(0, 40))
 		h.critter.mode_left = INF
+		return
+	if admin_run != "" and admin != null:
+		admin.hold = true
+		get_tree().create_timer(1.0).timeout.connect(func(): admin.run(admin_run))
 		return
 	presence.start()
 	if pair_demo != "":
@@ -475,42 +510,79 @@ func _welcome_tour(w: Window) -> void:
 	_quit(0)
 
 
-func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := ""):
-	if sp == "":
+func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", keep_tier := "", version := "", variant := ""):
+	# Every visitor rolls its rarity, with the session's luck, before it is
+	# made: a Rare or Epic is a different version of the species, and a
+	# Legendary is a special visitor. It goes in the Collection; a visit lasts
+	# a while, then it leaves. A critter redrawn at a new size keeps its tier.
+	var tier := keep_tier
+	var bonus := false
+	var rolled := false
+	if tier == "" and economy != null and demo == "":
+		var r: Array = _roll_visitor(sp)
+		sp = r[0]
+		tier = r[1]
+		bonus = r[2]
+		rolled = true
+	elif sp == "":
 		sp = _pick_species()
 	if sp == "":
 		return null   # every species is switched off
+	if force_tier != "":
+		tier = force_tier
+	if version == "" and tier != "":
+		version = Species.version_for(sp, tier)
+	if version == "-":
+		version = ""   # the Admin page asking for the Common look at any tier
 	var h = Host.new()
+	h.version = version
+	h.variant = variant
 	add_child(h)
 	h.setup(self, sp, Critter.zoom, kind, start_mode, at)
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	_personalise(h)
 	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
-	# Every visitor rolls its rarity, with the session's luck, and goes in
-	# the Collection. A visit lasts a while, then it leaves. A critter
-	# redrawn at a new size keeps its tier.
-	if keep_tier != "":
-		h.tier = keep_tier
-	elif economy != null and demo == "":
-		var row: Dictionary = settings.species(sp)
-		var cap: String = Species.row(sp).get("rarity_max", "legendary")
-		if Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(cap):
-			cap = row.tier_max
-		var roll: Array = economy.roll_arrival(cap, row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
-		var rarity_on: bool = settings.value("world.rarity")
-		var tier: String = roll[0] if rarity_on else "common"
-		if Species.row(sp).get("special", false):
-			tier = "legendary"   # special visitors only ever come as Legendaries
-		h.tier = force_tier if force_tier != "" else tier
-		_announce(sp, h.tier, roll[1] and force_tier == "" and rarity_on)
+	if tier != "":
+		h.tier = tier
+	if rolled:
+		_announce(sp, h.tier, bonus and force_tier == "", str(h.critter.get("variant") if "variant" in h.critter else ""))
 		_maybe_bring(h)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
-	elif force_tier != "":
-		h.tier = force_tier   # --demo with --tier: an aura to look at
 	_trail_for(h)
 	return h
+
+
+func _roll_visitor(sp: String) -> Array:
+	# [species, tier, whether it was the day's first-visitor bonus]. The
+	# everyday species top out at Epic; a Legendary roll brings a special
+	# visitor instead (unless a species was asked for).
+	if sp == "":
+		sp = _pick_species()
+	if sp == "":
+		return ["", "", false]
+	if Species.is_special(sp):
+		return [sp, "legendary", false]
+	var rarity_on: bool = settings.value("world.rarity")
+	var row: Dictionary = settings.species(sp)
+	var roll: Array = economy.roll_arrival("legendary", row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
+	var tier: String = roll[0] if rarity_on else "common"
+	if tier == "legendary" and not species_fixed:
+		var special := _pick_special()
+		if special != "":
+			return [special, "legendary", roll[1]]
+	var top: String = Species.row(sp).get("rarity_max", "epic")
+	if Economy.TIERS.find(row.tier_max) >= 0 and Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(top):
+		top = row.tier_max
+	if Economy.TIERS.find(tier) > Economy.TIERS.find(top):
+		tier = top
+	return [sp, tier, roll[1]]
+
+
+func _pick_special() -> String:
+	var pool := Species.DATA.keys().filter(func(s): return Species.is_special(s) and settings.sp(s, "enabled"))
+	return pool.pick_random() if not pool.is_empty() else ""
 
 
 func _on_gift(index: int, berries: int, item: String) -> void:
@@ -656,13 +728,6 @@ func _pick_species() -> String:
 		economy.save()
 		if Species.has(called) and settings.sp(called, "enabled"):
 			return called
-	# Now and then a special visitor (unicorn, golden kitten) instead: they
-	# always arrive Legendary (see _spawn). A stand-in rate until the
-	# rarity redesign (vault plan, 7 Oct) settles how specials are found.
-	if randf() < SPECIAL_CHANCE:
-		var specials := Species.DATA.keys().filter(func(s): return Species.row(s).get("special", false) and settings.sp(s, "enabled"))
-		if not specials.is_empty():
-			return specials.pick_random()
 	var pool := []
 	var weights := []
 	var total := 0.0
@@ -903,13 +968,13 @@ func _quiet() -> bool:
 	return paused or (native != null and native.user_busy())
 
 
-func _announce(sp: String, tier: String, bonus: bool) -> void:
+func _announce(sp: String, tier: String, bonus: bool, variant := "") -> void:
 	# Records the sighting, then shows a toast if it is rare enough.
 	var had_legendary := false
 	for key in economy.collection:
 		if key.ends_with(":legendary"):
 			had_legendary = true
-	var first: bool = economy.record_sighting(sp, tier)
+	var first: bool = economy.record_sighting(sp, tier, variant)
 	var notes: String = settings.value("world.notes")
 	if notes == "off" or Economy.TIERS.find(tier) < Economy.TIERS.find(notes) or _quiet():
 		return
@@ -973,26 +1038,44 @@ func _wear_sheet() -> void:
 func _stills() -> void:
 	# --stills: every built species sitting (front) and walking (side), grabbed
 	# from the game itself, for the design boards.
-	fixed_count = Species.DATA.size()
-	var hs := []
-	var i := 0
+	# Every version folder too (art/<species>/<version>/), named species@version.
+	# The specials keep their colours in their own scripts, so they are grabbed
+	# as they come.
+	var jobs := []
 	for sp in Species.DATA.keys():
-		var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 420, 600), sp, "common")
-		h.critter._go_sit()
-		h.critter.mode_left = INF
-		h.critter.activity = 0.0
-		hs.append(h)
-		i += 1
-	await get_tree().create_timer(1.5).timeout
-	for h in hs:
-		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-front.png" % h.species))
-	for h in hs:
-		h.critter._go_walk()
-		h.critter.mode_left = INF
-	await get_tree().create_timer(1.2).timeout
-	for h in hs:
-		h.win.get_texture().get_image().save_png(stills_dir.path_join("%s-side.png" % h.species))
-	print("STILLS done ", hs.size())
+		jobs.append([sp, ""])
+		if Species.row(sp).get("special", false):
+			continue
+		for d in DirAccess.get_directories_at("res://art/%s" % sp):
+			jobs.append([sp, d])
+	fixed_count = jobs.size()
+	var done := 0
+	while done < jobs.size():
+		# A batch at a time, so the windows fit along the screen.
+		var batch: Array = jobs.slice(done, done + 4)
+		var hs := []
+		var i := 0
+		for j in batch:
+			var h = _spawn("roam", "sit", area.position + Vector2(300 + i * 420, 600), j[0], "common", j[1])
+			h.critter._go_sit()
+			h.critter.mode_left = INF
+			h.critter.activity = 0.0
+			hs.append([h, j[0] + ("@" + j[1] if j[1] != "" else "")])
+			i += 1
+		await get_tree().create_timer(1.5).timeout
+		for e in hs:
+			e[0].win.get_texture().get_image().save_png(stills_dir.path_join("%s-front.png" % e[1]))
+		for e in hs:
+			e[0].critter._go_walk()
+			e[0].critter.mode_left = INF
+		await get_tree().create_timer(1.2).timeout
+		for e in hs:
+			e[0].win.get_texture().get_image().save_png(stills_dir.path_join("%s-side.png" % e[1]))
+			e[0].queue_free()
+			hosts.erase(e[0])
+		await get_tree().process_frame
+		done += batch.size()
+	print("STILLS done ", jobs.size())
 	_quit(0)
 
 
@@ -1042,7 +1125,8 @@ func _run_toast_demo() -> void:
 func _tour() -> void:
 	# --settings-tour: every page, top to bottom, saved for checking by eye.
 	await get_tree().create_timer(1.5).timeout
-	for n in SettingsWindow.NAV:
+	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if admin_on() else [])
+	for n in tour_pages:
 		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
 			settings_win.pages.shop_try = shop_try_flag.get_slice(":", 0)
 			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag else ""
@@ -1056,12 +1140,17 @@ func _tour() -> void:
 			var sc: ScrollContainer = settings_win._scroll
 			settings_win.get_texture().get_image().save_png(tour_dir.path_join("%s-%d.png" % [n[0], i]))
 			var max_y := int(sc.get_v_scroll_bar().max_value - sc.size.y)
-			if y >= max_y or i >= 5:
+			if y >= max_y or i >= (14 if n[0] == "admin" else 5):
 				break
 			y = mini(y + 600, max_y)
 			i += 1
 	print("TOUR done")
 	_quit(0)
+
+
+func admin_on() -> bool:
+	# The admin build always shows the Admin page; running from source, --admin.
+	return admin != null and (OS.has_feature("admin") or admin_flag)
 
 
 func open_settings(page := "", sp := "") -> void:
@@ -1136,7 +1225,7 @@ func _arrivals(delta: float) -> void:
 	# time whatever you are doing (arrivals while you are away nap at once).
 	# Solo walkers come along the edges in either mode. Nobody comes or goes
 	# while paused.
-	if paused or waiting_welcome:
+	if paused or waiting_welcome or (admin != null and admin.hold):
 		return
 	var present: bool = not presence.away
 	var timer: bool = settings.value("focus.mode") == "timer"
@@ -1200,17 +1289,29 @@ func toggle_pause() -> void:
 
 
 func quit_app() -> void:
+	# A downloaded update goes in quietly on the way out, unless it would
+	# need an admin prompt (an install for all users).
+	if updater.state == "ready" and updater.per_user() and settings.value("system.updates") != "off":
+		settings.save()
+		updater.install(false)
 	_quit(0)
 
 
 func collection_counts() -> Array:
 	var total := 0
 	var found := 0
+	# The Collection's slots: Common, Rare and Epic of each everyday species,
+	# and each colour variant of a Legendary visitor.
 	for sp in Species.DATA:
-		var cap := Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary"))
-		total += cap + 1
-		for i in cap + 1:
-			if economy.collection.has("%s:%s" % [sp, Economy.TIERS[i]]):
+		var keys := []
+		if Species.is_special(sp):
+			keys = Species.variants(sp).map(func(v): return "%s:legendary:%s" % [sp, v])
+		else:
+			for i in Economy.TIERS.find(Species.row(sp).get("rarity_max", "epic")) + 1:
+				keys.append("%s:%s" % [sp, Economy.TIERS[i]])
+		total += keys.size()
+		for k in keys:
+			if economy.collection.has(k):
 				found += 1
 	return [found, total]
 
@@ -1310,71 +1411,87 @@ func clear_seen_log() -> void:
 	_update_tray()
 
 
-var _update_seen := ""
+# --- Updates (updater.gd does the work) ----------------------------------------------
+
+var _update_told := ""   # the version an update note was shown for this run
 
 
 func _auto_update_check() -> void:
-	# Once a day, quietly: a note only for a newer version not closed before.
+	# Once a day, quietly. Stamped only when GitHub answered, so a check
+	# made offline is tried again at the next six-hourly timer. Between
+	# checks, carry on from what is known: finish a download, show the note.
+	if settings.value("system.updates") == "off":
+		return
 	var now := int(Time.get_unix_time_from_system())
 	if now - int(settings.value("system.update_checked")) < UPDATE_EVERY:
+		updater.resume()
+		_on_update_changed()
 		return
-	settings.set_value("system.update_checked", now)
-	_latest_release(func(tag):
-		if tag != "" and _newer(tag, VERSION) and tag != settings.value("system.update_dismissed"):
-			_update_seen = tag
-			if not _quiet():
-				toasts.show_update(tag, RELEASES_URL))
+	updater.check(false, func(ok):
+		if ok:
+			settings.set_value("system.update_checked", now))
 
 
-func _latest_release(done: Callable) -> void:
-	# The newest release's version on GitHub, or "" if it cannot be reached.
-	var req := HTTPRequest.new()
-	add_child(req)
-	req.timeout = 10.0
-	req.request_completed.connect(func(result, code, _headers, body):
-		req.queue_free()
-		var tag := ""
-		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
-			var d = JSON.parse_string(body.get_string_from_utf8())
-			if typeof(d) == TYPE_DICTIONARY:
-				tag = str(d.get("tag_name", "")).trim_prefix("v")
-		done.call(tag))
-	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
-		req.queue_free()
-		done.call("")
+func check_updates_now() -> void:
+	# System > Updates > Check now.
+	updater.check(true, func(ok):
+		if ok:
+			settings.set_value("system.update_checked", int(Time.get_unix_time_from_system())))
 
 
-func check_for_updates(done: Callable) -> void:
-	# System > Updates > Check now: the newest release on GitHub.
-	var req := HTTPRequest.new()
-	add_child(req)
-	req.timeout = 10.0
-	req.request_completed.connect(func(result, code, _headers, body):
-		req.queue_free()
-		var stamp := "Checked today at %s." % Time.get_time_string_from_system().substr(0, 5)
-		if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-			done.call("Could not reach GitHub. Try again later.")
-			return
-		var d = JSON.parse_string(body.get_string_from_utf8())
-		var tag: String = str(d.get("tag_name", "")).trim_prefix("v") if typeof(d) == TYPE_DICTIONARY else ""
-		if tag != "" and _newer(tag, VERSION):
-			done.call("Version %s is out. Press What is new to get it. %s" % [tag, stamp])
+func install_update() -> void:
+	# The update note or Settings: save, start the installer, and go. The
+	# installer brings the new version up when it is done.
+	settings.save()
+	var err: String = updater.install(true)
+	if err == "":
+		_quit(0)
+	elif settings_win == null or not settings_win.visible:
+		toasts.show_update("Update", "Could not update", err, func(): open_settings("system"))
+
+
+func _on_update_changed() -> void:
+	if when_ready != "" and updater.state == "ready":
+		(install_update if when_ready == "install" else quit_app).call_deferred()
+		when_ready = ""
+		return
+	if settings_win != null and settings_win.visible and settings_win.page == "system":
+		settings_win.rebuild()
+	# The note, once per version per run, and never for one closed before.
+	var v := str(updater.release.get("version", ""))
+	var mode: String = settings.value("system.updates")
+	if v == "" or v == _update_told or v == settings.value("system.update_dismissed") or mode == "off":
+		return
+	if _quiet() or (settings_win != null and settings_win.visible):
+		return
+	var forget := func(): settings.set_value("system.update_dismissed", v)
+	if updater.state == "ready":
+		_update_told = v
+		toasts.show_update("Update", "Version %s is ready" % v, "Click to restart and update. It takes a few seconds.",
+			install_update, forget)
+	elif updater.state == "available" and not updater.one_click():
+		_update_told = v
+		var page := str(updater.release.get("page", Updater.RELEASES_URL))
+		toasts.show_update("Update", "Version %s is out" % v, "Click to see what is new and download it.",
+			func(): OS.shell_open(page), forget)
+	elif updater.state == "available" and mode == "tell":
+		_update_told = v
+		toasts.show_update("Update", "Version %s is out" % v, "Click to download and install it from Settings.",
+			func(): open_settings("system"), forget)
+
+
+func _after_update(after: Dictionary) -> void:
+	# The first launch after an install: say how it went.
+	if after.is_empty():
+		return
+	var v := str(after.version)
+	get_tree().create_timer(4.0).timeout.connect(func():
+		if after.result == "updated":
+			toasts.show_update("Updated", "Updated to %s" % v, "Click to see what is new.",
+				func(): OS.shell_open(Updater.RELEASES_URL.replace("latest", "tag/v" + v)))
 		else:
-			done.call("You are up to date. " + stamp))
-	if req.request(UPDATE_URL, ["User-Agent: CritterOverlay"]) != OK:
-		req.queue_free()
-		done.call("Could not reach GitHub. Try again later.")
-
-
-static func _newer(a: String, b: String) -> bool:
-	var x := a.split(".")
-	var y := b.split(".")
-	for i in 3:
-		var p := int(x[i]) if i < x.size() else 0
-		var q := int(y[i]) if i < y.size() else 0
-		if p != q:
-			return p > q
-	return false
+			toasts.show_update("Update", "Could not update to %s" % v, "Your critters are fine. Click to try again from Settings.",
+				func(): open_settings("system")))
 
 
 # --- Applying settings ------------------------------------------------------------
@@ -1394,6 +1511,10 @@ func _on_setting(key: String) -> void:
 			settings_win.rebuild()
 	if under.call("system.detail"):
 		Aura.simple = settings.value("system.detail") == "simple"
+	if under.call("system.updates"):
+		updater.auto_download = settings.value("system.updates") == "download"
+		if updater.auto_download and updater.state == "available":
+			updater.download()
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
 	if under.call("world"):
@@ -1455,14 +1576,12 @@ func _update_tray() -> void:
 	var gift_min := -1.0
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
-	var total := 0
-	for sp in Species.DATA:
-		total += Economy.TIERS.find(Species.row(sp).get("rarity_max", "legendary")) + 1
+	var counts := collection_counts()
 	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
-		"away_min": presence.idle_s / 60.0, "found": economy.collection.size(),
-		"found_total": total, "berries": economy.berries})
+		"away_min": presence.idle_s / 60.0, "found": counts[0],
+		"found_total": counts[1], "berries": economy.berries})
 
 
 func note_pop() -> void:

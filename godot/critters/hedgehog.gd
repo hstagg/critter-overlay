@@ -224,10 +224,10 @@ func _apply_extras(p: Dictionary) -> void:
 	# nodes sit on the eye, so squashing the node closes the eye in place.
 	eye_side_open.visible = eyes_open.visible
 	eye_side_shut.visible = eyes_shut.visible
-	eye_side.scale = eyes_open.scale if eyes_open.visible else Vector2.ONE
+	eye_side.scale = eyes.scale
 	loaf_open.visible = eyes_open.visible
 	loaf_shut.visible = eyes_shut.visible
-	loaf_eyes.scale = eyes_open.scale if eyes_open.visible else Vector2.ONE
+	loaf_eyes.scale = eyes.scale
 	if pose != "sit":
 		mouth_open.visible = false
 	# Washing or rubbing a cheek: the paws on its tummy go up to the face.

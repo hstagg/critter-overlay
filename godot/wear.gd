@@ -27,7 +27,7 @@ const PERKS := {
 # Visitors bringing a present (Harrison, 2026-10-06): the chance an arrival
 # wears an item, by its tier (almost never Common, still rare at Legendary),
 # and which item, cheaper ones likelier. One not yet owned is a free gift.
-const BRING_CHANCE := {"common": 0.0002, "uncommon": 0.001, "rare": 0.004, "epic": 0.012, "legendary": 0.03}
+const BRING_CHANCE := {"common": 0.0002, "rare": 0.004, "epic": 0.012, "legendary": 0.03}
 const BRING_PRICE_POWER := 0.75     # weight ~ (50 / price) ^ this
 
 # Dyes (economy design: repeatable sinks). A dye swaps an item's main colour

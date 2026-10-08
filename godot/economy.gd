@@ -22,7 +22,12 @@ extends Node
 ##   - Rare Hour (v2.0): an hour each evening, 21:00 by default, when rare,
 ##     epic and legendary are twice as likely, on top of luck.
 ##   - The day's first visitor is Rare or better (v2.0's first-spawn bonus:
-##     70% Rare, 20% Epic, 10% Legendary, within the species' cap).
+##     78% Rare, 20% Epic, 2% Legendary, within the species' cap).
+##   - Tiers (Harrison, 2026-10-07): Common, Rare, Epic, Legendary. The
+##     everyday species are Common, and their Rare and Epic versions look
+##     different (species.gd "versions"). Legendary is only for the special
+##     visitors (unicorn, golden kitten), each in secret colour variants that
+##     the Collection keeps as "species:legendary:variant".
 ##
 ## Time comes from `now()`, which a test can replace.
 
@@ -34,8 +39,8 @@ signal rare_hour_changed(on: bool)
 signal row_completed(species: String, berries: int)
 signal bond_grew(species: String, level: int)
 
-const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
-const BASE_ODDS := {"common": 0.904, "uncommon": 0.07, "rare": 0.02, "epic": 0.005, "legendary": 0.001}
+const TIERS := ["common", "rare", "epic", "legendary"]
+const BASE_ODDS := {"common": 0.95, "rare": 0.04, "epic": 0.009, "legendary": 0.001}
 const LUCKY := ["rare", "epic", "legendary"]
 
 const BERRIES_PER_MIN := 1.0
@@ -53,11 +58,11 @@ const LUCK_FULL_MIN := 120.0
 const LUCK_KEPT := 0.5             # of session luck kept across a long break
 const NIGHT_S := 6 * 3600          # a break this long starts afresh
 const SAVE_EVERY_S := 60.0
-const SAVE_VERSION := 1
-const FIRST_BONUS_ODDS := {"rare": 0.70, "epic": 0.20, "legendary": 0.10}
+const SAVE_VERSION := 2            # 2: Uncommon folded into Common (four tiers)
+const FIRST_BONUS_ODDS := {"rare": 0.78, "epic": 0.20, "legendary": 0.02}
 # Collection (economy design, section 8): first finds pay, more for rarer;
 # meeting every tier a species can roll pays a row bonus and frames its card.
-const FIRST_FIND := {"common": 5, "uncommon": 15, "rare": 40, "epic": 100, "legendary": 300}
+const FIRST_FIND := {"common": 5, "rare": 40, "epic": 100, "legendary": 300}
 const ROW_BONUS := 500
 # Bond (economy design, section 9): dressing, treats, dyes, presents and play
 # build it per species; it never goes down. Level 1 says hello to the
@@ -94,7 +99,7 @@ var dyed := {}                     # species -> {item: dye id}
 var treats := []                   # species called next, in order
 var props_out := {}                # showpiece id -> where it stands (0 left .. 1 right)
 var bond := {}                     # species -> bond points
-var collection := {}               # "species:tier" -> {"first": unix, "count": n}
+var collection := {}               # "species:tier" (and "species:legendary:variant") -> {"first": unix, "count": n}
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
 var first_bonus_day := ""          # local date the first-visitor bonus was used
@@ -262,9 +267,9 @@ func roll_tier(max_tier := "legendary", luck_mult := 1.0) -> String:
 	return tier
 
 
-func record_sighting(species: String, tier: String) -> bool:
-	# Returns whether this species and tier is a first find. With the Seen
-	# Log off nothing is kept.
+func record_sighting(species: String, tier: String, variant := "") -> bool:
+	# Returns whether this species and tier (or, for a Legendary visitor, this
+	# colour variant) is a first find. With the Seen Log off nothing is kept.
 	if not seen_log_enabled:
 		sighting.emit(species, tier, false)
 		return false
@@ -272,10 +277,17 @@ func record_sighting(species: String, tier: String) -> bool:
 	var first := not collection.has(key)
 	if first:
 		collection[key] = {"first": int(now()), "count": 0}
-		_earn(FIRST_FIND.get(tier, 0))
 	collection[key]["count"] += 1
+	if variant != "":
+		var vkey := "%s:%s:%s" % [species, tier, variant]
+		if not collection.has(vkey):
+			collection[vkey] = {"first": int(now()), "count": 0}
+			first = true
+		collection[vkey]["count"] += 1
+	if first:
+		_earn(FIRST_FIND.get(tier, 0))
 	if tier in LUCKY:
-		sightings.append({"t": int(now()), "species": species, "tier": tier})
+		sightings.append({"t": int(now()), "species": species, "tier": tier, "variant": variant})
 	sighting.emit(species, tier, first)
 	if first and row_complete(species):
 		_earn(ROW_BONUS)
@@ -284,6 +296,7 @@ func record_sighting(species: String, tier: String) -> bool:
 
 
 var row_caps := {}                 # species -> its top tier (main.gd fills it from species.gd)
+var row_variants := {}             # Legendary visitor -> its colour variants (main.gd)
 
 
 func bond_level(species: String) -> int:
@@ -304,11 +317,44 @@ func add_bond(species: String, points: int) -> void:
 
 
 func row_complete(species: String) -> bool:
-	var cap: String = row_caps.get(species, "legendary")
+	# An everyday species: its Common, Rare and Epic met. A Legendary visitor:
+	# every colour variant met.
+	if row_variants.has(species):
+		for v in row_variants[species]:
+			if not collection.has("%s:legendary:%s" % [species, v]):
+				return false
+		return true
+	var cap: String = row_caps.get(species, "epic")
 	for i in TIERS.find(cap) + 1:
 		if not collection.has("%s:%s" % [species, TIERS[i]]):
 			return false
 	return true
+
+
+static func _merge_find(into: Dictionary, key: String, old: Dictionary) -> void:
+	if not into.has(key):
+		into[key] = {"first": int(old.get("first", 0)), "count": 0}
+	into[key]["first"] = mini(int(into[key]["first"]), int(old.get("first", into[key]["first"])))
+	into[key]["count"] = int(into[key]["count"]) + int(old.get("count", 0))
+
+
+func fold_old_tiers() -> void:
+	# Saves from before four tiers (2026-10-07): an Uncommon find counts as
+	# Common, and an everyday critter's Legendary (there are none now) as its
+	# Epic. Needs row_caps, so main.gd calls it after filling them.
+	var out := {}
+	for key in collection:
+		var parts: PackedStringArray = str(key).split(":")
+		var tier: String = parts[1] if parts.size() > 1 else ""
+		var nk: String = key
+		if tier == "uncommon":
+			nk = "%s:common" % parts[0]
+		elif tier == "legendary" and not row_variants.has(parts[0]) and row_caps.get(parts[0], "epic") != "legendary":
+			nk = "%s:epic" % parts[0]
+		_merge_find(out, nk, collection[key])
+	if out.size() != collection.size() or out.keys() != collection.keys():
+		collection = out
+		save()
 
 
 func import_v2_seen(seen: Dictionary) -> void:
@@ -319,8 +365,8 @@ func import_v2_seen(seen: Dictionary) -> void:
 			continue
 		var id: String = "duckling" if name == "duck" else str(name)
 		for tier in seen[name]:
-			if not tier in TIERS:
-				continue
+			if not tier in TIERS and tier != "uncommon":
+				continue   # (an Uncommon is folded into Common by fold_old_tiers)
 			var key := "%s:%s" % [id, tier]
 			if not collection.has(key):
 				collection[key] = {"first": int(now()), "count": 0}
