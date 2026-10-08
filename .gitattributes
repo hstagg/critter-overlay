@@ -1,2 +1,4 @@
 # Shell scripts run under bash (Git Bash, Linux): LF on every checkout.
 *.sh text eol=lf
+# Godot writes .import files with LF: keep them LF, or every import shows as a change.
+*.import text eol=lf
