@@ -33,6 +33,11 @@ On the Linux host, with passwordless sudo:
    build them or take them from a dev checkout) and import once:
    `godot --headless --path godot --import`.
 
+On the VM, Godot finds no OpenGL 3.3 and falls back to ANGLE on Microsoft's
+software Direct3D 11 renderer; critters, auras and trails draw correctly,
+6 Legendaries at about 33 fps. There is no audio device, so runs are
+silent (Godot logs a WASAPI error and uses its dummy driver).
+
 ## Run tests
 
 Programs started straight from SSH have no desktop, so their windows never

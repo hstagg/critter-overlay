@@ -7,11 +7,12 @@
 #
 # The command's output goes to C:\soak\<Name>.log; this prints its exit code.
 param([Parameter(Mandatory)][string]$Command, [string]$Name = "critter-run", [int]$TimeoutMin = 300, [switch]$NoWait)
+$ErrorActionPreference = "Stop"
 $log = "C:\soak\$Name.log"
 New-Item -ItemType Directory -Force C:\soak | Out-Null
 $task = "critter-$Name"
 $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c $Command > `"$log`" 2>&1" -WorkingDirectory "C:\critter-overlay"
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
+$principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes $TimeoutMin) -AllowStartIfOnBatteries
 Register-ScheduledTask -TaskName $task -Action $action -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $task
