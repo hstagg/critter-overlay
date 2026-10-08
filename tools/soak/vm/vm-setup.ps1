@@ -17,8 +17,12 @@ if (-not (Test-Path "C:\Program Files\Git\bin\git.exe")) {
 if (-not (Test-Path "$tools\godot\godot.exe")) {
     curl.exe -sSL -o "$tools\godot.zip" "$rel/Godot_v${GodotVersion}_win64.exe.zip"
     Expand-Archive "$tools\godot.zip" "$tools\godot" -Force
-    # The console build, so stdout reaches redirections and logs.
-    Copy-Item "$tools\godot\Godot_v${GodotVersion}_win64_console.exe" "$tools\godot\godot.exe"
+}
+if (-not (Test-Path "$tools\godot\godot.exe") -or (Get-Item "$tools\godot\godot.exe").Length -lt 1MB) {
+    # The main build: its output still reaches redirections. (The _console
+    # one is a small wrapper that finds the main build by its own name, so
+    # it cannot be renamed.)
+    Copy-Item "$tools\godot\Godot_v${GodotVersion}_win64.exe" "$tools\godot\godot.exe" -Force
 }
 $templates = Join-Path $env:APPDATA ("Godot\export_templates\" + ($GodotVersion -replace '-', '.'))
 if (-not (Test-Path "$templates\windows_release_x86_64.exe")) {
