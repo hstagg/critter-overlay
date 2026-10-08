@@ -7,10 +7,12 @@ how to rerun: `tools/soak/README.md`.
 1920×1080 primary. Godot 4.7.2 editor binary (debug) for harness runs; a
 release export of the same commit for the release numbers.
 
-**Not done yet:** the dedicated 20-launch exit test (stopped early because the
-runs made the test PC unusable; to be rerun). The exit evidence below comes
-from the 39 timed runs that did finish, plus one second-instance crash seen
-by accident.
+**Update, 8 October:** the dedicated exit test ran on the release export of
+the fixed branch: 40 of 40 clean (section 3). After merging current `v3`:
+353 more art SVGs (the version folders) got their `keep` import files, and a
+new `import_test.gd` guards them; the Admin page's pair checks and
+`--pair-demo` now start the two close enough to meet (10 of 10 pairs act).
+A 6-hour soak on the test VM (`tools/soak/vm/`) is under way.
 
 ## Findings
 
@@ -18,11 +20,11 @@ by accident.
 |---|---|---|---|---|
 | 1 | A release export made from a fresh clone has no critter art. The `art/**/*.svg.import` files (`importer="keep"`) are gitignored, so a clone imports the SVGs as textures and the exported `.pck` has no raw SVG for `critter.gd` to read. | High (for any build not made from the original checkout) | Export from a clean worktree: 453 errors in 2 min (`load_svg_from_buffer: buffer_size == 0`, `Invalid image: image is empty`), 69 per kitten = 23 parts × 3. With the `keep` files: 0 errors for every species. | **Fixed** on `v3-soak-fixes`: `.import` files committed |
 | 2 | `main.gd` appends to `process_ms` and `fps` every frame in every run, not only report runs: unbounded growth. | Medium (slow leak in the shipped app) | Soak: 129,421 entries per array after 65 min; static memory 43.2 → 49.8 MB, about 2 × 129k Variants. Projects to about 100 MB per 24 h at 40 fps. | **Fixed**: only collected with `--report` |
-| 3 | A second launch while the app is running can crash on exit (0xC0000005). The "already running" branch calls `get_tree().quit()`, which runs the GL teardown that `_quit()` exists to skip. | Medium (a double-clicked shortcut gives a crash report) | 1 of 10 second-instance launches of the release export exited with an access violation (bash exit 139); the other 9 printed the known teardown warnings. | **Fixed**: that branch now calls `_quit(0)`. Needs the exit test to confirm |
+| 3 | A second launch while the app is running can crash on exit (0xC0000005). The "already running" branch calls `get_tree().quit()`, which runs the GL teardown that `_quit()` exists to skip. | Medium (a double-clicked shortcut gives a crash report) | 1 of 10 second-instance launches of the release export exited with an access violation (bash exit 139); the other 9 printed the known teardown warnings. | **Fixed** and confirmed: that branch now calls `_quit(0)`; 10 of 10 second launches clean |
 | 4 | GDI objects leak about 1.75 per window created (critter windows and toasts). Godot bug: `display_server_windows.cpp:1905` creates an `HRGN` for `DwmEnableBlurBehindWindow` on every transparent window and never deletes it. | Low to medium (10,000 per-process limit) | Soak: 53 → 108 over 65 min, rising only while present (arrivals, pops, toasts), flat while away. Churn (564 pops, about 570 windows): 62 → 1,061 in 8 min. Normal play: about 55 per hour, so the limit is about 180 h of continuous presence away. | Proposed (see below) |
-| 5 | 36% of natural pair interactions give up during the approach. `APPROACH_LIMIT` is 8 s, but pairs start up to `NEAR` = 420 px apart and cruise speeds are 12 to 35 px/s (12 to 35 s to close 420 px). | Medium (visible: two critters head for each other, then turn away) | Soak: 77 pairs started, 49 ended in `act`, 28 in `approach`. `--pair-demo` fails for all 10 pairs (critters placed 340 px apart): 0 acts in 20 runs. | Proposed |
+| 5 | 36% of natural pair interactions give up during the approach. `APPROACH_LIMIT` is 8 s, but pairs start up to `NEAR` = 420 px apart and cruise speeds are 12 to 35 px/s (12 to 35 s to close 420 px). | Medium (visible: two critters head for each other, then turn away) | Soak: 77 pairs started, 49 ended in `act`, 28 in `approach`. `--pair-demo` and the Admin page's pair checks failed for all 10 pairs (critters placed 340 px apart): 0 acts in 20 runs. | Admin and demo spacing **fixed** (10 of 10 act); natural pairs proposed |
 | 6 | CPU and frame rate. 10 to 12 critters keep about 0.7 to 0.8 of a CPU core busy and run below 60 fps; 20 Legendaries reach 15 fps. Game logic is a small part of it: the cost is drawing and presenting one GL window per critter. | Medium (battery and fan on laptops) | Release, 10 critters, 10 min: fps median 49 (p95 62), main `_process` 3.7 ms median, 426 CPU-s in 600 s. Debug soak: about 33 fps, p50 27 ms, p95 50 ms, 5.4% of frames over 50 ms (7,052 of 129,421). Debug, 20 Legendaries awake: about 15 fps, p50 57 to 67 ms. Everyone napping: about 39 fps, p95 38 ms. | Proposed |
-| 7 | Nothing handles `WM_CLOSE` on the main window (logoff, `taskkill` without `/f`): Godot quits with the full teardown (finding 3's crash path) and without `economy.save()`. Saves happen every 60 s, so at most a minute of focus is lost. | Low | Code reading: no `NOTIFICATION_WM_CLOSE_REQUEST` handler, `auto_accept_quit` left on. Not yet run (part of the exit test). | Proposed: route it through `_quit()` once the exit test confirms |
+| 7 | Nothing handles `WM_CLOSE` on the main window (logoff, `taskkill` without `/f`): Godot quits with the full teardown and without `economy.save()`. Saves happen every 60 s, so at most a minute of focus is lost. | Low | Code reading: no `NOTIFICATION_WM_CLOSE_REQUEST` handler, `auto_accept_quit` left on. Exit test: 10 of 10 `WM_CLOSE` exits clean, so the teardown did not crash here; only the skipped save remains. | Proposed: route it through `_quit()` |
 | 8 | The timed-run economy save (`critter_test_economy.json`) is never reset, unlike the test settings, so bond levels and the collection carry over between test runs. A bonded critter then curls up by a resting pointer mid-test (looked like a stuck squirrel). | Low (test hygiene) | Specials rerun: squirrel in `loaf`, `hold_nap=true` for 4 min with presence forced on; bond levels came from an earlier churn run. | Noted |
 | 9 | Behaviour lunges (hunt, prance) don't clamp to the screen edge. Back-to-back with no cooldown, a kitten got to x = -1,100. | Low (harness artefact; never seen in natural play) | Specials rerun only; 0 anomalies in the 65-min soak and the other stress runs. | Noted |
 
@@ -77,14 +79,22 @@ arrivals, 13 pops, 9 throws, 11 bumps, 1 gift, 5 welcome-backs. Stdout: no
 
 | Path | Runs | Clean | Crashes |
 |---|---|---|---|
-| Timed exit through `_quit()` (debug and release) | 39 | 39 | 0 |
-| Second instance, "already running" (release) | 10 | 9 | 1 (0xC0000005) |
-| `WM_CLOSE` from outside | 0 | | not run yet |
+| Timed exit through `_quit()`, soak and stress runs (debug and release) | 39 | 39 | 0 |
+| Second instance, before the fix (release) | 10 | 9 | 1 (0xC0000005) |
+| Exit test, 8 Oct, release export of the fixed branch: | | | |
+| Timed exit through `_quit()`, 6 Legendaries | 20 | 20 | 0 |
+| Second instance, "already running" | 10 | 10 | 0 |
+| `WM_CLOSE` from outside (`taskkill` without `/f`) | 10 | 10 | 0 |
 
-The Intel workaround holds on the path it covers. The second-instance branch
-was the gap (finding 3). Still to run: 20 timed launches, 10 second-instance
-launches and 10 `WM_CLOSE` closes, all on the release export
-(`tools/soak/exit_test.ps1`).
+No crash events in the Application log during the exit test. The Intel
+workaround holds on every exit path, and the second-instance branch, the one
+gap, is closed (finding 3). Run with `tools/soak/night_exit.ps1`, sound off.
+
+A note for scheduling it: the Claude desktop app is packaged (MSIX), so
+files its tools write under `AppData` are redirected to its own package
+folder and invisible to Task Scheduler. The first scheduled attempt failed
+in 2 s (0xFFFD0000, PowerShell's "file not found") for that reason; keep the
+kit outside `AppData`.
 
 ## Proposed fixes (not made)
 
@@ -97,8 +107,8 @@ launches and 10 `WM_CLOSE` closes, all on the release export
   matter before an engine fix lands.
 - **Finding 5, pairs.** Either start pairs only when the walker can arrive in
   time (`|dx| / cruise < APPROACH_LIMIT`), or scale the limit to the distance
-  (for example `max(8, 1.5 * |dx| / cruise)`). Fix `--pair-demo` to place the
-  two closer (about 120 px), as the harness's `pairs` mode does.
+  (for example `max(8, 1.5 * |dx| / cruise)`). (`--pair-demo` and the Admin
+  pair checks now start the two 120 px apart.)
 - **Finding 6, CPU.** Cap the frame rate when nothing needs it: 30 fps while
   everyone is napping or away, perhaps 30 to 40 normally, via
   `Engine.max_fps`; measure the CPU saving on this machine. Longer term,
@@ -106,17 +116,20 @@ launches and 10 `WM_CLOSE` closes, all on the release export
   presents for still critters. A design call, so not attempted here.
 - **Finding 7, WM_CLOSE.** Set `get_tree().auto_accept_quit = false` and call
   `_quit(0)` on `NOTIFICATION_WM_CLOSE_REQUEST`: the same exit as the tray's
-  Quit, so the economy is saved and the teardown skipped.
+  Quit, so the economy is saved and the teardown skipped. The exit test found
+  no crash on this path, so this is now only about the save.
 - **Finding 8.** Delete the test economy save at the start of each timed run,
   as the test settings already are, or have the harness pass a fresh `--save=`.
 
-## Merging the `.import` commit into an existing checkout
+## Pulling the `.import` files into an existing checkout
 
-Git refuses to merge a commit that adds files that already exist untracked,
-even with the same content. A checkout that already has its own `.import`
-files needs those removed before the merge (the merge puts identical
-copies back). From the repo root, with the branch fetched:
+Git refuses to pull a commit that adds files that already exist untracked,
+even with the same content, and a checkout that has been opened in Godot has
+its own `.import` files. After the merge on GitHub, in that checkout:
 
 ```bash
-git diff --name-only HEAD origin/v3-soak-fixes -- '*.import' | xargs rm --
+git fetch && git diff --name-only HEAD origin/v3 --diff-filter=A -- '*.import' | xargs rm -- && git pull
 ```
+
+That removes only the `.import` files the pull is about to add (the pull
+puts identical copies back). Untracked art of your own keeps its imports.
