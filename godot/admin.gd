@@ -250,8 +250,10 @@ func pair(name: String) -> void:
 	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
 	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
 	var c: Vector2 = main.area.get_center() + Vector2(0, 120)
-	var a = main._spawn("roam", "sit", c - Vector2(220, 0), sa, "common")
-	var b = main._spawn("roam", "sit", c + Vector2(120, 0), sb, "common")
+	# 120 px apart: any further and the walk over outlasts the 8 s approach
+	# limit at the slower cruise speeds (pairs.gd APPROACH_LIMIT).
+	var a = main._spawn("roam", "sit", c - Vector2(60, 0), sa, "common")
+	var b = main._spawn("roam", "sit", c + Vector2(60, 0), sb, "common")
 	if a == null or b == null:
 		return
 	get_tree().create_timer(1.0).timeout.connect(func():
