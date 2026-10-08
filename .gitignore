@@ -20,3 +20,6 @@ godot/bin/*.pdb
 native/extension_api.json
 native/.sconsign*
 native/src/*.obj
+
+# Soak harness output (tools/soak/run.sh)
+tools/soak/out/
