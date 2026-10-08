@@ -1087,8 +1087,9 @@ func _run_pair_demo() -> void:
 	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
 	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
 	var c := area.get_center() + Vector2(0, 120)
-	var a = _spawn("roam", "sit", c - Vector2(220, 0), sa)
-	var b = _spawn("roam", "sit", c + Vector2(120, 0), sb)
+	# 120 px apart, inside the 8 s approach limit (see admin.gd pair()).
+	var a = _spawn("roam", "sit", c - Vector2(60, 0), sa)
+	var b = _spawn("roam", "sit", c + Vector2(60, 0), sb)
 	var go := func():
 		if is_instance_valid(a) and is_instance_valid(b) and pairs.active.is_empty():
 			a.critter.paired = false
