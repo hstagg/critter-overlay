@@ -8,7 +8,7 @@ const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const Species := preload("res://species.gd")
 
-const TIERS := ["common", "uncommon", "rare", "epic", "legendary"]
+const TIERS := ["common", "rare", "epic", "legendary"]
 const COLUMNS := 3
 const CARD_W := 248
 const WELL_H := 112
@@ -49,7 +49,12 @@ func _process(delta: float) -> void:
 
 
 static func species_name(id: String) -> String:
-	return "Golden kitten" if id == "golden" else id.capitalize()
+	var n := id.replace("_", " ")
+	return n[0].to_upper() + n.substr(1)
+
+
+static func variant_name(v: String) -> String:
+	return species_name(v) if v != "" else ""
 
 
 func _built_species(special: bool) -> Array:
@@ -60,12 +65,20 @@ func _built_species(special: bool) -> Array:
 	return out
 
 
-func _max_index(sp: String) -> int:
-	return TIERS.find(Species.row(sp).get("rarity_max", "legendary"))
+func _slots(sp: String) -> Array:
+	# What there is to find of a species: [tier, variant] pairs. An everyday
+	# critter has its Common, Rare and Epic; a Legendary visitor has a slot
+	# per colour variant, a secret until met.
+	if Species.is_special(sp):
+		return Species.variants(sp).map(func(v): return ["legendary", v])
+	var out := []
+	for i in TIERS.find(Species.row(sp).get("rarity_max", "epic")) + 1:
+		out.append([TIERS[i], ""])
+	return out
 
 
-func _count(sp: String, tier: String) -> int:
-	var k := "%s:%s" % [sp, tier]
+func _count(sp: String, tier: String, variant := "") -> int:
+	var k := "%s:%s" % [sp, tier] if variant == "" else "%s:%s:%s" % [sp, tier, variant]
 	return int(economy.collection[k]["count"]) if economy.collection.has(k) else 0
 
 
@@ -100,7 +113,7 @@ func _build() -> void:
 	grid.add_theme_constant_override("v_separation", 14)
 	for sp in regular:
 		var seen := _seen_total(sp)
-		var complete := _found_tiers(sp) == _max_index(sp) + 1
+		var complete: bool = economy.row_complete(sp)
 		if filter == "found" and seen == 0:
 			continue
 		if filter == "missing" and complete:
@@ -112,7 +125,7 @@ func _build() -> void:
 
 	var specials := _built_species(true)
 	if not specials.is_empty():
-		col.add_child(UI.label("Specials", 19, c.ink, 600, true))
+		col.add_child(UI.label("Legendary visitors", 19, c.ink, 600, true))
 		var sg := GridContainer.new()
 		sg.columns = COLUMNS
 		sg.add_theme_constant_override("h_separation", 14)
@@ -166,14 +179,6 @@ func _seen_total(sp: String) -> int:
 	return n
 
 
-func _found_tiers(sp: String) -> int:
-	var n := 0
-	for i in _max_index(sp) + 1:
-		if _count(sp, TIERS[i]) > 0:
-			n += 1
-	return n
-
-
 func _progress(c: Dictionary) -> Control:
 	var found := 0
 	var total := 0
@@ -181,12 +186,12 @@ func _progress(c: Dictionary) -> Control:
 	for t in TIERS:
 		per[t] = [0, 0]
 	for sp in Species.DATA:
-		for i in _max_index(sp) + 1:
+		for slot in _slots(sp):
 			total += 1
-			per[TIERS[i]][1] += 1
-			if _count(sp, TIERS[i]) > 0:
+			per[slot[0]][1] += 1
+			if _count(sp, slot[0], slot[1]) > 0:
 				found += 1
-				per[TIERS[i]][0] += 1
+				per[slot[0]][0] += 1
 
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", UI.box(c.surface, 20, c.line, 2, 22))
@@ -226,7 +231,7 @@ func _newest_line() -> String:
 
 
 static func _article(tier: String) -> String:
-	return "an" if tier in ["uncommon", "epic"] else "a"
+	return "an" if tier == "epic" else "a"
 
 
 func _when(unix: int, lower := false) -> String:
@@ -314,25 +319,23 @@ func _card(sp: String, c: Dictionary) -> Control:
 	var pips := HBoxContainer.new()
 	pips.alignment = BoxContainer.ALIGNMENT_CENTER
 	pips.add_theme_constant_override("separation", 8)
-	for i in TIERS.size():
-		var t: String = TIERS[i]
+	for slot in _slots(sp):
+		var t: String = slot[0]
 		var tc := Palette.tier(t, _dark)
 		var pip := VBoxContainer.new()
 		pip.custom_minimum_size.x = 30
 		pip.add_theme_constant_override("separation", 2)
 		var under: Label
-		if i > _max_index(sp):
-			pip.add_child(UI.icon(Icons.line("lock", 18, c.dash)))
-			pip.tooltip_text = "Not possible for this critter"
-			under = UI.label("no", 11, c.ink3, 700)
+		var n := _count(sp, t, slot[1])
+		if n == 0:
+			pip.add_child(UI.icon(Icons.badge(t, 22, c.surface, c.dash, true)))
+			under = UI.label("?", 11, c.ink3, 800)
+			pip.tooltip_text = "A secret colour, not yet met" if slot[1] != "" else "%s: not yet met" % t.capitalize()
 		else:
-			var n := _count(sp, t)
-			if n == 0:
-				pip.add_child(UI.icon(Icons.badge(t, 22, c.surface, c.dash, true)))
-				under = UI.label("?", 11, c.ink3, 800)
-			else:
-				pip.add_child(UI.icon(Icons.badge(t, 22, tc.fill, c.badge_line)))
-				under = UI.label("x%d" % n, 11, tc.ink, 800)
+			pip.add_child(UI.icon(Icons.badge(t, 22, tc.fill, c.badge_line)))
+			under = UI.label("x%d" % n, 11, tc.ink, 800)
+			pip.tooltip_text = variant_name(slot[1]) if slot[1] != "" else t.capitalize()
+		pip.mouse_filter = Control.MOUSE_FILTER_STOP
 		under.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		pip.add_child(under)
 		pips.add_child(pip)
@@ -359,7 +362,7 @@ func _diary(c: Dictionary) -> Control:
 	var seen_first := {}
 	# First finds, oldest first, so the note marks the right sighting.
 	for s in economy.sightings:
-		var k := "%s:%s" % [s.species, s.tier]
+		var k := "%s:%s:%s" % [s.species, s.tier, s.get("variant", "")]
 		if not seen_first.has(k):
 			seen_first[k] = s.t
 	var list: Array = economy.sightings.duplicate()
@@ -371,11 +374,14 @@ func _diary(c: Dictionary) -> Control:
 		row.add_theme_constant_override("separation", 12)
 		row.custom_minimum_size.y = 40
 		row.add_child(UI.icon(Icons.badge(s.tier, 22, tc.fill, c.badge_line)))
-		var nm := UI.label("%s %s" % [s.tier.capitalize(), species_name(s.species).to_lower()], 14, tc.ink, 800)
+		var what := "%s %s" % [s.tier.capitalize(), species_name(s.species).to_lower()]
+		if s.get("variant", "") != "":
+			what += " (%s)" % variant_name(s.variant).to_lower()
+		var nm := UI.label(what, 14, tc.ink, 800)
 		nm.custom_minimum_size.x = 190
 		row.add_child(nm)
-		var first: bool = seen_first.get("%s:%s" % [s.species, s.tier], -1) == s.t
-		var note := UI.label("First %s %s" % [s.tier.capitalize(), species_name(s.species).to_lower()] if first else "", 13, c.ink2, 600)
+		var first: bool = seen_first.get("%s:%s:%s" % [s.species, s.tier, s.get("variant", "")], -1) == s.t
+		var note := UI.label("First find" if first else "", 13, c.ink2, 600)
 		note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(note)
 		row.add_child(UI.label(_when(int(s.t)), 13, c.ink2, 600))

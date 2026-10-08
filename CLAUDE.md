@@ -76,6 +76,17 @@ Turn each task into something verifiable before starting: a failing test, a `--s
 
 `.claude/skills/design-taste-frontend/` (Leonxlnx/taste-skill, MIT, pinned at ce26fc2) is for the marketing site and store page. Do not apply it to the Godot app's own UI, and skip its image-generation steps. It is large (about 22k tokens), so invoke it only for web page work.
 
+### The Admin page lands with every feature (v3)
+
+The v3 app has a developer-only Admin page (`godot/admin.gd`, `godot/gui/admin_page.gd`): spawn anything, play every move, force pairs and events, and the audit checklist. It lives on `main` like everything else, but only the admin build carries it:
+
+- `.\build-v3.ps1` builds the player installer (export preset "Windows Desktop"), which leaves both admin files out. Never ship anything else.
+- `.\build-v3.ps1 -Admin` builds `CritterOverlaySetup-<version>-admin.exe` (preset "Windows Admin", feature tag `admin`) for the developer's own machine.
+- From source: `godot --path godot -- --admin`. `--admin-run=ACTION` presses an audit Run button, for testing.
+- Nothing outside those two files may preload them: `main.gd` loads `admin.gd` by path only if it exists, and `main.admin` is null in the player build.
+
+**Rule:** a change that adds something the player can see or trigger also adds its Admin control and its audit check, in the same change. New species, versions, colours, moves, pairs and clothes appear on the page by themselves (it reads the game's own tables); a new kind of feature (a new event, a new screen, a new system) needs its own button in `admin.gd` and a line in `checks()` in `admin_page.gd`.
+
 ### Changes that require discussion first
 
 Before implementing any of these, stop and discuss:
@@ -161,7 +172,9 @@ scripts/
 
 ## Testing
 
-No automated test suite. Manual testing checklist for any non-trivial change:
+v3 has headless tests (`godot/*_test.gd`). `.\run-tests.ps1` runs them all but `native_test.gd` (`-Native` adds it; it needs the DLL), and the Tests workflow (`.github/workflows/tests.yml`) runs the same on every push to `v3` and every PR into it. A new `*_test.gd` is picked up by both without any change.
+
+The v2 Python app has no automated tests. Manual testing checklist for any non-trivial change:
 
 1. Does the app launch without a console window (`run.bat`)?
 2. Does the tray icon appear (green paw)?
@@ -182,13 +195,17 @@ The full pipeline is automated by `release.ps1`. For any release:
 
 ```powershell
 # Patch / hotfix
-.\release.ps1 -Version 1.9.1 -Title "fix startup mutex lockout"
+.\release.ps1 -Version 3.0.1 -Title "fix startup mutex lockout"
 
 # Minor / major (write release notes first, then pass the file)
-.\release.ps1 -Version 2.0.0 -Title "critter sharing" -NotesFile release-notes-v2.0.md
+.\release.ps1 -Version 3.1.0 -Title "critter sharing" -NotesFile release-notes-v3.1.md
+
+# Add -SkipNative to reuse the native DLL already in godot\bin
 ```
 
-The script: validates inputs → checks git is clean on main → bumps `src/version.py` and `installer/version_info.txt` → runs `build.ps1` → commits and pushes → creates the GitHub release with the installer attached.
+The script: validates inputs → checks the tag is new and git is clean on main → bumps `VERSION` in `godot/main.gd` and the exe version in `godot/export_presets.cfg` → runs `build-v3.ps1` (the player build) → refuses if the exe carries the Admin page → commits and pushes → creates the GitHub release with the installer attached. (v2's `build.ps1`, `src/version.py` and `installer/version_info.txt` are no longer part of a release.)
+
+A v3 release is also what v2.0 installs' update checker will offer, since both read the repo's latest GitHub release.
 
 **Before running for a minor/major release:**
 1. Update `README.md` with what changed

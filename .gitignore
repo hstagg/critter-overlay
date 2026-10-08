@@ -3,6 +3,7 @@
 *.pyzw
 CritterOverlay_v*.zip
 build/
+build-admin/
 dist/
 installer/output/
 _README.md
