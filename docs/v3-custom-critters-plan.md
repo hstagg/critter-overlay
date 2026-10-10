@@ -519,3 +519,184 @@ economy is tuned on real players than to guess at before launch.
   gallery, Workshop only alongside a Steam SKU. *(recommended)*
 - (b) Workshop from the Steam launch, if there is one.
 - (c) Files only, with nothing hosted and no moderation commitment.
+
+---
+
+## 11. Addendum (2026-10-10): direction, user-level walkthroughs, and frame-by-frame critters
+
+### 11.1 Direction from Harrison
+
+- Custom critters are a **future update, not v3.0**. v3.0 is being polished for beta
+  testing, so none of the work below is on the launch path. (Open for the launch
+  plan: whether v2.0 customs need a stopgap, see sections 1 and 9.)
+- Two things to build for that update, because they serve different people:
+  - **Full custom work** for artists (Part kit, and frame-by-frame critters, 11.3).
+    People should be able to draw in their own software and add it with good
+    animation.
+  - **Coat Studio** for most users, who won't draw but want their own version of a
+    critter.
+- Guided cut-out and AI assistance stay on the list, below those.
+
+### 11.2 What each option lets a user do
+
+**Sticker critter (Tier 1).** The user drops in one picture, such as a pet photo or
+a doodle. The app removes the background, softens the edge, and asks them to drag
+an oval over the head so clothes know where to sit. On screen it moves as one
+piece: it bobs and leans while walking, sways at the hips, squashes on landing and
+breathes while sitting. It can be dragged, thrown, spun dizzy, can climb walls and
+wears clothes. It can't blink, turn its head, wag a tail, groom or curl up to nap.
+It's for "my actual cat on my desktop in thirty seconds", and it's how v2.0 customs
+come over.
+
+**Coat Studio (Tier 2).** All in the app, no other software. Pick a species, set
+colours for coat, darker fur, belly and muzzle, inner ears, nose and eyes, then add a
+pattern (spots, tabby stripes, patches, socks, a blaze, freckles) and tune its colour
+and density. Optionally drop in a photo and the app suggests the colours, then
+discards the photo. The result does everything that species does, because it is the
+same rig: grooming, tail chasing, napping, pair interactions, every item of clothing
+and perk moves. It can't change shape (no new ears, horns or tail). It's shared as a
+short code that someone pastes into Settings.
+
+**Guided cut-out (Tier 3).** The user brings one image, ideally side-on with legs and
+tail clear, and picks the nearest body type. The app suggests where the head, ears,
+legs and tail are; the user corrects the outlines, drops pins where things bend and
+taps each eye so it can blink. The result has a head that follows the cursor, a
+springy tail and ears, legs that swing, and blinks. With only one pose it can't sit
+or curl up the way built-ins do, it can't do moves that need extra drawings, and with
+photos the joins can show.
+
+**Part kit (Tier 4).** For people who draw.
+1. Download a template for a body type, e.g. "kitten-shaped": an SVG with one named
+   layer per part (head, eyes, eyes-closed, ears, sitting body, walking body, legs,
+   tail ...), a faint built-in critter underneath as a guide and marks where each
+   joint bends.
+2. Draw over it. Vector apps (Inkscape, Affinity Designer, Illustrator) keep the
+   layer names; raster apps (Krita, Procreate, Photoshop) export each layer as a PNG
+   named after its part.
+3. Drop the file or folder onto any critter. A preview shows it walking, sitting and
+   napping before anything is saved, and a checklist says which parts are missing and
+   what that costs ("no eyes-closed: it won't blink").
+
+It gets the same animation as the built-in cast, because the motion is code driving
+the parts: real leg swing, springy tail and ears, blinks, the body type's behaviours,
+pair interactions, throws, wall climbs and clothes fitted to the head. The artist
+controls the art plus a few bounded numbers (size, speed, stride, leg length, head
+position), the name and a sound. They can't invent new moves, and can't make a shape
+no body type covers (a snake, a fish).
+
+Artist rules to put in the guide: draw facing left; overlap parts at the joints so no
+gap shows when a part rotates; keep line weights bold because critters are small on
+screen. Roughly ten parts (body, head, eyes, ears, tail, four legs) already give a
+good walk and sit; a full kitten kit is 23 parts across three poses.
+
+**Open design question: missing parts.** Section 2 says a missing part falls back to
+the base species' art. That risks a custom head on a stock kitten's body. The
+alternative is to drop the behaviours that need the missing parts instead, and
+require a minimum set (body, head, eyes, legs for a walker). Decide while writing the
+template; lean towards a required core plus dropped behaviours.
+
+**AI-assisted splitting (Tier 5).** Tier 3 with the manual work reduced. 5a: a small
+model on the user's PC proposes the outlines and the user confirms. 5b: it also paints
+in hidden areas so joins don't show. 5c: the image goes to an online service and comes
+back redrawn in the house style already split into parts. That is the only route from
+"photo of my dog" to "cartoon critter that matches the cast", and the one with running
+costs, privacy, Steam disclosure and audience risk (section 7.3).
+
+| | Own software? | Work for the user | Animation | Shape freedom | Clothes |
+|---|---|---|---|---|---|
+| Sticker | any single image | seconds | basic, one piece | any | yes, roughly fitted |
+| Coat Studio | none | minutes | full, built-in quality | none | all, perfect fit |
+| Cut-out | any single image | 10-20 min | good, one pose | within a body type | yes |
+| Part kit | yes, vector or raster | hours (real art) | full, built-in quality | within a body type | yes, fitted to the head |
+| Frame-by-frame (11.3) | yes, anything that exports frames | hours to days | exactly what they draw | any | limited, see below |
+| AI | photo or drawing | minutes | as cut-out, or Part kit for 5c | within a body type | yes |
+
+### 11.3 Tier 6: Frame-by-frame critters (new)
+
+**What it is.** The Shimeji route. The artist draws or animates the critter in any
+software that exports images (Aseprite, Krita, Photoshop, Procreate, Blender renders,
+After Effects, a GIF) and supplies a short looping clip for each thing the critter
+does. The app plays the clips. Unlike the Part kit the motion is theirs, so any shape
+works (a snake, a fish, a ghost, a pixel-art knight), as does any style.
+
+**Clips.** One is required and the rest are optional, and a missing clip falls back to
+a sensible neighbour:
+
+| Clip | Used when | If missing |
+|---|---|---|
+| `walk` (required) | walking | none, required |
+| `sit` / `idle` | standing still, looking about | first frame of `walk` |
+| `nap` | napping | `sit` |
+| `blink` | now and then while idle | none |
+| `act-1` ... `act-N` (named, e.g. `stretch`, `dance`) | picked at random as a behaviour | skipped |
+| `held` | picked up by the pointer | `sit` |
+| `thrown` | flying or sliding | `held`, spun by the host as built-ins are |
+| `pop` | when clicked | the shared pop burst |
+
+Art faces left like the rest; the app flips it for facing right. The artist sets the
+frame rate per clip and whether it loops. Frames sit on the same ground line in the
+300 x 280 frame, so the host, hit regions and wall climbing work as for built-ins.
+
+**Formats to accept.** A folder of numbered PNGs per clip, a sprite sheet with a
+stated grid, an animated GIF or APNG, and later an Aseprite JSON export (tags map
+straight to clips). Always re-encode on import, which also strips metadata.
+
+**How it fits the rig.** A `frames.gd` extends `critter.gd` and keeps its movement,
+modes (walk, sit, loaf, act), host and edges, but replaces the part rig and pose maths
+with a clip player: `mode` picks the clip, and the body sway, springs and ear/tail
+secondary motion are simply absent. Behaviours are the artist's `act-N` clips,
+scheduled by the existing evaluator, with the species table row built from the
+manifest (`idles` are the clip names). Auras, the Collection preview, pop, sound and
+trails need nothing new.
+
+**Limits to design for, and say plainly in the guide.**
+- **Clothes.** A frame has no head, so by default clothes are off. The artist can opt
+  in by giving a head anchor (a point and size) per clip, or per frame for clips where
+  the head moves, and clothes then ride that. A perfect fit is not promised.
+- **Pairs and wall climbing** need clips the artist may not draw. Fall back to the
+  plain sit or walk clip (rotated by the host on a wall, as it does for built-ins).
+- **Size.** Frames are raster, so cap total frames (say 64), pixel size per frame
+  (within the 300 x 280 frame) and file size. A frame at part scale is about 190 KB in
+  memory, so 64 frames is about 12 MB per custom, loaded when it first spawns and
+  released when unused. Pack frames into one atlas texture per critter to keep draw
+  state cheap.
+- **Moderation.** Raster files can contain anything, so frame-by-frame critters are
+  the highest-risk kind to host (section 7.1). Share them as `.critter` v3 files,
+  never as recipes, and keep the "install only from people you trust" confirm dialog.
+- **Quality.** Nothing makes bad frames good. The importer's preview and a short
+  checklist (consistent ground line, no pixels on the frame edge, loop closes) do the
+  rest.
+
+**Hybrid for later.** A Part kit critter can replace one behaviour with a frame clip
+(the artist rigs the walk but animates a unique dance by hand). It's worth doing once
+both kinds exist, since it reuses the clip player.
+
+**Effort.** About 12-18 focused days: the clip player and manifest, importers for PNG
+sequences, sheets and GIF, the preview and checklist, head anchors for clothes, atlas
+and memory handling, and the artist guide. It shares the engine work, `.critter` v3
+format and sanitiser with the Part kit, so build it after those, not before.
+
+### 11.4 Updated roadmap for the future update
+
+Order of build, each step reusing the one before. All after v3.0.
+
+1. **Foundations:** pluggable art source, raster cache, custom store, `.critter` v3
+   format with validation and sanitiser, the Homemade shelf and economy guard rails.
+2. **Coat Studio** with coat codes (most users, lowest risk, the first thing to ship).
+3. **Runtime clothes fit** for non-built-in heads (needed by everything below).
+4. **Part kit** (artists who want a full rig).
+5. **Frame-by-frame critters** (artists who want their own animation).
+6. **Guided cut-out**, then **AI-assisted splitting** if feedback asks for it.
+
+Steam Workshop and a hosted gallery stay tied to a Steam release and a decision about
+moderation, not to this order.
+
+### 11.5 Changes to the decisions in section 10
+
+- **1 (what ships in v3.0):** effectively answered: custom critters come after
+  launch. What is left is a launch-plan item: whether v2.0 customs need a stopgap
+  (a "back in a later update" notice, or the cheap Sticker carry-over).
+- **3 (how far up the ladder):** Harrison wants Coat Studio plus full custom work.
+  Treat the Part kit and frame-by-frame critters as the "fully custom" pair, and the
+  cut-out as optional.
+- **2, 4, 5** are still open, and are not needed until the update is scheduled.
