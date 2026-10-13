@@ -3,6 +3,20 @@ extends RefCounted
 ## its two typefaces, labels and chips.
 
 
+static func scale() -> float:
+	# The primary screen's display scale: Windows reports 96 dpi for 100%,
+	# 144 for 150%. Critters and windows are drawn this much larger, so a
+	# size setting looks the same on every screen.
+	return clampf(DisplayServer.screen_get_dpi(DisplayServer.get_primary_screen()) / 96.0, 1.0, 3.0)
+
+
+static func fit(base: Vector2, room := 0.95) -> float:
+	# The scale for a window this size: the display scale, smaller if that
+	# would not fit the work area (a small or low-resolution screen).
+	var u := Vector2(DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen()).size)
+	return minf(scale(), minf(u.x * room / base.x, u.y * room / base.y))
+
+
 static func box(bg: Color, radius: int, border := Color.TRANSPARENT, bw := 0, pad := 0, shadow := Color.TRANSPARENT) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg

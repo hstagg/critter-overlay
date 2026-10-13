@@ -243,7 +243,9 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 		col.add_child(bar_pad)
 
 	add_child(win)
-	win.size = Vector2i(W, int(card.get_combined_minimum_size().y) + 6)
+	var f := UI.scale()   # the display scale
+	win.content_scale_factor = f
+	win.size = Vector2i(Vector2(W, int(card.get_combined_minimum_size().y) + 6) * f)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())   # one vsync'd window only
 
 
@@ -270,7 +272,8 @@ func _restack() -> void:
 
 func _place(t: Toast, slide: float) -> void:
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
-	var x := usable.end.x - EDGE - W + int((1.0 - slide) * (W + EDGE))
+	var w := t.win.size.x
+	var x := usable.end.x - EDGE - w + int((1.0 - slide) * (w + EDGE))
 	t.win.position = Vector2i(x, int(round(t.y_now)))
 
 
