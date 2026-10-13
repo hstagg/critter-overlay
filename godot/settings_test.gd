@@ -17,8 +17,9 @@ func check(ok: bool, what: String) -> void:
 
 func _init() -> void:
 	var path := OS.get_temp_dir().path_join("critter_settings_test.json")
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+	for p in [path, path + ".bak", path + ".tmp"]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(p)
 
 	var s = Settings.new()
 	s.path = path
@@ -69,7 +70,10 @@ func _init() -> void:
 	check(Settings.key_text({"mods": 1, "vk": 0x71}) == PackedStringArray(["Alt", "F2"]), "Alt+F2 reads back")
 	check(Settings.key_text({"mods": 0, "vk": 0}).is_empty(), "an unset shortcut reads as nothing")
 
-	# A broken file falls back to defaults.
+	# A broken file with no good copy behind it falls back to defaults
+	# (save_test.gd checks the fallback to the last good copy).
+	if FileAccess.file_exists(path + ".bak"):
+		DirAccess.remove_absolute(path + ".bak")
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string("{not json")
 	f.close()
