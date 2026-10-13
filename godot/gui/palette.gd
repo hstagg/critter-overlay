@@ -36,7 +36,7 @@ const TIERS := {
 # The well behind each critter, light; dark is mixed towards #2E2338.
 const SPECIES_TINT := {"kitten": "#F3E6D6", "rabbit": "#EFE4F4", "duckling": "#FBF0CF", "turtle": "#E4F1DF",
 	"hedgehog": "#F1E3D6", "squirrel": "#F6E1D1", "otter": "#E6EEF3", "panda": "#E9ECE4", "unicorn": "#F1E6F7",
-	"golden": "#FAF0CC"}
+	"golden_kitten": "#FAF0CC"}
 const STATUS := {"running": "#4FB286", "paused": "#C9A13B", "napping": "#6C8DB0"}
 
 

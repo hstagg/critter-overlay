@@ -123,5 +123,30 @@ func _init() -> void:
 	check(saved != null and int(saved.focus.max_out) == 5, "flush writes a pending change at once")
 	s.free()
 
+	# --- Start over: everything new, the old saves kept beside the new ones.
+	clean()
+	e = Economy.new()
+	e.save_path = ep
+	e.berries = 400
+	e.collection = {"kitten:common": {"first": 1, "count": 3}}
+	e.v2_custom_seen = {"custom:x": {"rare": 1}}
+	e.save()
+	e.start_over()
+	var before = SaveFile.read(ep + ".before-start-over")
+	check(e.berries == 0 and e.collection.is_empty() and before != null and before.berries == 400.0, "start over empties the economy and keeps the old save")
+	check(e.v2_custom_seen.has("custom:x") and SaveFile.read(ep).v2_custom_seen.has("custom:x"), "v2.0's custom sightings survive starting over")
+	e.free()
+	s = Settings.new()
+	s.path = sp
+	s.load_file()
+	s.set_value("system.onboarded", true)
+	s.set_value("system.v2_seen_done", true)
+	s.set_value("focus.max_out", 3)
+	s.save()
+	s.start_over()
+	check(not s.value("system.onboarded") and s.value("focus.max_out") == 8 and s.value("system.v2_seen_done"), "start over resets settings and the welcome, but not what v2.0 brought over")
+	check(FileAccess.file_exists(sp + ".before-start-over"), "and keeps the old settings file")
+	s.free()
+
 	print("SAVE TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	quit(0 if fails == 0 else 1)

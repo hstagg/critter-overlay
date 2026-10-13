@@ -280,6 +280,7 @@ func _init() -> void:
 	v.import_v2_seen({"duck": {"common": 15, "rare": 1}, "kitten": {"legendary": 1}, "custom:x": {"rare": 5}})
 	check(v.collection["duckling:common"]["count"] == 15 and v.collection.has("kitten:legendary"), "v2.0 sightings carry over, duck as duckling")
 	check(not v.collection.has("custom:x:rare"), "custom critters are left for their own import")
+	check(v.v2_custom_seen.get("custom:x", {}).get("rare", 0) == 5, "and their sightings are kept for when they come back")
 	v.free()
 
 	# --- Save and load round trip; a gap since the save counts as a long break.

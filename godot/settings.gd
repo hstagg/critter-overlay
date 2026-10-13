@@ -212,6 +212,23 @@ func reset_all() -> void:
 	changed.emit("")
 
 
+func start_over() -> void:
+	# Settings > System > Start over: everything as on a first run, the
+	# welcome included. The old file is kept beside the new one. What v2.0
+	# brought over stays brought over, so it is not brought over twice.
+	if FileAccess.file_exists(path):
+		DirAccess.copy_absolute(path, path + ".before-start-over")
+	var sys = data.get("system", {})
+	var keep := {}
+	for k in ["from_v2", "v2_seen_done", "v2_custom_noted"]:
+		if typeof(sys) == TYPE_DICTIONARY and sys.has(k):
+			keep[k] = sys[k]
+	data = DEFAULTS.duplicate(true)
+	data.system.merge(keep, true)
+	save()
+	changed.emit("")
+
+
 # --- Coming from v2.0 ------------------------------------------------------------
 
 static func _nearest(values: Array, v: float) -> int:

@@ -107,6 +107,7 @@ var collection := {}               # "species:tier" (and "species:legendary:vari
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
 var first_bonus_day := ""          # local date the first-visitor bonus was used
+var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
 
 var rng := RandomNumberGenerator.new()
 var _frac := 0.0                   # berries not yet whole
@@ -367,6 +368,7 @@ func import_v2_seen(seen: Dictionary) -> void:
 	# upgrade keeps what was met. When is not known; today stands in.
 	for name in seen:
 		if str(name).begins_with("custom:"):
+			v2_custom_seen[name] = seen[name]   # for when custom critters come back
 			continue
 		var id: String = "duckling" if name == "duck" else str(name)
 		for tier in seen[name]:
@@ -414,9 +416,17 @@ func receive_brought(item: String) -> bool:
 	return true
 
 
-func clear_seen_log() -> void:
-	collection = {}
-	sightings = []
+func start_over() -> void:
+	# Settings > System > Start over: everything as on a first run. The old
+	# save is kept beside the new one, in case it was a mistake. v2.0's custom
+	# sightings stay: they are not this game's progress.
+	if FileAccess.file_exists(save_path):
+		DirAccess.copy_absolute(save_path, save_path + ".before-start-over")
+	var keep := v2_custom_seen
+	from_dict({})
+	v2_custom_seen = keep
+	read_only = false
+	berries_changed.emit(berries)
 	save()
 
 
@@ -530,7 +540,8 @@ func to_dict() -> Dictionary:
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
-		"treats": treats, "props_out": props_out, "bond": bond, "saved_at": int(now())}
+		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen,
+		"saved_at": int(now())}
 
 
 func save() -> void:
@@ -544,8 +555,12 @@ func load_save() -> void:
 	# Starting inside Rare Hour is not its start: the tray shows it, no toast.
 	_rare_hour_was = in_rare_hour()
 	var d = SaveFile.read(save_path)
-	if d == null:
-		return
+	if d != null:
+		from_dict(d)
+
+
+func from_dict(d: Dictionary) -> void:
+	# The saved state; anything missing or of the wrong kind starts as new.
 	if int(_num(d, "version", SAVE_VERSION)) > SAVE_VERSION:
 		read_only = true
 		push_warning("economy: the save is from a newer version; playing without saving")
@@ -568,6 +583,8 @@ func load_save() -> void:
 	treats = _typed(d, "treats", [])
 	props_out = _typed(d, "props_out", {})
 	bond = _typed(d, "bond", {})
+	v2_custom_seen = _typed(d, "v2_custom_seen", {})
+	_frac = 0.0
 	# A long gap since the last save is a long break.
 	var gap := now() - _num(d, "saved_at", now())
 	if gap >= SESSION_END_S:

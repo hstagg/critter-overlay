@@ -76,11 +76,20 @@ static func mins_text(m: float) -> String:
 
 
 func _slider_row(title: String, desc: String, key: String, lo: float, hi: float, step: float,
-		fmt: Callable, lo_text := "", hi_text := "", width := 260, rebuild := false) -> Control:
+		fmt: Callable, lo_text := "", hi_text := "", width := 260, rebuild := false, on_release := false) -> Control:
+	# `on_release`: a drag sets the value once, when let go (a costly change,
+	# like the size, which draws every critter again); keys still step it.
 	var val := K.value_label(fmt.call(float(S().value(key))))
+	var dragging := [false]
 	var sl := K.slider(float(S().value(key)), lo, hi, step, width, func(x):
 		val.text = fmt.call(x)
-		set_value(key, int(x) if step >= 1.0 else snappedf(x, step)))
+		if not dragging[0]:
+			set_value(key, int(x) if step >= 1.0 else snappedf(x, step)))
+	if on_release:
+		sl.drag_started.connect(func(): dragging[0] = true)
+		sl.drag_ended.connect(func(_changed):
+			dragging[0] = false
+			set_value(key, int(sl.value) if step >= 1.0 else snappedf(sl.value, step)))
 	if rebuild:
 		sl.drag_ended.connect(func(_changed): w.rebuild())
 	return K.row(title, desc, K.slider_row_control(sl, lo_text, hi_text, val))
@@ -407,7 +416,7 @@ func _critters(body: VBoxContainer) -> void:
 			w.rebuild()))
 
 	body.add_child(K.section("Everyone", K.card([
-		_slider_row("Size", "Applies to every critter.", "critters.size", 80, 200, 5, func(x): return "%d px" % int(x), "80 px", "200 px", 240),
+		_slider_row("Size", "Applies to every critter.", "critters.size", 80, 200, 5, func(x): return "%d px" % int(x), "80 px", "200 px", 240, false, true),
 		_slider_row("Opacity", "Lower it if they distract you.", "critters.opacity", 50, 100, 5, func(x): return "%d%%" % int(x), "50%", "100%", 240),
 	])))
 
@@ -509,7 +518,10 @@ func _species_detail(sp: String) -> Control:
 	var well := PanelContainer.new()
 	well.custom_minimum_size = Vector2(250, 250)
 	well.add_theme_stylebox_override("panel", K.box(Palette.species_tint(sp, w.dark), 20))
-	well.add_child(CritterView.make(sp, 250, 236, 1.7))
+	var pic := CritterView.make(sp, 250, 236, 1.7, "sit", false, -1, [], false, {}, w.main.met_variant(sp))
+	if Species.is_special(sp) and w.main.met_variant(sp) == "":
+		pic.modulate = Color(1, 1, 1, 0.2) if Palette.is_dark() else Color(0, 0, 0, 0.18)   # not met yet
+	well.add_child(pic)
 	left.add_child(well)
 	var names := K.vbox(2)
 	names.add_child(UI.label(name, 26, c.ink, 600, true))
@@ -1431,11 +1443,19 @@ func _system(body: VBoxContainer) -> void:
 
 	body.add_child(K.section("Collection", K.card([
 		_toggle_row("Keep a Seen Log", "Records each critter and tier you meet, for your Collection.", "system.seen_log"),
-		K.row("Clear the Seen Log", "Start your Collection again from nothing. This cannot be undone.",
-			K.button("Clear", "bd", "trash", true, func():
-				w.confirm("Clear the Seen Log?", "Every critter and tier you have met, and the sightings diary, will be forgotten. Berries and gifts are kept.", "Clear it", func():
-					w.main.clear_seen_log()
-					w.rebuild()))),
+	])))
+
+	# Help: what a bug report needs, kept on this computer until the player
+	# sends it.
+	var copied := [null]
+	var copy := K.button("Copy", "bs", "check", true, func():
+		DisplayServer.clipboard_set(w.main.diagnostics())
+		copied[0].text = "Copied")
+	copied[0] = copy
+	body.add_child(K.section("Help", K.card([
+		K.row("Log files", "What the app has been doing, kept on this computer.",
+			K.button("Open folder", "bs", "box", true, func(): OS.shell_open(ProjectSettings.globalize_path("user://logs")))),
+		K.row("Copy diagnostics", "Your version, screens, settings and recent log, to paste into a bug report. Nothing is sent anywhere.", copy),
 	])))
 
 	# Custom critters: a placeholder until they arrive.
@@ -1474,6 +1494,10 @@ func _system(body: VBoxContainer) -> void:
 					S().reset_all()
 					w.main.reregister_shortcuts()
 					w.rebuild()))),
+		K.row("Start over", "Your Collection, berries, clothes and settings go, and the welcome opens as on a first run. A copy of the old saves is kept.",
+			K.button("Start over", "bd", "trash", true, func():
+				w.confirm("Start over?", "Your Collection, berries, clothes, showpieces and settings all go back to the beginning.", "Start over", func():
+					w.main.start_over()))),
 		K.row("Quit Critter Overlay", "Closing this window keeps your critters running in the tray. Quit stops them completely.",
 			K.button("Quit", "bd", "power", true, func(): w.main.quit_app())),
 	])))
