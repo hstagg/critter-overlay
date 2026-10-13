@@ -68,7 +68,7 @@ start, but the problem would muddy the feedback. **nice** is polish that can wai
 | 1 | Release builds write no log, and there is no diagnostics button. A tester has nothing to send. | C1, T1 |
 | 2 | A corrupt `economy.json` or `settings.json` is overwritten at the next save, so progress is gone. Logoff, taskkill or a fast Quit can lose recent progress and settings. | C2, C4 |
 | 3 | Rare/Epic versions are missing for kitten, rabbit, duckling, hedgehog and otter (both tiers) and the squirrel's Epic. Those slots arrive in the Common look with a glow. | F1, D2 |
-| 4 | There is no beta release path. `release.ps1` only makes "latest" releases, which v2.0's update checker offers to everyone. The About page shows "3.0" for every 3.0.x build. | K1, P1, D4 |
+| 4 | The About page shows "3.0" for every 3.0.x build, so builds cannot be told apart. (There are no outside users yet, so normal releases are fine: D4.) | P1 |
 | 5 | CPU: 10-12 critters use about 0.75 of a core. There is no frame cap, and paused or hidden critters keep ticking at full rate. | S3 |
 | 6 | The world is measured once at launch. A resolution, dock or taskbar change leaves critters and props off-screen. There is no DPI handling, and Settings is a fixed 1100×760 window. | F2, F3 |
 | 7 | "Pause for full-screen apps" leaks. Props stay on top, and new arrivals appear over a full-screen game. | F4 |
@@ -99,7 +99,7 @@ question below, so later phases do not stall waiting on them.
 **Entry:** this document.
 
 **Items:**
-- Decisions D1-D21 (answers go into the decisions table).
+- Decisions D1-D21 (answers go into the decisions table), and G1 (game design review).
 - H1 (branch of record), H2 (soak follow-up), H3 (branch cleanup), H4 (scope freeze),
   H5 (CI green).
 - R1 (public-repo hygiene).
@@ -155,6 +155,7 @@ that explains what happened.
 **Entry:** Phase 2 exit. D2, D3, D8, D11, D13 and D18 answered.
 
 **Items:**
+- G2 (build the design review's outcome).
 - F1 (Rare/Epic versions), F2 (display changes), F3 (DPI), F4 (full-screen leaks),
   F5 (one-monitor rules), F6 (pairs give up), F7 (groom-less pairs, duckling tail),
   F8 (climbing per species), F10 (v2 custom-critter handling), F11 (fonts).
@@ -356,7 +357,7 @@ happening.
 | F2 | 3 | Display changes: `area` and `screen_rect` are set once (`main.gd:279-283`). Edges, perimeter, props and throw bounds are cached, with no handler for resolution, monitor, taskbar or DPI changes. | Blocker: docking, RDP and taskbar moves strand critters off-screen. | M | D8 | VM: change the resolution and move the taskbar with 8 out → everything is inside the new work area within 5 s. A new Admin row. |
 | F3 | 3 | DPI: there is no scale handling. Critter size, toasts and the fixed 1100×760 Settings window (`settings_window.gd:17`) are in physical pixels. At 150% critters look two-thirds size, and on a 1366×768 screen Settings is clipped. | Blocker (for Settings fit) | M | | VM at 1366×768 at 100%, and 1920×1080 at 125% and 150%: Settings is fully visible, and critter height = size × scale. |
 | F4 | 3 | Full-screen leaks: `_show_critters` (`main.gd:1172`) hides hosts but not props. New arrivals `show()` while `busy_hidden` (`host.gd:193`). Hidden hosts keep ticking and auras keep redrawing. | Blocker: critters popping over a game is the worst first impression. | S | | VM, simulated full-screen state, timer mode every 1 min, 10 min → 0 visible windows of the process. CPU in that state is in Phase 5. |
-| F5 | 3 | Monitors: only the primary is used. A hard throw toward monitor 2 vanishes, and a drag can drop a critter on monitor 2. Make primary-only consistent (clamp the drag and throw) or span monitors. | Should-fix | S (primary-only) / L (span) | D8 | Two-monitor test: a drag and a throw toward monitor 2 keep the critter on the primary. |
+| F5 | 3 | Monitors: only the primary is used. A hard throw toward monitor 2 vanishes, and a drag can drop a critter on monitor 2. Make primary-only consistent (clamp the drag and throw) or span monitors. | Should-fix (3.0 is primary-only; roaming every monitor is 3.1, D8) | S (primary-only) / L (span) | D8 | Two-monitor test: a drag and a throw toward monitor 2 keep the critter on the primary. |
 | F6 | 3 | Pairs give up in `approach` 36% of the time (soak finding 5; `APPROACH_LIMIT` 8 s against starts up to 420 px apart). | Should-fix | S | | Soak log: at least 90% of started pairs reach the interaction. |
 | F7 | 3 | Groom pairs (`pairs.gd:247-249`) run `groom` on turtle and unicorn, which have no groom art (a head bob with shut eyes). The duckling's `tail_swish` shows nothing when sitting (`duckling.gd:54`). | Should-fix | S | | Admin pair rows for turtle and unicorn partners, and the duckling move row, all Pass by eye. |
 | F8 | 3 | Climbing is audited for the kitten only (`admin.gd:223`). The rabbit's hop gait probably hops up walls. Add a per-species climb row and fix what it finds. | Should-fix | M | | Admin climb row per species, all Pass. |
@@ -371,9 +372,11 @@ happening.
 
 | ID | Ph | Item | Why / severity | Size | Deps | Verify |
 |---|---|---|---|---|---|---|
+| G1 | 1 | Game design review. v3 is a collection game that rewards focus, but many settings let a player skip it (spawn key, timer mode, gather and start-with counts, visit weights, switching species off, the Rare Hour boost, luck and first-bonus toggles, beta odds). Sort every player-facing control into comfort (keep), game-affecting (limit or charge berries), or developer-only (Admin). Spawn now stays, but costs berries. Pacing targets (D9), beta mode (D18) and berries while paused (D20) are settled here. | Blocker: the balance work needs a fixed rule set. | M | | A table of every control and its class, signed off. |
+| G2 | 3 | Build the G1 outcome: remove or move the controls, add the spawn-now price, and migrate saved settings so removed keys fall back to defaults. | Blocker | M | G1 | Settings tests cover each removed or limited key. The Admin page still reaches the developer-only ones. |
 | B1 | 4 | Legendary pacing. Completing all 10 visitor colours takes about 140 weeks at medium play and is effectively never for light play (twilight_neon is 3% of visitor rolls, split between two visitors). | Should-fix | M | D9, B5 | The sim meets the D9 target. |
 | B2 | 4 | Luck stacking. Luck ×3, Rare Hour ×2 and the lucky charm ×1.5 make rare+ about 45% per roll, and the charm can be worn by every species. | Should-fix | S | D9 | The sim reports the rare+ share at max stack within the target. |
-| B3 | 4 | Roll farming: | Should-fix | S-M | D19 | One economy test per closed loophole. |
+| B3 | 4 | Roll farming: | Should-fix | S-M | G1 | One economy test per closed loophole. |
 | | | - a relaunch rolls `start_with` critters at the saved luck; | | | | |
 | | | - timer mode rolls 6-10× more than gather mode; | | | | |
 | | | - the spawn key rolls on every press; | | | | |
@@ -426,7 +429,7 @@ happening.
 
 | ID | Ph | Item | Why / severity | Size | Deps | Verify |
 |---|---|---|---|---|---|---|
-| K1 | 6 | Beta release path. `release.ps1` always makes a "latest" release from `main`, and both v2.0's and v3's update checkers read `/releases/latest`. A beta released that way goes to every v2.0 user. Add a prerelease mode and the D4 numbering. | Blocker | S | D4, H1 | A prerelease exists; a v2.0 install and a v3 install both report "up to date". |
+| K1 | 6 | Beta release path. `release.ps1` always makes a "latest" release from `main`, and both v2.0's and v3's update checkers read `/releases/latest`. A beta released that way goes to every v2.0 user. Add a prerelease mode and the D4 numbering. | Nice: D4 says normal releases are fine while there are no outside users | S | D4, H1 | A prerelease exists; a v2.0 install and a v3 install both report "up to date". |
 | K2 | 6 | Signing and antivirus. The installer and exe are unsigned (`codesign/enable=false`, no SignTool). Raw input plus a global hotkey plus a Run key can match keylogger heuristics. | Should-fix for beta, blocker for public | S (scan) / M (signing) | D5 | VirusTotal result recorded per build. The SmartScreen steps are in the tester guide. |
 | K3 | 6 | Install matrix on the VM, each row logged: | Blocker | M | K1 | All rows pass. |
 | | | - fresh install; | | | | |
@@ -449,7 +452,7 @@ happening.
 | ID | Ph | Item | Why / severity | Size | Deps | Verify |
 |---|---|---|---|---|---|---|
 | T1 | 3 | Diagnostics in System: "Open log folder" and "Copy diagnostics" (version and build, renderer, screens and scale, native status, settings, economy summary, last log lines). Nothing leaves the machine unless the tester sends it. Add an Admin check per CLAUDE.md. | Blocker | S-M | C1 | The button produces a file. The Admin row is Pass. |
-| T2 | 7 | Feedback route and bug template: what happened, what was expected, steps, build, diagnostics file, screenshot. | Blocker | S | D6 | The template exists and a test report has been filed through it. |
+| T2 | 7 | Feedback route and bug template: what happened, what was expected, steps, build, diagnostics file, screenshot. | Nice: messages for now (D6) | S | D6 | The template exists and a test report has been filed through it. |
 | T3 | 7 | Tell builds apart: the beta label in About, the tray tooltip and the installer name. | Blocker | S | P1, D4 | Visible in all three places. |
 | T4 | 3 | "Start over" in System: wipes progress and settings and shows the welcome again. Today only "Clear the Seen Log" exists, and "Reset all settings" keeps `onboarded`. Add an Admin control. | Should-fix | S | C2 | After Start over, the welcome shows on next launch and the economy is fresh. A backup of the old save is kept. |
 | T5 | 7 | Whether testers get beta mode (editable odds). | Should-fix | S | D18 | Documented in the guide. |
@@ -510,27 +513,37 @@ in the last column.
 
 | ID | Question | Options | Recommendation | Answer |
 |---|---|---|---|---|
-| D1 | Branch of record and release flow | (a) Merge v3 into main now; main becomes the dev branch again (as CLAUDE.md says); CI moves to main; v3 retires. (b) Keep v3 as the dev branch; merge to main only to release; CI on both. (c) Let `release.ps1` release from v3. | **(a)**: one branch, matching `release.ps1` and CLAUDE.md. | |
-| D2 | The 11 missing Rare/Epic looks | (a) Pick from the 24 candidates already drawn (Admin > Every version drawn), polish later. (b) Ship the beta with Common look plus glow, and say so. (c) New designs first. | **(a)**: the candidates exist; picking is the bottleneck. | |
-| D3 | v2.0 users' custom critters on upgrade (v3 skips `custom:` entries; v2's files in `%APPDATA%\CritterOverlay\custom` are untouched unless an uninstall deletes data) | (a) Do nothing: they silently disappear from the overlay. (b) Preserve and tell: a one-time notice ("your N custom critters are safe and will come back in a later update"); keep the `custom:` sightings in the save for the later import; make "delete data" on uninstall spare or name that folder. (c) Sticker carry-over (plan Tier 1: still image with procedural motion) in v3.0. (d) Keep v2 runnable alongside: not possible, since both share the AppId. | **(b)**: small, loses nothing, and keeps v3.0's scope; (c) is real engine work that belongs to the custom-critters update. | |
-| D4 | Beta channel and numbering | (a) GitHub prereleases numbered below 3.0.0 (e.g. `2.90.N`, shown as "3.0 beta N"); testers reinstall each build; 3.0.0 final then auto-updates them; no updater change. (b) Teach the updater a beta channel (reads `/releases`, accepts prereleases when beta is on): automatic beta updates, but it touches the updater (a discuss-first area). (c) Private download link, outside GitHub. | **(a)** for a small group; revisit (b) if there are many builds. | |
-| D5 | Code signing for the beta | (a) Unsigned, with SmartScreen steps and a VirusTotal link per build. (b) Buy a signing service now. | **(a)** for known testers; signing before any public build. | |
-| D6 | How testers report | (a) GitHub issue form. (b) Private form or email with the diagnostics file attached. (c) A chat group. | **(b)**, with (a) for testers who use GitHub: not everyone has an account, and screenshots of a desktop can be personal. | |
-| D7 | Telemetry | (a) None; opt-in stats inside the diagnostics file (T9). (b) An opt-in network ping. | **(a)**: keeps "the app sends nothing" true. | |
-| D8 | Monitors | (a) Primary only for v3.0, made consistent (no losing critters to monitor 2), and documented. (b) Roam all monitors. | **(a)** for beta. | |
-| D9 | Collection pacing target | (a) Set targets (e.g. a medium player fills the 24 everyday slots in about 4 weeks and meets every visitor colour in about 6 months) and tune the weights with the new sim. (b) Add a pity counter. (c) Leave it and watch. | **(a)**; keep (b) in reserve until beta data says it is needed. | |
-| D10 | Rare Hour default | (a) Keep 21:00. (b) An afternoon default. (c) An hour that moves each day. | Keep the setting, change the default to **(b)**, and ask testers. | |
-| D11 | Spoilers before a visitor is met | (a) Silhouettes and colour pips shown (today). (b) Silhouettes only, no colour count. (c) Nothing until first met. | **(b)**: curiosity without giving the count away. | |
-| D12 | Start with Windows in the welcome | (a) On by default (today; also flips upgraders on). (b) Off by default. (c) On for fresh installs; upgraders keep their current state. | **(c)** | |
-| D13 | UI fonts | (a) Bundle Fredoka and Nunito (OFL) with their licence. (b) Design for Segoe UI. | **(a)** | |
-| D14 | AI-assistance wording in credits | (a) A short accurate line now (e.g. "art made with AI assistance, directed and edited by the author"). (b) Wait for the store page. | **(a)**: the current credit is inaccurate. | |
-| D15 | The developer's name in the repo | (a) Neutralise code comments ("design pick") and keep the legal name only in the licence and publisher. (b) Leave as is. | **(a)** | |
-| D16 | v1/v2 leftovers | (a) Tag `v2-final`, then remove v2 code, `Archive/`, the handoffs and the market document from the v3 tree. (b) Move them to a `legacy/` folder. (c) Leave them. | **(a)**, before any public build; the tag keeps v2 rebuildable. | |
-| D17 | Performance thresholds | The Phase 5 table as proposed, or changed. | Accept, then adjust after the first measurements. | |
-| D18 | Beta mode for testers | (a) Off: testers play the real odds. (b) On for everyone. (c) A few testers on purpose. | **(a)**; keep `--beta` for the developer. | |
-| D19 | Which roll-farming loops to close before beta (B3) | Clear Seen Log re-paying, relaunch rolls, timer-mode roll count, spawn-key rolls. | Close **Clear Seen Log re-paying** now; watch the rest in beta. | |
-| D20 | Berries while paused (by design today) | (a) Keep. (b) No berries while paused. | Keep, and ask testers (T8). | |
-| D21 | History | Rewrite history to drop the once-committed personal README (`73e8af2`)? | Check what it contains first; rewrite only if it holds personal data. | |
+| D1 | Branch of record and release flow | (a) Merge v3 into main now; main becomes the dev branch again (as CLAUDE.md says); CI moves to main; v3 retires. (b) Keep v3 as the dev branch; merge to main only to release; CI on both. (c) Let `release.ps1` release from v3. | **(a)**: one branch, matching `release.ps1` and CLAUDE.md. || **(a)**, 2026-10-13. CI moved to main; v3 merges into main and retires. |
+| D2 | The 11 missing Rare/Epic looks | (a) Pick from the 24 candidates already drawn (Admin > Every version drawn), polish later. (b) Ship the beta with Common look plus glow, and say so. (c) New designs first. | **(a)**: the candidates exist; picking is the bottleneck. || Open: needs a visual pick. |
+| D3 | v2.0 users' custom critters on upgrade (v3 skips `custom:` entries; v2's files in `%APPDATA%\CritterOverlay\custom` are untouched unless an uninstall deletes data) | (a) Do nothing: they silently disappear from the overlay. (b) Preserve and tell: a one-time notice ("your N custom critters are safe and will come back in a later update"); keep the `custom:` sightings in the save for the later import; make "delete data" on uninstall spare or name that folder. (c) Sticker carry-over (plan Tier 1: still image with procedural motion) in v3.0. (d) Keep v2 runnable alongside: not possible, since both share the AppId. | **(b)**: small, loses nothing, and keeps v3.0's scope; (c) is real engine work that belongs to the custom-critters update. || **(b)** |
+| D4 | Beta channel and numbering | (a) GitHub prereleases numbered below 3.0.0 (e.g. `2.90.N`, shown as "3.0 beta N"); testers reinstall each build; 3.0.0 final then auto-updates them; no updater change. (b) Teach the updater a beta channel (reads `/releases`, accepts prereleases when beta is on): automatic beta updates, but it touches the updater (a discuss-first area). (c) Private download link, outside GitHub. | **(a)** for a small group; revisit (b) if there are many builds. || **Neither needed yet:** no outside users (the developer and one tester), so builds go out as normal releases through the updater. Selling and advertising wait until it is polished. K1 drops to nice. |
+| D5 | Code signing for the beta | (a) Unsigned, with SmartScreen steps and a VirusTotal link per build. (b) Buy a signing service now. | **(a)** for known testers; signing before any public build. || **(a)** |
+| D6 | How testers report | (a) GitHub issue form. (b) Private form or email with the diagnostics file attached. (c) A chat group. | **(b)**, with (a) for testers who use GitHub: not everyone has an account, and screenshots of a desktop can be personal. || For now the tester messages the developer directly. An in-app comments window is parked (see the 3.1 pipeline). |
+| D7 | Telemetry | (a) None; opt-in stats inside the diagnostics file (T9). (b) An opt-in network ping. | **(a)**: keeps "the app sends nothing" true. || **(a)** |
+| D8 | Monitors | (a) Primary only for v3.0, made consistent (no losing critters to monitor 2), and documented. (b) Roam all monitors. | **(a)** for beta. || **(a)** for 3.0. Roaming every monitor is planned for 3.1. |
+| D9 | Collection pacing target | (a) Set targets (e.g. a medium player fills the 24 everyday slots in about 4 weeks and meets every visitor colour in about 6 months) and tune the weights with the new sim. (b) Add a pity counter. (c) Leave it and watch. | **(a)**; keep (b) in reserve until beta data says it is needed. || Open: part of the game design review (G1). |
+| D10 | Rare Hour default | (a) Keep 21:00. (b) An afternoon default. (c) An hour that moves each day. | Keep the setting, change the default to **(b)**, and ask testers. || **(b)** |
+| D11 | Spoilers before a visitor is met | (a) Silhouettes and colour pips shown (today). (b) Silhouettes only, no colour count. (c) Nothing until first met. | **(b)**: curiosity without giving the count away. || **(b)** |
+| D12 | Start with Windows in the welcome | (a) On by default (today; also flips upgraders on). (b) Off by default. (c) On for fresh installs; upgraders keep their current state. | **(c)** || **(c)** |
+| D13 | UI fonts | (a) Bundle Fredoka and Nunito (OFL) with their licence. (b) Design for Segoe UI. | **(a)** || **(a)** |
+| D14 | AI-assistance wording in credits | (a) A short accurate line now (e.g. "art made with AI assistance, directed and edited by the author"). (b) Wait for the store page. | **(a)**: the current credit is inaccurate. || **(b)**: wait for the store page. |
+| D15 | The developer's name in the repo | (a) Neutralise code comments ("design pick") and keep the legal name only in the licence and publisher. (b) Leave as is. | **(a)** || **(a)** |
+| D16 | v1/v2 leftovers | (a) Tag `v2-final`, then remove v2 code, `Archive/`, the handoffs and the market document from the v3 tree. (b) Move them to a `legacy/` folder. (c) Leave them. | **(a)**, before any public build; the tag keeps v2 rebuildable. || **(a)** |
+| D17 | Performance thresholds | The Phase 5 table as proposed, or changed. | Accept, then adjust after the first measurements. || Open. |
+| D18 | Beta mode for testers | (a) Off: testers play the real odds. (b) On for everyone. (c) A few testers on purpose. | **(a)**; keep `--beta` for the developer. || Open: part of G1. |
+| D19 | Which roll-farming loops to close before beta (B3) | Clear Seen Log re-paying, relaunch rolls, timer-mode roll count, spawn-key rolls. | Close **Clear Seen Log re-paying** now; watch the rest in beta. || Replaced by G1, a full review of what players can change. Starting position: spawn now stays, but costs berries. |
+| D20 | Berries while paused (by design today) | (a) Keep. (b) No berries while paused. | Keep, and ask testers (T8). || Open: part of G1. |
+| D21 | History | Rewrite history to drop the once-committed personal README (`73e8af2`)? | Check what it contains first; rewrite only if it holds personal data. || **Done 2026-10-13.** `_README.md` stripped from every commit; branches and tags force-pushed; GitHub Support asked to purge cached views. |
+
+---
+
+## 3.1 pipeline
+
+Decided as later work, kept here so nothing is lost:
+
+- **Roam every monitor** (D8): critters walk across all screens, with mixed-DPI handling.
+- **In-app comments window** for tester feedback, with screenshots (D6).
+- **Custom critters**: see `docs/v3-custom-critters-plan.md`.
 
 ---
 
