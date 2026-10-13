@@ -9,6 +9,7 @@ extends Window
 ## The pages themselves are in settings_pages.gd.
 
 const Palette := preload("res://gui/palette.gd")
+const Economy := preload("res://economy.gd")
 const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const K := preload("res://gui/controls.gd")
@@ -192,7 +193,7 @@ func _sidebar() -> Control:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)
-	var spawn := K.button("Spawn now", "bs", "sparkle", false, func(): main.spawn_now())
+	var spawn := K.button("Spawn now · %d berries" % Economy.SPAWN_PRICE, "bs", "sparkle", false, func(): main.spawn_now())
 	v.add_child(spawn)
 	var pause := K.button("Resume critters" if main.paused else "Pause critters", "bs", "play" if main.paused else "pause", false, func():
 		main.toggle_pause()

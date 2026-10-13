@@ -124,6 +124,14 @@ Findings along the way:
   Collection total grows as visitors are met (26 at the start, not 34).
 - Polish for Phase 4: in dark mode, an unmet critter's silhouette is a faint
   copy of its art, so it hints at the colour.
+- **Phase 3b: built** (G2, the game design rules). Numbers are provisional
+  until the sim (B5): one roll banked per 5.5 focus minutes, at most 6, and
+  30 berries for Spawn now.
+- Decided while building it: rolling rarity before the species means the
+  lucky charm can't favour its wearer any more. It now gives every roll 1.5x
+  luck, counted once, which also fixes the stacking in B2.
+- Existing settings files keep their saved Rare Hour start (21:00 for v2.0
+  upgraders). The 15:00 default reaches new installs and Start over only.
 
 ## Phase 1: decisions and housekeeping
 

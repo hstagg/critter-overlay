@@ -32,7 +32,6 @@ const DEFAULTS := {
 		"start_with": 2,
 		"gather_every_min": 12,
 		"max_out": 8,
-		"luck": true,              # "Rarer the longer you stay"
 		"pause_fullscreen": true,
 		"nap_after_min": 3,
 		"tidy_after_min": 60,      # 0: never
@@ -48,12 +47,9 @@ const DEFAULTS := {
 		"pairs": true,
 		"rarity": true,
 		"odds": {"common": 95.0, "rare": 4.0, "epic": 0.9, "legendary": 0.1},
-		"first_bonus": true,
 		"notes": "rare",           # off | rare | epic | legendary
 		"rare_hour": true,
-		"rare_hour_start": 21,
-		"rare_hour_min": 60,
-		"rare_hour_boost": 2.0,
+		"rare_hour_start": 15,     # an hour; Rare Hour lasts an hour at 2x (economy.gd)
 	},
 	"sound": {"pops": true, "volume": 50},
 	"system": {
@@ -63,7 +59,6 @@ const DEFAULTS := {
 		"detail": "detailed",      # detailed | simple
 		"seen_log": true,
 		"onboarded": false,
-		"beta": false,             # beta testers only: odds and tier ranges can be changed (--beta)
 		"updates": "download",     # off | tell | download (and tell)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
@@ -76,6 +71,7 @@ const SPECIES_DEFAULTS := {"enabled": true, "visits": 1, "speed": 2, "activity":
 	"tier_min": "common", "tier_max": "epic", "sound": true}
 
 var path := "user://settings.json"
+var tuning := false                # the admin build: odds and tier ranges can be changed
 var data := {}
 var _save_in := -1.0
 
@@ -173,8 +169,8 @@ func species(id: String) -> Dictionary:
 		mine = {}
 	var keep_tiers := [out.tier_min, out.tier_max]
 	out.merge(mine, true)
-	if not beta():
-		out.tier_min = keep_tiers[0]   # tier ranges are for beta testers only
+	if not tuning:
+		out.tier_min = keep_tiers[0]   # tier ranges are for the admin build only
 		out.tier_max = keep_tiers[1]
 	# Saved before the four tiers: Uncommon became Common, and an everyday
 	# species tops out at Epic (Legendary is the special visitors).
@@ -263,8 +259,7 @@ func import_v2(v2: Dictionary) -> void:
 	data.world.pairs = bool(be.get("interactions_enabled", true))
 	var ra: Dictionary = v2.get("rarity", {})
 	data.world.rarity = bool(ra.get("enabled", true))
-	data.world.first_bonus = bool(ra.get("first_spawn_of_day_bonus", true))
-	if ra.has("distribution") and beta():
+	if ra.has("distribution") and tuning:
 		var o := {}
 		for t in TIERS:
 			o[t] = snappedf(float(ra.distribution.get(t, 0.0)) * 100.0, 0.01)
@@ -272,8 +267,6 @@ func import_v2(v2: Dictionary) -> void:
 	var rh: Dictionary = ra.get("rare_hour", {})
 	data.world.rare_hour = bool(rh.get("enabled", true))
 	data.world.rare_hour_start = clampi(int(rh.get("start_hour", 21)), 0, 23)
-	data.world.rare_hour_min = [30, 60, 120][_nearest([30, 60, 120], float(rh.get("duration_minutes", 60)))]
-	data.world.rare_hour_boost = [1.5, 2.0, 3.0][_nearest([1.5, 2.0, 3.0], float(rh.get("rare_tier_boost", 2.0)))]
 	data.system.seen_log = bool(ra.get("seen_log_enabled", true))
 	# Each species, by v3's name (v2.0's "duck" is the duckling).
 	var idle_rates := [0.003, 0.008, 0.018, 0.045, 0.100, 0.250]
@@ -301,15 +294,13 @@ func zoom() -> float:
 	return float(value("critters.size")) / 120.0
 
 
-func beta() -> bool:
-	return bool(value("system.beta"))
 
 
 func odds() -> Dictionary:
 	# The odds as fractions. They are relative weights, so they need not add up.
-	# Only a beta tester's own odds count; everyone else has the game's, so a
-	# Legendary means the same for every player.
-	var w: Dictionary = value("world.odds") if beta() else DEFAULTS.world.odds
+	# Only the admin build's own odds count; every player has the game's, so a
+	# Legendary means the same for everyone.
+	var w: Dictionary = value("world.odds") if tuning else DEFAULTS.world.odds
 	var total := 0.0
 	for t in TIERS:
 		total += maxf(float(w.get(t, 0.0)), 0.0)

@@ -204,12 +204,13 @@ func _build() -> void:
 	var items := VBoxContainer.new()
 	items.add_theme_constant_override("separation", 2)
 	var hint: Control = _chip(str(info.get("pause_key", "")), c.ink2, c.raised, c.sec_line) if str(info.get("pause_key", "")) != "" else null
+	var price := _chip("%d berries" % int(info.get("spawn_price", 0)), c.ink2, c.raised, c.sec_line)
 	var count := _chip("%d/%d" % [info.found, info.found_total], Palette.tier("legendary", _dark).ink, Palette.tier("legendary", _dark).tint, Color.TRANSPARENT)
 	if info.mode == "paused":
 		items.add_child(_item("play", "Resume critters", c, pause_pressed, hint, true))
-		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed))
+		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed, price))
 	else:
-		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed))
+		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed, price))
 		items.add_child(_item("pause", "Pause critters", c, pause_pressed, hint))
 	items.add_child(_item("star", "Collection", c, collection_pressed, count))
 	items.add_child(_item("sliders", "Settings", c, settings_pressed))

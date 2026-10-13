@@ -4,6 +4,7 @@ extends RefCounted
 ## through set(); main.gd applies the change.
 
 const Palette := preload("res://gui/palette.gd")
+const Economy := preload("res://economy.gd")
 const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const K := preload("res://gui/controls.gd")
@@ -147,7 +148,7 @@ func _home(body: VBoxContainer) -> void:
 		pips.add_child(p)
 	w.live["h_pips"] = pips
 	luck[2].add_child(pips)
-	luck[2].add_child(UI.label("Grows the longer you stay" if S().value("focus.luck") else "Off in Focus settings", 13, c.ink2, 400))
+	luck[2].add_child(UI.label("Grows the longer you stay", 13, c.ink2, 400))
 	stats.add_child(luck[0])
 	for i in stats.get_child_count():
 		stats.get_child(i).size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -158,7 +159,7 @@ func _home(body: VBoxContainer) -> void:
 	var st := UI.label("On your desk now", 16, c.ink, 800)
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_head.add_child(st)
-	scene_head.add_child(K.button("Spawn now", "bs", "sparkle", true, func():
+	scene_head.add_child(K.button("Spawn now · %d" % Economy.SPAWN_PRICE + " berries", "bs", "sparkle", true, func():
 		w.main.spawn_now()
 		w.rebuild()))
 	scene_head.add_child(K.button("Resume" if w.main.paused else "Pause", "bs", "play" if w.main.paused else "pause", true, func():
@@ -609,8 +610,8 @@ func _species_detail(sp: String) -> Control:
 	var tip := "Limit the rarity tiers this critter can roll."
 	if cap < 4:
 		tip += " %ss stop at %s." % [name, tiers[-1].capitalize()]
-	if S().beta():
-		right.add_child(_block("Can appear as", "", rng, tip, null, true))   # beta testers only
+	if S().tuning:
+		right.add_child(_block("Can appear as", "", rng, tip, null, true))   # the admin build only
 	grid.add_child(right)
 
 	var card := PanelContainer.new()
@@ -683,7 +684,6 @@ func _focus(body: VBoxContainer) -> void:
 		start_row,
 		_slider_row("One more every", "", "focus.gather_every_min", 1, 30, 1, func(x): return mins_text(x), "1 min", "30 min", 260, true),
 		_slider_row("At most", "The desk never gets busier than this.", "focus.max_out", 1, 25, 1, func(x): return "%d critter%s" % [int(x), "" if int(x) == 1 else "s"], "1", "25", 260, true),
-		_toggle_row("Rarer the longer you stay", "Each focused stretch nudges up the odds of Rare and better. Resets after a long break.", "focus.luck"),
 		_toggle_row("Pause in full-screen apps", "Hide critters during games, films and presentations.", "focus.pause_fullscreen", K.new_pill()),
 	])))
 
@@ -783,10 +783,9 @@ func _world(body: VBoxContainer) -> void:
 	odds.add_child(K.margins(foot, 0, 4, 0, 0))
 	var notes_opts := ["off", "rare", "epic", "legendary"]
 	var rarity_rows := [_toggle_row("Rarity tiers", "Each critter rolls a tier when it arrives. Rarer ones glow softly and leave a trail.", "world.rarity")]
-	if S().beta():
-		rarity_rows.append(K.margins(odds, 20, 14, 20, 16))   # beta testers only
+	if S().tuning:
+		rarity_rows.append(K.margins(odds, 20, 14, 20, 16))   # the admin build only
 	body.add_child(K.section("Rarity", K.card(rarity_rows + [
-		_toggle_row("First arrival of the day", "The first critter after midnight is always Rare or better.", "world.first_bonus"),
 		K.row("Rare sighting notes", "A small note in the corner when someone special arrives.",
 			K.seg(["Off", "Rare and up", "Epic and up", "Legendary"], maxi(0, notes_opts.find(S().value("world.notes"))),
 				func(i): set_value("world.notes", notes_opts[i], true))),
@@ -808,7 +807,7 @@ func _world(body: VBoxContainer) -> void:
 	var bt := K.vbox(3)
 	bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bt.add_child(UI.label("Rare Hour", 16, c.ink, 800))
-	bt.add_child(UI.label("Once a day, Rare and better become more likely for a while.", 13, c.rh_text, 400))
+	bt.add_child(UI.label("Once a day, for an hour, Rare and better are twice as likely.", 13, c.rh_text, 400))
 	br.add_child(bt)
 	var tg := K.toggle(bool(S().value("world.rare_hour")), "Rare Hour", func(on): set_value("world.rare_hour", on))
 	tg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -820,15 +819,9 @@ func _world(body: VBoxContainer) -> void:
 	var starts := K.dropdown(hours, int(S().value("world.rare_hour_start")), func(i): set_value("world.rare_hour_start", i),
 		hours.map(func(_h): return Icons.line("clock", 18, c.acc_ink)))
 	starts.custom_minimum_size.x = 120
-	var lens := [30, 60, 120]
-	var boosts := [1.5, 2.0, 3.0]
 	body.add_child(K.section("Rare Hour", K.card([
 		band,
-		K.row("Starts at", "Your local time.", starts),
-		K.row("Lasts", "", K.seg(["30 min", "1 hour", "2 hours"], maxi(0, lens.find(int(S().value("world.rare_hour_min")))),
-			func(i): set_value("world.rare_hour_min", lens[i], true))),
-		K.row("Boost", "How much likelier Rare and better become.", K.seg(["x1.5", "x2", "x3"], maxi(0, boosts.find(float(S().value("world.rare_hour_boost")))),
-			func(i): set_value("world.rare_hour_boost", boosts[i], true))),
+		K.row("Starts at", "Your local time. Pick an hour you are usually working.", starts),
 	])))
 
 
