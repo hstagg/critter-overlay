@@ -7,7 +7,7 @@ extends "res://critters/kitten.gd"
 ## glitter; lynx (ear tufts, a ruff of cheek fur); royal (cheek ruff, a heart
 ## gem, star-shine eyes).
 
-const VARIANTS := [["glitter", 60.0], ["lynx", 30.0], ["royal", 10.0]]
+const VARIANTS := [["glitter", 60.0], ["lynx", 42.0], ["royal", 24.0]]   # flattened with the unicorn's (tools/economy_sim.py)
 
 static var _variant_textures := {}
 

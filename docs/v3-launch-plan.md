@@ -158,6 +158,28 @@ Findings along the way:
     motion, which is an Admin audit item.
 - Working rule from 2026-10-13: anything that opens windows is tested on the
   VM, never the developer's PC.
+- **Phase 4, balance: done** (B1, B2, B4, B5, B6).
+  - `tools/economy_sim.py` now models v3. It reads its numbers from the game
+    files and simulates light, medium and heavy players minute by minute.
+  - Changes: Epic odds 0.9% to 0.7%. Visitor colour weights flattened, so
+    the rarest is a third as likely as the commonest, not a twelfth. Prices:
+    small 150, medium 500, large 2,000, showpiece 6,000, perk 12,000. Dye,
+    treat and Spawn now are unchanged at 100, 60 and 30.
+  - Results over 40 seeds, as medians:
+
+    | Player | 24 everyday | 10 Legendary colours | Small | Showpiece | Perk |
+    |---|---|---|---|---|---|
+    | Light (1.5 h, 4 days) | 11 weeks | over 3 years | 1.4 h | 10 weeks | 19 weeks |
+    | Medium (4 h, 5 days) | 3.9 weeks | 53 weeks | 1.3 h | 2.6 weeks | 5.2 weeks |
+    | Heavy (7 h, 6 days) | 1.9 weeks | 26 weeks | 1.9 h | 1.8 weeks | 3.6 weeks |
+
+  - B4 was already fixed by the roll bank (3b): the first-visitor bonus is
+    spent only on a real roll.
+  - B2: with luck at 3x, Rare Hour and a charm, Rare or better reaches about
+    43% of rolls. That peak now needs one charm and an evening of focus, not
+    a charm on every species. Left as a tester question.
+  - The Legendary set is a coupon-collector tail, so its median varies a lot
+    between seeds (p10 32 weeks, p90 135 weeks for medium players).
 
 ## Phase 1: decisions and housekeeping
 

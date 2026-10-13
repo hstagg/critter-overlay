@@ -8,11 +8,12 @@ extends RefCounted
 ## that species has been met, and are drawn only for critters whose design
 ## is final (design decision, 2026-10-06).
 ##
-## Prices are by hours of work (economy design): small 50 berries (under an
-## hour), medium 400 (one to three workdays), large 1,200 (about a week),
-## showpiece 4,000 (two to four weeks).
+## Prices are by hours of focus, a wide spread (game design rules): at about
+## 110 berries a focus hour (tools/economy_sim.py), small 150 is an hour or two,
+## medium 500 an afternoon, large 2,000 about a week for a medium player
+## (20 focus h), a showpiece 6,000 two to three weeks, a perk 12,000 five or so.
 
-const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000, "perk": 8000}
+const PRICES := {"small": 150, "medium": 500, "large": 2000, "showpiece": 6000, "perk": 12000}
 
 # Perk items (design decision, 2026-10-06): the critter wearing one gets something
 # extra. A behaviour joins its idles; luck multiplies the luck that species'
