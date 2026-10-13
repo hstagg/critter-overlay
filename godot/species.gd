@@ -48,8 +48,8 @@ const DATA := {
 		"sound": "duck",
 		"pop": [Color8(248, 230, 80), Color8(255, 200, 50), Color8(240, 245, 220)],
 		"idles": ["stretch", "yawn", "sit_and_look", "nap", "wake_up", "groom", "scratch",
-			"ear_flick", "tail_swish", "sneeze", "shake_off", "look_at_cursor", "listen",
-			"preen", "peck_ground"],
+			"ear_flick", "sneeze", "shake_off", "look_at_cursor", "listen",
+			"preen", "peck_ground"],   # no tail_swish: its tail shows only when walking
 		"rarity_max": "epic",
 		"special": false,
 	},
