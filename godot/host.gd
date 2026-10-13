@@ -147,6 +147,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	win.visible = false
 	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
 	add_child(win)
+	win.close_requested.connect(main.close_requested_by_windows)
 	# One window paces the frame; more vsyncs only cost frames.
 	if not main.vsync_taken:
 		main.vsync_taken = true

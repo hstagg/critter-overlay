@@ -87,6 +87,8 @@ func checks() -> Array:
 		["The app", "shop", "The Shop", "Dress up, dyes, treats, showpieces, perk clothes.", "open:shop"],
 		["The app", "shortcuts", "Shortcuts", "Change the pause keys and set a spawn key in System; try them from another app.", "open:system"],
 		["The app", "startup", "Start with Windows", "Restart the laptop: does it come back on its own?", ""],
+		["The app", "native", "The Windows helper", "Rename the helper DLL beside the installed exe and start it: System says start-up, shortcuts and full-screen pause are off. The log's START line says native layer MISSING.", "open:system"],
+		["The app", "saves", "Saves survive damage", "Quit, put junk in economy.json, start again: the Collection comes back from the .bak and the junk is kept as economy.json.corrupt-<time>.", ""],
 		["The app", "v2", "Your v2.0 settings carried over", "Rare Hour, behaviour frequency, size, trails, and the old Seen Log in the Collection.", ""],
 		["The app", "install", "Installer and update check", "Install over the old copy; System > Check for updates.", ""],
 	]

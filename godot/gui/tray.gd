@@ -203,7 +203,7 @@ func _build() -> void:
 	# The actions.
 	var items := VBoxContainer.new()
 	items.add_theme_constant_override("separation", 2)
-	var hint := _chip("Ctrl+Shift+P", c.ink2, c.raised, c.sec_line)
+	var hint: Control = _chip(str(info.get("pause_key", "")), c.ink2, c.raised, c.sec_line) if str(info.get("pause_key", "")) != "" else null
 	var count := _chip("%d/%d" % [info.found, info.found_total], Palette.tier("legendary", _dark).ink, Palette.tier("legendary", _dark).tint, Color.TRANSPARENT)
 	if info.mode == "paused":
 		items.add_child(_item("play", "Resume critters", c, pause_pressed, hint, true))

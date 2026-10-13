@@ -528,7 +528,12 @@ func _species_detail(sp: String) -> Control:
 	var l1 := UI.label("Visits your desk", 14, c.ink, 800)
 	l1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r1.add_child(l1)
-	r1.add_child(K.toggle(row.enabled, "%s visits your desk" % name, func(on): set_value("species.%s.enabled" % sp, on, true)))
+	var everyday := not bool(Species.row(sp).get("special", false))
+	if everyday and row.enabled and _built(false).filter(func(x): return x != sp and S().sp(x, "enabled")).is_empty():
+		# At least one everyday critter stays on, as in the welcome.
+		r1.add_child(UI.label("The last one on", 13, c.ink3, 700))
+	else:
+		r1.add_child(K.toggle(row.enabled, "%s visits your desk" % name, func(on): set_value("species.%s.enabled" % sp, on, true)))
 	bv.add_child(r1)
 	var r2 := K.hbox(8)
 	var l2 := UI.label("Pop sound", 14, c.ink, 800)
@@ -1384,7 +1389,10 @@ func _system(body: VBoxContainer) -> void:
 	var c := K.c
 	header(body, "System", "Startup, shortcuts, updates and the small print.")
 	body.add_child(K.section("Startup", K.card([
-		K.row("Start with Windows", "Your critters are ready when you log in.", K.toggle(w.main.is_startup(), "Start with Windows", func(on): w.main.set_startup(on))),
+		K.row("Start with Windows", "Your critters are ready when you log in." if w.main.native != null
+				else "Unavailable: the Windows helper did not load, so start-up, the shortcuts and pausing for full-screen apps are off. Reinstalling usually fixes it.",
+			K.toggle(w.main.is_startup(), "Start with Windows", func(on): w.main.set_startup(on)) if w.main.native != null
+				else UI.label("Off", 13, c.ink3, 700)),
 	])))
 
 	var rows := []
@@ -1464,6 +1472,7 @@ func _system(body: VBoxContainer) -> void:
 			K.button("Reset", "bs", "reset", true, func():
 				w.confirm("Reset all settings?", "Every setting goes back to how it started. Your Collection, berries and gifts are kept.", "Reset", func():
 					S().reset_all()
+					w.main.reregister_shortcuts()
 					w.rebuild()))),
 		K.row("Quit Critter Overlay", "Closing this window keeps your critters running in the tray. Quit stops them completely.",
 			K.button("Quit", "bd", "power", true, func(): w.main.quit_app())),
@@ -1477,7 +1486,7 @@ func _system(body: VBoxContainer) -> void:
 	about.add_child(av)
 	var at := K.vbox(2)
 	at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	at.add_child(UI.label("Critter Overlay %s" % w.main.VERSION.substr(0, 3), 20, c.ink, 600, true))
+	at.add_child(UI.label("Critter Overlay %s" % w.main.VERSION, 20, c.ink, 600, true))
 	at.add_child(UI.label("Small companions for long days.", 13, c.ink2, 400))
 	about.add_child(at)
 	for l in [["Help", func(): OS.shell_open(REPO + "#readme")],

@@ -52,6 +52,7 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 	win.size = Vector2i(size.ceil())
 	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
 	add_child(win)
+	win.close_requested.connect(main.close_requested_by_windows)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	var img := Image.new()
 	img.load_svg_from_string(FileAccess.get_file_as_string("res://art/props/%s.svg" % pid), scale_px)
