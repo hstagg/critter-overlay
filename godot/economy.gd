@@ -39,6 +39,8 @@ signal rare_hour_changed(on: bool)
 signal row_completed(species: String, berries: int)
 signal bond_grew(species: String, level: int)
 
+const SaveFile := preload("res://save_file.gd")
+
 const TIERS := ["common", "rare", "epic", "legendary"]
 const BASE_ODDS := {"common": 0.95, "rare": 0.04, "epic": 0.009, "legendary": 0.001}
 const LUCKY := ["rare", "epic", "legendary"]
@@ -59,6 +61,7 @@ const LUCK_KEPT := 0.5             # of session luck kept across a long break
 const NIGHT_S := 6 * 3600          # a break this long starts afresh
 const SAVE_EVERY_S := 60.0
 const SAVE_VERSION := 2            # 2: Uncommon folded into Common (four tiers)
+const MAX_TICK_S := 1.0            # the most one frame counts: a sleep or a stall is not focus
 const FIRST_BONUS_ODDS := {"rare": 0.78, "epic": 0.20, "legendary": 0.02}
 # Collection (economy design, section 8): first finds pay, more for rarer;
 # meeting every tier a species can roll pays a row bonus and frames its card.
@@ -80,6 +83,7 @@ var rare_hour_min := 60
 var rare_hour_boost := 2.0
 
 var save_path := "user://economy.json"
+var read_only := false            # the save is from a newer version: never write over it
 var now_fn := func() -> float: return Time.get_unix_time_from_system()
 
 # Saved state.
@@ -127,6 +131,7 @@ static func _utc_offset_s() -> float:
 
 func tick(delta: float, present: bool) -> void:
 	# Called every frame. Only time present counts.
+	delta = minf(delta, MAX_TICK_S)
 	_save_in -= delta
 	if _save_in <= 0.0:
 		_save_in = SAVE_EVERY_S
@@ -529,48 +534,54 @@ func to_dict() -> Dictionary:
 
 
 func save() -> void:
-	# Written to a temporary file and renamed, so a crash mid-write cannot
-	# leave a half-written save.
-	var tmp := save_path + ".tmp"
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
-	if f == null:
-		push_warning("economy: cannot write %s" % tmp)
+	# save_file.gd keeps the last good copy and never writes over a damaged one.
+	if read_only:
 		return
-	f.store_string(JSON.stringify(to_dict(), " "))
-	f.close()
-	DirAccess.rename_absolute(tmp, save_path)
+	SaveFile.write(save_path, to_dict())
 
 
 func load_save() -> void:
 	# Starting inside Rare Hour is not its start: the tray shows it, no toast.
 	_rare_hour_was = in_rare_hour()
-	if not FileAccess.file_exists(save_path):
+	var d = SaveFile.read(save_path)
+	if d == null:
 		return
-	var d = JSON.parse_string(FileAccess.get_file_as_string(save_path))
-	if typeof(d) != TYPE_DICTIONARY:
-		push_warning("economy: unreadable save, starting fresh")
-		return
-	berries = int(d.get("berries", 0))
-	lifetime_berries = int(d.get("lifetime_berries", berries))
-	session_min = float(d.get("session_min", 0.0))
-	next_gift = int(d.get("next_gift", 0))
+	if int(_num(d, "version", SAVE_VERSION)) > SAVE_VERSION:
+		read_only = true
+		push_warning("economy: the save is from a newer version; playing without saving")
+	berries = int(_num(d, "berries", 0))
+	lifetime_berries = int(_num(d, "lifetime_berries", berries))
+	session_min = _num(d, "session_min", 0.0)
+	next_gift = int(_num(d, "next_gift", 0))
 	day = str(d.get("day", ""))
-	day_focus_min = float(d.get("day_focus_min", 0.0))
-	paid_first_session = bool(d.get("paid_first_session", false))
-	gifts_since_item = int(d.get("gifts_since_item", 0))
-	gift_items = d.get("gift_items", [])
-	owned = d.get("owned", [])
-	collection = d.get("collection", {})
-	sightings = d.get("sightings", [])
+	day_focus_min = _num(d, "day_focus_min", 0.0)
+	paid_first_session = d.get("paid_first_session", false) == true
+	gifts_since_item = int(_num(d, "gifts_since_item", 0))
+	gift_items = _typed(d, "gift_items", [])
+	owned = _typed(d, "owned", [])
+	collection = _typed(d, "collection", {})
+	sightings = _typed(d, "sightings", [])
 	first_bonus_day = str(d.get("first_bonus_day", ""))
-	worn = d.get("worn", {})
-	dyes_owned = d.get("dyes_owned", {})
-	dyed = d.get("dyed", {})
-	treats = d.get("treats", [])
-	props_out = d.get("props_out", {})
-	bond = d.get("bond", {})
+	worn = _typed(d, "worn", {})
+	dyes_owned = _typed(d, "dyes_owned", {})
+	dyed = _typed(d, "dyed", {})
+	treats = _typed(d, "treats", [])
+	props_out = _typed(d, "props_out", {})
+	bond = _typed(d, "bond", {})
 	# A long gap since the last save is a long break.
-	var gap := now() - float(d.get("saved_at", now()))
+	var gap := now() - _num(d, "saved_at", now())
 	if gap >= SESSION_END_S:
 		away_since = now() - gap
 		came_back(0.0)
+
+
+static func _num(d: Dictionary, key: String, fallback: float) -> float:
+	# A number from the save, or the fallback if it is missing or not a number.
+	var v = d.get(key)
+	return float(v) if typeof(v) in [TYPE_INT, TYPE_FLOAT] else fallback
+
+
+static func _typed(d: Dictionary, key: String, fallback: Variant) -> Variant:
+	# A list or table from the save, or the fallback if it is the wrong kind.
+	var v = d.get(key)
+	return v if typeof(v) == typeof(fallback) else fallback

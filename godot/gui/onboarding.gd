@@ -43,6 +43,9 @@ func _init() -> void:
 
 func open(main_ref: Node) -> void:
 	main = main_ref
+	# Start with Windows: on for a new install; an upgrade from v2.0 keeps
+	# whatever it had.
+	startup = main.is_startup() if main.settings.value("system.from_v2", false) else true
 	_build()
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
 	position = usable.position + (usable.size - size) / 2

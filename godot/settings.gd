@@ -70,6 +70,8 @@ const DEFAULTS := {
 	},
 }
 
+const SaveFile := preload("res://save_file.gd")
+
 const SPECIES_DEFAULTS := {"enabled": true, "visits": 1, "speed": 2, "activity": 2, "trail": "none",
 	"tier_min": "common", "tier_max": "epic", "sound": true}
 
@@ -83,34 +85,40 @@ func _init() -> void:
 
 
 func load_file() -> void:
+	# save_file.gd sets a damaged file aside and falls back to the last good copy.
 	data = DEFAULTS.duplicate(true)
-	if not FileAccess.file_exists(path):
-		return
-	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(d) != TYPE_DICTIONARY:
-		push_warning("settings: unreadable file, using defaults")
-		return
-	_merge(data, d)
+	var d = SaveFile.read(path)
+	if d != null:
+		_merge(data, d)
 
 
 static func _merge(into: Dictionary, from: Dictionary) -> void:
+	# Saved values over the defaults. A value of the wrong kind (a list where
+	# a table belongs, text where a number does) keeps the default; keys this
+	# version does not know are kept as they are.
 	for k in from:
-		if into.has(k) and typeof(into[k]) == TYPE_DICTIONARY and typeof(from[k]) == TYPE_DICTIONARY:
-			_merge(into[k], from[k])
-		else:
+		if not into.has(k):
 			into[k] = from[k]
+		elif typeof(into[k]) == TYPE_DICTIONARY:
+			if typeof(from[k]) == TYPE_DICTIONARY:
+				_merge(into[k], from[k])
+		elif typeof(into[k]) == typeof(from[k]) or (_is_num(into[k]) and _is_num(from[k])):
+			into[k] = from[k]
+
+
+static func _is_num(v) -> bool:
+	return typeof(v) in [TYPE_INT, TYPE_FLOAT]
 
 
 func save() -> void:
 	_save_in = -1.0
-	var tmp := path + ".tmp"
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
-	if f == null:
-		push_warning("settings: cannot write %s" % tmp)
-		return
-	f.store_string(JSON.stringify(data, " "))
-	f.close()
-	DirAccess.rename_absolute(tmp, path)
+	SaveFile.write(path, data)
+
+
+func flush() -> void:
+	# Quitting: a change still waiting for its save is written now.
+	if _save_in > 0.0:
+		save()
 
 
 func _process(delta: float) -> void:
@@ -159,7 +167,10 @@ func species(id: String) -> Dictionary:
 	var out := SPECIES_DEFAULTS.duplicate()
 	if id == "kitten":
 		out["visits"] = 2          # v2.0: kittens come often
-	var mine: Dictionary = data.get("species", {}).get(id, {})
+	var all = data.get("species", {})
+	var mine = all.get(id, {}) if typeof(all) == TYPE_DICTIONARY else {}
+	if typeof(mine) != TYPE_DICTIONARY:
+		mine = {}
 	var keep_tiers := [out.tier_min, out.tier_max]
 	out.merge(mine, true)
 	if not beta():

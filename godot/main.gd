@@ -289,6 +289,10 @@ func _ready() -> void:
 	main_win.size = Vector2i(1, 1)
 	main_win.position = screen_rect.position + Vector2i(0, screen_rect.size.y - 1)
 
+	# A close request from Windows (shutdown, taskkill) goes through _quit,
+	# which saves first; see _notification.
+	get_tree().set_auto_accept_quit(false)
+
 	# Settings first: everything below reads them. A timed test run never
 	# touches the real file.
 	settings = Settings.new()
@@ -300,7 +304,8 @@ func _ready() -> void:
 		if FileAccess.file_exists(settings.path):
 			DirAccess.remove_absolute(settings.path)
 	add_child(settings)
-	var v2 := _v2_settings() if settings_path == "" and seconds <= 0.0 and demo == "" and not FileAccess.file_exists(settings.path) else {}
+	var real_run := settings_path == "" and seconds <= 0.0 and demo == ""
+	var v2 := _v2_settings() if real_run and not FileAccess.file_exists(settings.path) else {}
 	settings.load_file()
 	if beta_flag:
 		settings.set_value("system.beta", true)
@@ -340,11 +345,17 @@ func _ready() -> void:
 		economy.save_path = save_path
 	elif seconds > 0.0:
 		economy.save_path = OS.get_temp_dir().path_join("critter_test_economy.json")
-	var fresh_economy := not FileAccess.file_exists(economy.save_path)
+	var esave: String = economy.save_path
+	var fresh_economy := not (FileAccess.file_exists(esave) or FileAccess.file_exists(esave + ".tmp") or FileAccess.file_exists(esave + ".bak"))
 	add_child(economy)
 	economy.load_save()
-	if not v2.is_empty() and fresh_economy:
-		economy.import_v2_seen(v2.get("rarity", {}).get("seen_log", {}))
+	# v2.0's Seen Log comes over once, into a new Collection. It is not tied to
+	# the settings import: settings may have been saved before the economy was.
+	if real_run and fresh_economy and not settings.value("system.v2_seen_done", false):
+		var seen = (v2 if not v2.is_empty() else _v2_settings()).get("rarity", {}).get("seen_log", {})
+		if typeof(seen) == TYPE_DICTIONARY and not seen.is_empty():
+			economy.import_v2_seen(seen)
+			settings.set_value("system.v2_seen_done", true)
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(_on_gift)
 	economy.welcome_back.connect(_on_welcome_back)
@@ -356,6 +367,16 @@ func _ready() -> void:
 			economy.row_variants[sp] = Species.variants(sp)
 	economy.fold_old_tiers()
 	economy.rare_hour_changed.connect(_on_rare_hour)
+
+	# One line in the log for bug reports: which build, on what, how it started.
+	var screens := PackedStringArray()
+	for i in DisplayServer.get_screen_count():
+		var z := DisplayServer.screen_get_size(i)
+		screens.append("%dx%d %d dpi%s" % [z.x, z.y, DisplayServer.screen_get_dpi(i), " (primary)" if i == DisplayServer.get_primary_screen() else ""])
+	print("START Critter Overlay %s%s | %s %s | %s | screens: %s | native layer %s | save %s" % [
+		VERSION, " admin build" if OS.has_feature("admin") else "", OS.get_name(), OS.get_version(),
+		RenderingServer.get_video_adapter_name(), ", ".join(screens), "loaded" if native != null else "MISSING",
+		"from a newer version, not saving" if economy.read_only else ("new" if fresh_economy else "loaded")])
 
 	toasts = Toasts.new()
 	add_child(toasts)
@@ -868,6 +889,7 @@ func _run_queue(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
+	delta = minf(delta, Economy.MAX_TICK_S)   # after a sleep or a stall, not hours at once
 	t += delta
 
 	if demo != "":
@@ -1390,6 +1412,15 @@ func set_shortcut(slot: int, k: Dictionary) -> void:
 				settings_win.rebuild())
 
 
+func reregister_shortcuts() -> void:
+	# After Reset all: the keys Windows holds follow the settings again.
+	if native == null:
+		return
+	for slot in 2:
+		var k: Dictionary = settings.value("system.pause_key" if slot == 0 else "system.spawn_key")
+		native.set_hotkey(slot, int(k.mods), int(k.vk))
+
+
 func set_worn(sp: String, items: Array) -> void:
 	# Shop > Dress up: everyone of that species out now changes straight away.
 	economy.set_worn(sp, items)
@@ -1582,7 +1613,8 @@ func _update_tray() -> void:
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
-		"found_total": counts[1], "berries": economy.berries})
+		"found_total": counts[1], "berries": economy.berries,
+		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key")))})
 
 
 func note_pop() -> void:
@@ -1635,6 +1667,20 @@ func note_throw() -> void:
 	throws += 1
 
 
+func _notification(what: int) -> void:
+	# Windows asking the app to close (shutdown, taskkill without /f): save
+	# and go, as Quit does.
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_quit(0)
+
+
+func close_requested_by_windows() -> void:
+	# A critter's or a prop's window was asked to close. No one can do that by
+	# hand (no frame, never focused), so it is Windows or another program
+	# (taskkill) asking the app to go: save and quit.
+	_quit(0)
+
+
 func _quit(code: int) -> void:
 	# Intel's OpenGL driver (igxelpicd64.dll) crashes with 0xC0000005 while
 	# Godot tears down the GL context, after window regions have changed:
@@ -1643,6 +1689,8 @@ func _quit(code: int) -> void:
 	# saved is saved before this.
 	if economy != null and is_instance_valid(economy):
 		economy.save()
+	if settings != null and is_instance_valid(settings):
+		settings.flush()
 	if presence != null and is_instance_valid(presence):
 		presence.stop()
 	if OS.get_name() == "Windows":
