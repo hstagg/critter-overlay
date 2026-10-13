@@ -1532,11 +1532,13 @@ It goes online once a day to ask GitHub for the newest version number and, when 
 
 
 func _credits() -> String:
-	var out := "Critter Overlay. Code and art by its author.\n\nFonts: Fredoka and Nunito, SIL Open Font License, when installed.\n\nBuilt with the Godot Engine.\n\n"
+	var out := "Critter Overlay. Code and art by its author.\n\nFonts: Fredoka and Nunito, under the SIL Open Font License 1.1 (below).\n\nBuilt with the Godot Engine.\n\n"
 	out += Engine.get_license_text() + "\n\nThird-party components in Godot:\n\n"
 	var info := Engine.get_copyright_info()
 	for comp in info:
 		out += "%s\n" % comp.name
 		for part in comp.parts:
 			out += "  %s (%s)\n" % [", ".join(part.copyright), part.license]
+	for f in ["Fredoka", "Nunito"]:
+		out += "\n\n%s font\n\n%s" % [f, FileAccess.get_file_as_string("res://fonts/%s-OFL.txt" % f)]
 	return out

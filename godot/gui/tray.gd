@@ -271,13 +271,8 @@ static func _box(bg: Color, radius: int, border := Color.TRANSPARENT, bw := 0, p
 	return s
 
 
-static func font(weight: int, display := false) -> SystemFont:
-	# The design's Fredoka and Nunito when installed, else Segoe UI.
-	var f := SystemFont.new()
-	f.font_names = PackedStringArray(["Fredoka", "Segoe UI"] if display else ["Nunito", "Segoe UI"])
-	f.font_weight = weight
-	f.antialiasing = TextServer.FONT_ANTIALIASING_LCD
-	return f
+static func font(weight: int, display := false) -> Font:
+	return UI.font(weight, display)   # the bundled fonts (ui.gd)
 
 
 func _label(text: String, size: int, colour: Color, weight := 400, display := false) -> Label:

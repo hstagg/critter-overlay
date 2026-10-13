@@ -141,6 +141,9 @@ Findings along the way:
   throw-away, as on any edge. F12 (auto-hide taskbar) stays a VM check in S4.
 - Polish for Phase 4: the welcome's critter strip is wider than its card and
   clips the card's right edge (seen at every scale, so not new).
+- **Phase 3e: built** (F11). Fredoka and Nunito are bundled in `godot/fonts`
+  (the variable TTFs from google/fonts, SIL OFL 1.1). The OFL text ships with
+  them and is shown in Credits, which covers the font part of L1.
 
 ## Phase 1: decisions and housekeeping
 
