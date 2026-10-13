@@ -69,7 +69,11 @@ func _slots(sp: String) -> Array:
 	# What there is to find of a species: [tier, variant] pairs. An everyday
 	# critter has its Common, Rare and Epic; a Legendary visitor has a slot
 	# per colour variant, a secret until met.
+	# Until a visitor is first met it is one "?": how many colours it has
+	# stays a secret too.
 	if Species.is_special(sp):
+		if _seen_total(sp) == 0:
+			return [["legendary", "?"]]
 		return Species.variants(sp).map(func(v): return ["legendary", v])
 	var out := []
 	for i in TIERS.find(Species.row(sp).get("rarity_max", "epic")) + 1:
@@ -170,6 +174,16 @@ func _filter_bar(c: Dictionary) -> Control:
 			_build())
 		row.add_child(b)
 	return wrapper
+
+
+func met_variant(sp: String) -> String:
+	# The first colour of a Legendary visitor that has been met, or "".
+	if not Species.is_special(sp):
+		return ""
+	for v in Species.variants(sp):
+		if _count(sp, "legendary", v) > 0:
+			return v
+	return ""
 
 
 func _seen_total(sp: String) -> int:
@@ -279,6 +293,8 @@ func _card(sp: String, c: Dictionary) -> Control:
 	vp.add_child(floor)
 	var critter = Species.row(sp)["script"].new()
 	critter.idles = Species.row(sp)["idles"]
+	if met_variant(sp) != "":
+		critter.set_variant(met_variant(sp))   # a colour met, never one still secret
 	vp.add_child(critter)
 	critter.setup(floor, (CARD_W - 4) * 0.5, -1, "sit")
 	critter.mode_left = INF
@@ -330,7 +346,7 @@ func _card(sp: String, c: Dictionary) -> Control:
 		if n == 0:
 			pip.add_child(UI.icon(Icons.badge(t, 22, c.surface, c.dash, true)))
 			under = UI.label("?", 11, c.ink3, 800)
-			pip.tooltip_text = "A secret colour, not yet met" if slot[1] != "" else "%s: not yet met" % t.capitalize()
+			pip.tooltip_text = {"": "%s: not yet met" % t.capitalize(), "?": "A special visitor, not yet met"}.get(slot[1], "A secret colour, not yet met")
 		else:
 			pip.add_child(UI.icon(Icons.badge(t, 22, tc.fill, c.badge_line)))
 			under = UI.label("x%d" % n, 11, tc.ink, 800)

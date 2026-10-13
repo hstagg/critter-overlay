@@ -144,6 +144,7 @@ var sheet_dir := ""
 var stills_dir := ""
 var welcome := ""             # --welcome: show | tour
 var welcome_dir := ""
+var save_note := ""           # how the save loaded, for the START line
 var waiting_welcome := false  # nobody arrives until the welcome is closed
 var paused := false
 var stay_scale := 1.0           # --stay: shorter visits for testing
@@ -368,15 +369,8 @@ func _ready() -> void:
 	economy.fold_old_tiers()
 	economy.rare_hour_changed.connect(_on_rare_hour)
 
-	# One line in the log for bug reports: which build, on what, how it started.
-	var screens := PackedStringArray()
-	for i in DisplayServer.get_screen_count():
-		var z := DisplayServer.screen_get_size(i)
-		screens.append("%dx%d %d dpi%s" % [z.x, z.y, DisplayServer.screen_get_dpi(i), " (primary)" if i == DisplayServer.get_primary_screen() else ""])
-	print("START Critter Overlay %s%s | %s %s | %s | screens: %s | native layer %s | save %s" % [
-		VERSION, " admin build" if OS.has_feature("admin") else "", OS.get_name(), OS.get_version(),
-		RenderingServer.get_video_adapter_name(), ", ".join(screens), "loaded" if native != null else "MISSING",
-		"from a newer version, not saving" if economy.read_only else ("new" if fresh_economy else "loaded")])
+	save_note = "from a newer version, not saving" if economy.read_only else ("new" if fresh_economy else "loaded")
+	print(start_line())
 
 	toasts = Toasts.new()
 	add_child(toasts)
@@ -457,19 +451,41 @@ func _ready() -> void:
 	# The first run: the welcome first, then the critters.
 	var test_run := seconds > 0.0 and welcome == ""
 	if welcome != "" or (not test_run and not settings.value("system.onboarded")):
-		waiting_welcome = true
-		var w := Onboarding.new()
-		add_child(w)
-		w.finished.connect(func(open_settings_too):
-			waiting_welcome = false
-			_first_critters()
-			if open_settings_too:
-				open_settings("home"))
-		w.open(self)
-		if welcome == "tour":
-			_welcome_tour(w)
+		_welcome()
 		return
 	_first_critters()
+	_v2_custom_notice()
+
+
+func _welcome() -> void:
+	# The welcome first, then the critters (a first run, or Start over).
+	waiting_welcome = true
+	var w := Onboarding.new()
+	add_child(w)
+	w.finished.connect(func(open_settings_too):
+		waiting_welcome = false
+		_first_critters()
+		_v2_custom_notice()
+		if open_settings_too:
+			open_settings("home"))
+	w.open(self)
+	if welcome == "tour":
+		_welcome_tour(w)
+
+
+func _v2_custom_notice() -> void:
+	# Once, after upgrading: v2.0's custom critters cannot come along yet.
+	# Their files stay where v2.0 kept them, and their sightings are saved.
+	if settings.value("system.v2_custom_noted", false) or seconds > 0.0 or demo != "":
+		return
+	var customs = _v2_settings().get("custom_animals", [])
+	var n: int = customs.size() if typeof(customs) in [TYPE_ARRAY, TYPE_DICTIONARY] else 0
+	if n == 0:
+		return
+	settings.set_value("system.v2_custom_noted", true)
+	toasts.show_note(Icons.line("heart", 40, Color("#C0548A")), "From v2.0",
+		"Your custom critters are safe",
+		"%s you made in v2.0 can't come along yet. They are kept, and come back in a later update." % ("The critter" if n == 1 else "The %d critters" % n))
 
 
 func sync_props() -> void:
@@ -572,6 +588,9 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		if fixed_count <= 0 and fixed_perimeter <= 0:
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	_trail_for(h)
+	if paused or busy_hidden:
+		h.win.visible = false   # arrives hidden; _show_critters brings it out
+		h.process_mode = Node.PROCESS_MODE_DISABLED
 	return h
 
 
@@ -903,10 +922,11 @@ func _process(delta: float) -> void:
 		if tod_in <= 0.0:
 			tod_in = 30.0
 			_time_of_day()
-		if not presence.away and not paused:
+		var acting: bool = not presence.away and not paused and not busy_hidden
+		if acting:
 			evaluator.tick(delta, kittens(), maxf(presence.sleep_bias(), night_sleep))
 		pairs.frequency = evaluator.frequency
-		pairs.tick(delta, hosts, Critter.zoom, settings.value("world.pairs") and not presence.away and not paused)
+		pairs.tick(delta, hosts, Critter.zoom, settings.value("world.pairs") and acting)
 		if native != null:
 			if native.poll_hotkey() == 1:
 				toggle_pause()
@@ -923,7 +943,7 @@ func _process(delta: float) -> void:
 			tray_in = TRAY_EVERY
 			_update_tray()
 
-	if not paused:
+	if not paused and not busy_hidden:
 		for h in hosts.duplicate():
 			h.release_if_up()
 			h.tick(delta)
@@ -1192,8 +1212,19 @@ func _set_paused(p: bool) -> void:
 
 
 func _show_critters() -> void:
+	# Paused, or a full-screen app on top: critters and showpieces hide, and
+	# stop working (auras and trails too) until they are back. A critter
+	# asleep inside the cottage stays inside.
+	var shown := not paused and not busy_hidden
+	var inside := []
+	for p in props.values():
+		if p.hides():
+			inside.append_array(p.sleepers)
 	for h in hosts:
-		h.win.visible = not paused and not busy_hidden
+		h.win.visible = shown and not h in inside
+		h.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
+	for p in props.values():
+		p.win.visible = shown
 
 
 func _time_of_day() -> void:
@@ -1320,6 +1351,16 @@ func quit_app() -> void:
 	_quit(0)
 
 
+func met_variant(sp: String) -> String:
+	# The first colour of a Legendary visitor that has been met, or "".
+	if not Species.is_special(sp):
+		return ""
+	for v in Species.variants(sp):
+		if economy.collection.has("%s:legendary:%s" % [sp, v]):
+			return v
+	return ""
+
+
 func collection_counts() -> Array:
 	var total := 0
 	var found := 0
@@ -1329,6 +1370,8 @@ func collection_counts() -> Array:
 		var keys := []
 		if Species.is_special(sp):
 			keys = Species.variants(sp).map(func(v): return "%s:legendary:%s" % [sp, v])
+			if not keys.any(func(k): return economy.collection.has(k)):
+				keys = ["%s:legendary:?" % sp]   # unmet: one secret slot, not its colour count
 		else:
 			for i in Economy.TIERS.find(Species.row(sp).get("rarity_max", "epic")) + 1:
 				keys.append("%s:%s" % [sp, Economy.TIERS[i]])
@@ -1438,9 +1481,23 @@ func _redress(sp: String) -> void:
 			h.critter.wear(economy.worn.get(sp, []), economy.dyed.get(sp, {}))
 
 
-func clear_seen_log() -> void:
-	economy.clear_seen_log()
+func start_over() -> void:
+	# Settings > System > Start over. Everyone leaves, the saves start again
+	# (the old ones are kept beside them), and the welcome opens as on a
+	# first run.
+	pairs.active.clear()
+	pairs.bolts.clear()
+	for h in hosts.duplicate():
+		hosts.erase(h)
+		h.queue_free()
+	economy.start_over()
+	settings.start_over()
+	reregister_shortcuts()
+	sync_props()
+	if settings_win != null:
+		settings_win.hide()
 	_update_tray()
+	_welcome()
 
 
 # --- Updates (updater.gd does the work) ----------------------------------------------
@@ -1586,18 +1643,26 @@ func _on_setting(key: String) -> void:
 
 func _redraw_all() -> void:
 	# A new size: every critter is drawn again at the new size, where it
-	# stood, keeping its species, tier and how long it has left.
+	# stood, keeping its species, tier, look (version or colour), what it is
+	# wearing and how long it has left. The showpieces are drawn again too.
 	for h in hosts.duplicate():
 		if h.state != "live":
 			continue
 		var feet: Vector2 = h.feet_on_screen()
-		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier)
+		var variant := str(h.critter.get("variant")) if "variant" in h.critter else ""
+		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier, h.version, variant)
 		if n != null:
 			n.stay_left = h.stay_left
+			n.critter.wear(h.critter.worn, economy.dyed.get(h.species, {}))
 			if h.critter.is_napping():
 				n.critter.go_to_sleep()
 		hosts.erase(h)
 		h.queue_free()
+	for pid in props.keys():
+		props[pid].release_all()
+		props[pid].queue_free()
+	props.clear()
+	sync_props()
 	_show_critters()
 
 
@@ -1665,6 +1730,36 @@ func _bumps() -> void:
 
 func note_throw() -> void:
 	throws += 1
+
+
+func start_line() -> String:
+	# One line for bug reports, at the top of the log and of the diagnostics:
+	# which build, on what, how it started.
+	var screens := PackedStringArray()
+	for i in DisplayServer.get_screen_count():
+		var z := DisplayServer.screen_get_size(i)
+		screens.append("%dx%d %d dpi%s" % [z.x, z.y, DisplayServer.screen_get_dpi(i), " (primary)" if i == DisplayServer.get_primary_screen() else ""])
+	return "START Critter Overlay %s%s | %s %s | %s | screens: %s | native layer %s | save %s" % [
+		VERSION, " admin build" if OS.has_feature("admin") else "", OS.get_name(), OS.get_version(),
+		RenderingServer.get_video_adapter_name(), ", ".join(screens), "loaded" if native != null else "MISSING", save_note]
+
+
+func diagnostics() -> String:
+	# Settings > System > Copy diagnostics: what a bug report needs, for the
+	# player to paste into a message. Nothing is sent anywhere.
+	var counts := collection_counts()
+	var out := PackedStringArray([start_line(),
+		"Now %s, running %d min | %d critters out | %s | presence from %s" % [Time.get_datetime_string_from_system(),
+			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source],
+		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f" % [economy.berries,
+			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck()],
+		"", "Settings:", JSON.stringify(settings.data, " "), "", "Log, most recent last:"])
+	var log := FileAccess.get_file_as_string("user://logs/godot.log").split("
+")
+	out.append("
+".join(log.slice(maxi(0, log.size() - 150))))
+	return "
+".join(out)
 
 
 func _notification(what: int) -> void:

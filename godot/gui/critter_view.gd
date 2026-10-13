@@ -21,12 +21,15 @@ var critter: Node2D
 var _vp: SubViewport
 var _step := 0.0
 var still := false
+var variant := ""             # a Legendary visitor's colour, "" for a random one
 
 
-static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1, wear: Array = [], still := false, dyes: Dictionary = {}) -> SubViewportContainer:
+static func make(species: String, w: int, h: int, scale := 1.0, mode := "sit", asleep := false, face := -1, wear: Array = [], still := false, dyes: Dictionary = {}, variant := "") -> SubViewportContainer:
 	# `still`: drawn once and left (many small previews, like the Shop's).
+	# `variant`: a Legendary visitor's colour; "" picks one at random.
 	var v = load("res://gui/critter_view.gd").new()
 	v.still = still
+	v.variant = variant
 	v._build(species, w, h, scale, mode, asleep, face)
 	if not wear.is_empty() and v.critter != null:
 		v.critter.wear(wear, dyes)
@@ -52,6 +55,8 @@ func _build(species: String, w: int, h: int, scale: float, mode: String, asleep:
 	_vp.add_child(floor)
 	critter = Species.row(species)["script"].new()
 	critter.idles = Species.row(species)["idles"]
+	if variant != "" and critter.has_method("set_variant"):
+		critter.set_variant(variant)
 	shrink.add_child(critter)
 	critter.setup(floor, w * 0.5 / scale, face, "sit" if asleep else mode)
 	critter.mode_left = INF

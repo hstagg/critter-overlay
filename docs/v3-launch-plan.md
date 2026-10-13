@@ -118,6 +118,12 @@ Findings along the way:
   `compile_test.gd` now loads every script.
 - T4 (Start over) must keep `system.v2_seen_done`, or the v2.0 Seen Log
   would come back.
+- **Phase 3a: built** (T1, T4, F4, F10, C10, C14 and D11). Start over keeps
+  the v2.0 import flags. Previews and the Collection never show a colour
+  that has not been met. Unmet visitors are one "?" slot each, so the
+  Collection total grows as visitors are met (26 at the start, not 34).
+- Polish for Phase 4: in dark mode, an unmet critter's silhouette is a faint
+  copy of its art, so it hints at the colour.
 
 ## Phase 1: decisions and housekeeping
 
