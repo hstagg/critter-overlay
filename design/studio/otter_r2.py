@@ -1,4 +1,4 @@
-"""Otter, studio round 2: Harrison kept A (river otter) and C (chubby); his
+"""Otter, studio round 2: the designer kept A (river otter) and C (chubby); the
 note on A: "walk profile needs work". The references that work (chibi otter
 art) walk with the big head turned to you on a low side-on body, as the
 approved kitten does, so the walks here put the head face-on or three-quarter.

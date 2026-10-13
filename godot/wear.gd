@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## Some items belong to one species (a fourth field): they are sold only once
 ## that species has been met, and are drawn only for critters whose design
-## is final (Harrison, 2026-10-06).
+## is final (design decision, 2026-10-06).
 ##
 ## Prices are by hours of work (economy design): small 50 berries (under an
 ## hour), medium 400 (one to three workdays), large 1,200 (about a week),
@@ -14,7 +14,7 @@ extends RefCounted
 
 const PRICES := {"small": 50, "medium": 400, "large": 1200, "showpiece": 4000, "perk": 8000}
 
-# Perk items (Harrison, 2026-10-06): the critter wearing one gets something
+# Perk items (design decision, 2026-10-06): the critter wearing one gets something
 # extra. A behaviour joins its idles; luck multiplies the luck that species'
 # visitors roll with.
 const PERKS := {
@@ -24,7 +24,7 @@ const PERKS := {
 	"lucky_charm": {"luck": 1.5, "text": "Its kind arrive luckier"},
 }
 
-# Visitors bringing a present (Harrison, 2026-10-06): the chance an arrival
+# Visitors bringing a present (design decision, 2026-10-06): the chance an arrival
 # wears an item, by its tier (almost never Common, still rare at Legendary),
 # and which item, cheaper ones likelier. One not yet owned is a free gift.
 const BRING_CHANCE := {"common": 0.0002, "rare": 0.004, "epic": 0.012, "legendary": 0.03}

@@ -1,6 +1,6 @@
 """Hedgehog, studio round 3: G is final; its walk, ball and nap.
 
-Harrison approved round-1 option G (upright, his first reference) and chose:
+The designer approved round-1 option G (upright, the first reference) and chose:
 sit upright as G, walk side-on on four legs with G's face (short upturned
 snout, big eye). This round draws the four-legged walk in three body lengths,
 plus the roll-up ball (its special) and the nap, all with G's face.

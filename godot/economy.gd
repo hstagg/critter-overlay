@@ -23,7 +23,7 @@ extends Node
 ##     epic and legendary are twice as likely, on top of luck.
 ##   - The day's first visitor is Rare or better (v2.0's first-spawn bonus:
 ##     78% Rare, 20% Epic, 2% Legendary, within the species' cap).
-##   - Tiers (Harrison, 2026-10-07): Common, Rare, Epic, Legendary. The
+##   - Tiers (design decision, 2026-10-07): Common, Rare, Epic, Legendary. The
 ##     everyday species are Common, and their Rare and Epic versions look
 ##     different (species.gd "versions"). Legendary is only for the special
 ##     visitors (unicorn, golden kitten), each in secret colour variants that

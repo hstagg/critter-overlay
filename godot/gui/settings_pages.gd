@@ -920,7 +920,7 @@ func _collection(body: VBoxContainer) -> void:
 
 
 # ============================================================ SHOP
-# Design: "Critter Clothes" canvas, Shop B (dressing room), Harrison's pick.
+# Design: "Critter Clothes" canvas, Shop B (dressing room), the design pick.
 # The critter stays in view on the left; clicking an item tries it on; then
 # buy it, wear it, or put it back.
 

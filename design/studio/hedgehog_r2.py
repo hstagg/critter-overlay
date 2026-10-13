@@ -1,6 +1,6 @@
 """Hedgehog, studio round 2: remixes of round 1's A and B.
 
-Harrison's picks: keep A (his references) and B (chibi head), bold spikes,
+Design picks: keep A (the references) and B (chibi head), bold spikes,
 medium snout in side profile. Six options along that line, varying head size,
 spike size, face roundness and body length.
 

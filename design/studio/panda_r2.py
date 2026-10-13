@@ -1,4 +1,4 @@
-"""Panda, studio round 2: Harrison kept A (classic) and C (bamboo snack), and
+"""Panda, studio round 2: the designer kept A (classic) and C (bamboo snack), and
 E (brown) as a variant for Rare and up. His note: the walk profile "needs
 work and inspiration". From references: a real panda's side has a shoulder
 hump, a black saddle over the shoulders running down into the front legs,

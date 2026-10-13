@@ -1,4 +1,4 @@
-"""Unicorn, studio round 3: the curly foal (round-2 option 1) is final. Harrison
+"""Unicorn, studio round 3: the curly foal (round-2 option 1) is final. The designer
 wants about seven colour variants, each a secret rarity tier within
 Legendary. Nine palettes to choose from; the rarest gets decided later.
 

@@ -11,7 +11,7 @@ extends Node
 ##              rotated to stand on whichever edge it is on (v2.0's solos)
 ## and owns what happens to it: drag, throw, pop.
 ##
-## Throwing (Harrison, 6 Oct): a gentle throw slides across the screen,
+## Throwing (design decision, 6 Oct): a gentle throw slides across the screen,
 ## bounces off its sides and stops; a hard one leaves the screen, at a capped
 ## speed so nothing flies off like a cannon. Sliding critters knock into each
 ## other like pool balls (main.gd _bumps).

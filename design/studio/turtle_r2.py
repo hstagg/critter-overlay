@@ -1,4 +1,4 @@
-"""Turtle, studio round 2: Harrison kept A (classic green), D (big-head
+"""Turtle, studio round 2: the designer kept A (classic green), D (big-head
 hatchling) and F (mossy sprout). Five merges of the three.
 
     python design/studio/turtle_r2.py   ->  design/studio/out/turtle-r2/

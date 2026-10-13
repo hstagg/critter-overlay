@@ -1,21 +1,5 @@
 {
   "env": {
     "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(git push*)",
-            "shell": "powershell",
-            "command": "cd 'C:\\Users\\harry\\OneDrive\\Documents\\Second Brain\\01 Projects\\Critter Overlay App'; git pull",
-            "statusMessage": "Pulling to local project folder..."
-          }
-        ]
-      }
-    ]
   }
 }

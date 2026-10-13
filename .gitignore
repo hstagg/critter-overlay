@@ -10,6 +10,7 @@ _README.md
 Sprite Images/assets/
 Sprite Images/*.gif
 .claude/worktrees/
+.claude/settings.local.json
 
 
 # Native build outputs (build with native/SConstruct)

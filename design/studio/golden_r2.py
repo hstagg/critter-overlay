@@ -1,4 +1,4 @@
-"""Golden kitten, studio round 2: Harrison kept B (polished sheen), D (glitter)
+"""Golden kitten, studio round 2: the designer kept B (polished sheen), D (glitter)
 and F (stars), and asked for more effort for a Legendary. So beyond the
 coat, some options give it its own features drawn over the kitten: lynx tufts
 on the ears, a fluffy ruff of cheek fur, a cream chest bib, star-shine eyes
