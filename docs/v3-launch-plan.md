@@ -91,6 +91,34 @@ start, but the problem would muddy the feedback. **nice** is polish that can wai
 
 ---
 
+## Progress
+
+Updated 2026-10-13.
+
+- **Phase 1: done**, except D2 (the Rare/Epic picks, waiting on the
+  developer's choices) and GitHub Support's purge of cached old commits
+  (requested by the developer). Done: D21 history rewrite, H1-H5, R1, R3,
+  D16 (v1/v2 kept at tag `v2-final`).
+- **Phase 2: built** (C1-C6, C8, C9, C11, C13, P1). C7 needed no code:
+  v2.0 never let the pause key change, and its autostart is covered by C6.
+  C12 is left as nice-to-have.
+
+Findings along the way:
+
+- Godot already writes rotating logs to `%APPDATA%\Critter Overlay\logs`;
+  the audit's "no log file" was wrong. C1 became the START line that makes
+  those logs useful.
+- Runs from source and the tests write to the same log folder as the
+  installed app, so they rotate its real logs out. Known issue.
+- A close request reaches the app only through a visible window. With
+  every critter hidden (paused, asleep in the cottage, none out),
+  `taskkill` without `/f` does not reach it, and logoff is untested. The
+  60 s autosave is the backstop; S4 checks both.
+- No test compiled `main.gd`, so a type error there passed CI.
+  `compile_test.gd` now loads every script.
+- T4 (Start over) must keep `system.v2_seen_done`, or the v2.0 Seen Log
+  would come back.
+
 ## Phase 1: decisions and housekeeping
 
 **Goal:** stop the ground moving. One branch, a frozen scope, and answers to every
