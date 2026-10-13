@@ -32,14 +32,30 @@ static func box(bg: Color, radius: int, border := Color.TRANSPARENT, bw := 0, pa
 	return s
 
 
-static func font(weight: int, display := false) -> SystemFont:
-	# The design's Fredoka (headings) and Nunito (text) when installed, else
-	# Segoe UI.
-	var f := SystemFont.new()
-	f.font_names = PackedStringArray(["Fredoka", "Segoe UI"] if display else ["Nunito", "Segoe UI"])
-	f.font_weight = weight
-	f.antialiasing = TextServer.FONT_ANTIALIASING_LCD
-	return f
+static var _fonts := {}
+
+
+static func font(weight: int, display := false) -> Font:
+	# The design's fonts, bundled in godot/fonts (SIL Open Font License):
+	# Fredoka for headings, Nunito for text, at the weight asked for. Segoe UI
+	# draws any character they lack.
+	var key := "%s%d" % ["d" if display else "t", weight]
+	if not _fonts.has(key):
+		var segoe := SystemFont.new()
+		segoe.font_names = PackedStringArray(["Segoe UI"])
+		segoe.font_weight = weight
+		var file: FontFile = load("res://fonts/Fredoka.ttf" if display else "res://fonts/Nunito.ttf")
+		if file == null:
+			push_warning("ui: a bundled font did not load; using Segoe UI")
+			_fonts[key] = segoe
+			return segoe
+		if file.fallbacks.is_empty():
+			file.fallbacks = [segoe]
+		var v := FontVariation.new()
+		v.base_font = file
+		v.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+		_fonts[key] = v
+	return _fonts[key]
 
 
 static func label(text: String, size: int, colour: Color, weight := 400, display := false) -> Label:
