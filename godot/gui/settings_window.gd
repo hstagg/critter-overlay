@@ -314,7 +314,8 @@ func _refresh() -> void:
 	var s: Dictionary = main.status()
 	var colour: Color = Color(Palette.STATUS[s.mode])
 	live.dot.add_theme_stylebox_override("panel", K.box(colour, 5, K.c.ok_ring if s.mode == "running" else Color.TRANSPARENT, 0))
-	live.mode.text = {"running": "Gathering", "paused": "Paused", "napping": "Napping"}[s.mode]
+	var running := "Timer" if main.settings.value("focus.mode") == "timer" else "Gathering"
+	live.mode.text = {"running": running, "paused": "Paused", "napping": "Napping"}[s.mode]
 	live.focus.text = _mins(s.focus_min)
 	live.out.text = "%d of %d critters out" % [s.out, s.max_out]
 	live.bar.value = s.next_progress
@@ -337,6 +338,10 @@ func capture(slot: int) -> void:
 
 
 func _input(e: InputEvent) -> void:
+	if capturing < 0 and e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		hide()   # Esc closes Settings, as the cross does (the critters keep running)
+		return
 	if capturing < 0 or not (e is InputEventKey) or not e.pressed or e.echo:
 		return
 	var slot := capturing

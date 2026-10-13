@@ -180,6 +180,30 @@ Findings along the way:
     a charm on every species. Left as a tester question.
   - The Legendary set is a coupon-collector tail, so its median varies a lot
     between seeds (p10 32 weeks, p90 135 weeks for medium players).
+- **Phase 4, polish: done** (P2, P3, P5 in part, P7, P9, and the two Phase 3
+  notes).
+  - One word for each idea: "Legendary visitors", one idle phrase, "Record
+    what you meet" instead of v2.0's "Seen Log", and "Timer" in the sidebar
+    in timer mode.
+  - The greeting at night is "Good evening". An update note's bar drains
+    over its own 18 s. The welcome's mock taskbar shows the time only.
+  - Esc closes Settings. "Reset all critters" and "Reset <critter>" ask
+    first.
+  - Stale comments fixed in pairs.gd and critter.gd.
+  - The welcome's critter strip is cropped inside its card instead of
+    stretching it. Unmet critters in dark mode are shadows, so no colour
+    shows through.
+  - Checked on the VM with the new `tools/soak/vm/tour.ps1`.
+- Left open from Phase 4:
+  - P4 (which notes can be turned off) and P8 (live theme switching) are
+    tester questions or nice-to-haves.
+  - The tray's keyboard focus (P5) waits on P6: the panel rebuilds twice a
+    second, which would throw focus away.
+  - F9 (hit boxes for ball poses) and P10 (the hedgehog's copy of
+    two_head.gd) are after beta.
+  - F14 waits for the Rare/Epic picks (3f).
+  - New: on a 1280-wide screen, the Collection's Sightings diary box runs
+    past the right edge of its column.
 
 ## Phase 1: decisions and housekeeping
 

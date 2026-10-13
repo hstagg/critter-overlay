@@ -19,8 +19,8 @@ extends Node2D
 ## The art faces left.
 
 const Wear := preload("res://wear.gd")
-const PART_SCALE := 0.75
-const WEAR_HEADROOM := 120.0    # clothes art starts this far above the part frame (tall hats)       # SVG units -> texture pixels
+const PART_SCALE := 0.75        # SVG units -> texture pixels
+const WEAR_HEADROOM := 120.0    # clothes art starts this far above the part frame (tall hats)
 const ACCEL := 4.0             # how quickly walking speed eases to its target, 1/s
 const GRAVITY := 1800.0        # px/s^2, for hops and pounces
 const REGION_SLACK := 6.0      # px kept clear around a drawn critter
@@ -53,12 +53,12 @@ var head_height := 60.0        # px above the feet that the eyes look out from
 var back_hip := Vector2(205, 224)   # the stretch tips forward about this
 var scratch_hides := ""        # sitting part hidden while scratch-foot is up
 var activity := 1.0            # how often it stops for a behaviour (Settings > Activity)
-var paired := false
+var paired := false            # in a pair interaction (pairs.gd): the evaluator leaves it be
 var climbing := false          # on a side wall (host.gd): reach-and-pull, tail hanging
 var climb_turn := 0.0          # degrees the host turned it onto the wall
 var worn: Array = []            # clothes on the head (wear.gd ids)
 var perk_moves: Array = []      # behaviours its perk clothes give it
-var _wear_nodes: Array = []            # in a pair interaction (pairs.gd): the evaluator leaves it be
+var _wear_nodes: Array = []    # the clothes' sprites, freed and made again by wear()
 var idles := []                # behaviours this species can do (species.gd)
 var version := ""              # a Rare or Epic version's art folder, "" for the Common look
 
