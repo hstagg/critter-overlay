@@ -277,7 +277,9 @@ func _updater() -> void:
 	u.api_url = "http://127.0.0.1:1/release"
 	var said := [null]
 	u.check(false, func(ok): said[0] = ok)
-	await _until(u, ["offline", "current", "failed"])
+	# Longer than the request's own 15 s timeout: some machines (CI runners)
+	# never refuse the closed port, so the request only fails on timeout.
+	await _until(u, ["offline", "current", "failed"], 20.0)
 	check(u.state == "offline" and said[0] == false, "no network is offline, and not a success (so the daily check tries again)")
 	u.queue_free()
 	await process_frame

@@ -317,7 +317,7 @@ func _ready() -> void:
 		if not test_run and not native.single_instance("CritterOverlay.v3"):
 			print("Critter Overlay is already running")
 			set_process(false)
-			get_tree().quit()
+			_quit(0)   # not get_tree().quit(): the Intel GL teardown crash
 			return
 		var pk: Dictionary = settings.value("system.pause_key")
 		native.start(int(pk.mods), int(pk.vk))
@@ -912,10 +912,11 @@ func _process(delta: float) -> void:
 			a.launch((hosts[1].body_centre() - a.body_centre()).normalized() * throw_demo)
 			print("THROWN ", a.state)
 			throw_demo = 0.0
-	process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
-	fps.append(Engine.get_frames_per_second())
-
 	if report_path != "":
+		# Timings only for the report: kept every frame, they would grow
+		# for as long as the app runs.
+		process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
+		fps.append(Engine.get_frames_per_second())
 		live_timer -= delta
 		if live_timer <= 0.0:
 			live_timer = 0.5
@@ -1086,8 +1087,9 @@ func _run_pair_demo() -> void:
 	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
 	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
 	var c := area.get_center() + Vector2(0, 120)
-	var a = _spawn("roam", "sit", c - Vector2(220, 0), sa)
-	var b = _spawn("roam", "sit", c + Vector2(120, 0), sb)
+	# 120 px apart, inside the 8 s approach limit (see admin.gd pair()).
+	var a = _spawn("roam", "sit", c - Vector2(60, 0), sa)
+	var b = _spawn("roam", "sit", c + Vector2(60, 0), sb)
 	var go := func():
 		if is_instance_valid(a) and is_instance_valid(b) and pairs.active.is_empty():
 			a.critter.paired = false
