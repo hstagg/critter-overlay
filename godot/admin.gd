@@ -235,6 +235,13 @@ func run(action: String, chosen := "kitten") -> void:
 		"eight":
 			for i in 8:
 				spawn(Species.DATA.keys().pick_random(), "common")
+		"screen":
+			# As if the display had changed: the next look (every 2 s) finds
+			# the work area different, measures again and draws everyone again.
+			if main.hosts.is_empty():
+				for i in 3:
+					spawn(Species.DATA.keys().pick_random(), "common")
+			main.area = Rect2(main.area.position, main.area.size * 0.5)
 		"welcome":
 			welcome()
 		"open":

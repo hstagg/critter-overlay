@@ -92,6 +92,8 @@ func checks() -> Array:
 		["The app", "help", "Log files and diagnostics", "System > Copy diagnostics and paste it: the START line, settings and the recent log. Open folder shows the logs.", "open:system"],
 		["The app", "size", "Changing the size", "With a Legendary out wearing something, drag Critters > Size: it keeps its colour and outfit, nothing redraws until let go, and the showpieces resize.", "open:critters"],
 		["The app", "v2custom", "v2.0 custom critters", "Upgrade from v2.0 with custom critters: one note says they are safe, and it never shows again.", ""],
+		["Moving about", "screen", "The display changes", "Run: within 2 s everyone is drawn again where they stood, inside the screen. Then for real on the test VM: change the resolution, move the taskbar, undock.", "screen"],
+		["Moving about", "dpi", "Display scale", "At 150% Windows scaling, critters are 1.5x the Size setting and Settings, the tray and notes are drawn larger; on a small screen Settings shrinks to fit.", ""],
 		["Moving about", "fullscreen", "A full-screen app", "Play a full-screen video for a minute in timer mode: no critter or showpiece shows over it, none arrive, and they come back after.", ""],
 		["The app", "secret", "Secret visitors", "Before meeting a visitor its Collection card is a silhouette with one ? (no colour count); after, its picture is a colour you have met.", "open:collection"],
 		["The app", "bank", "Rolls come from focus time", "System > Copy diagnostics shows the rolls banked: one per 5.5 focus minutes, at most 6. With none banked, arrivals are Common.", "open:system"],

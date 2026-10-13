@@ -60,6 +60,10 @@ func open(main_ref: Node, which := "", species := "") -> void:
 		pages = Pages.new(self)
 	rebuild()
 	if not visible:
+		# Drawn at the display scale, or smaller if the screen is too small.
+		var f := UI.fit(Vector2(W, H))
+		content_scale_factor = f
+		size = Vector2i(Vector2(W, H) * f)
 		var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
 		position = usable.position + (usable.size - size) / 2
 		show()

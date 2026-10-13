@@ -43,6 +43,9 @@ func _init() -> void:
 
 func open(main_ref: Node) -> void:
 	main = main_ref
+	var f := UI.fit(Vector2(W + 8, H + 10))   # the display scale, or smaller to fit
+	content_scale_factor = f
+	size = Vector2i(Vector2(W + 8, H + 10) * f)
 	# Start with Windows: on for a new install; an upgrade from v2.0 keeps
 	# whatever it had.
 	startup = main.is_startup() if main.settings.value("system.from_v2", false) else true

@@ -15,6 +15,7 @@ signal collection_pressed
 signal settings_pressed
 signal quit_pressed
 
+const UI := preload("res://gui/ui.gd")
 const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
 
@@ -116,7 +117,9 @@ func close() -> void:
 
 func _place() -> void:
 	# Just above the icon, right-aligned to it, kept on its screen.
-	var size := Vector2i(PANEL_W + 8, int(panel.get_contents_minimum_size().y) + 10)
+	var f := UI.scale()   # the display scale
+	panel.content_scale_factor = f
+	var size := Vector2i(Vector2(PANEL_W + 8, int(panel.get_contents_minimum_size().y) + 10) * f)
 	panel.size = size
 	var icon_rect := Rect2i(indicator.get_rect())
 	var scr := DisplayServer.get_screen_from_rect(Rect2(icon_rect)) if icon_rect.size.x > 0 else DisplayServer.get_primary_screen()

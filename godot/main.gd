@@ -81,6 +81,7 @@ const ADMIN_SCRIPT := "res://admin.gd"
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const Icons := preload("res://gui/icons.gd")
+const UI := preload("res://gui/ui.gd")
 const Updater := preload("res://updater.gd")
 
 const VERSION := "3.0.0"
@@ -92,6 +93,8 @@ const UPDATE_EVERY := 24 * 3600   # s between automatic checks
 
 var area := Rect2()            # where critters live: the primary screen less the taskbar
 var screen_rect := Rect2i()
+var ui_scale := 1.0           # the primary screen's display scale (ui.gd scale())
+var screen_check := 2.0       # seconds to the next look for a display change
 var vsync_taken := false       # host.gd: only the first window waits for vsync
 var t := 0.0
 
@@ -278,6 +281,7 @@ func _ready() -> void:
 	var scr := DisplayServer.get_primary_screen()
 	screen_rect = Rect2i(DisplayServer.screen_get_position(scr), DisplayServer.screen_get_size(scr))
 	area = Rect2(DisplayServer.screen_get_usable_rect(scr))
+	ui_scale = UI.scale()
 
 	# The project's own window carries nothing: shrink it out of the way. The
 	# critters' windows are real desktop windows, not embedded in it.
@@ -935,6 +939,10 @@ func _process(delta: float) -> void:
 				toggle_pause()
 			if native.poll_hotkey_slot(1) == 1:
 				spawn_now()
+		screen_check -= delta
+		if screen_check <= 0.0:
+			screen_check = 2.0
+			_check_screen()
 		busy_check -= delta
 		if busy_check <= 0.0:
 			busy_check = 1.0
@@ -1212,6 +1220,26 @@ func _set_paused(p: bool) -> void:
 	paused = p
 	_show_critters()
 	_update_tray()
+
+
+func _check_screen() -> void:
+	# A new resolution, a dock or undock, the taskbar moved, a different
+	# display scale: measure the primary screen again, and draw everyone again
+	# inside it, where they stood or as near as fits.
+	var scr := DisplayServer.get_primary_screen()
+	var rect := Rect2i(DisplayServer.screen_get_position(scr), DisplayServer.screen_get_size(scr))
+	var usable := Rect2(DisplayServer.screen_get_usable_rect(scr))
+	var f := UI.scale()
+	if rect == screen_rect and usable == area and is_equal_approx(f, ui_scale):
+		return
+	print("SCREEN now %s, work area %s, scale %.2f" % [rect, usable, f])
+	screen_rect = rect
+	area = usable
+	ui_scale = f
+	get_window().position = screen_rect.position + Vector2i(0, screen_rect.size.y - 1)
+	if not zoom_flag:
+		Critter.zoom = settings.zoom() * ui_scale
+	_redraw_all()
 
 
 func _show_critters() -> void:
@@ -1639,7 +1667,7 @@ func _on_setting(key: String) -> void:
 		if key == "focus.pause_fullscreen":
 			_check_busy()
 	if under.call("critters.size") and not zoom_flag:
-		var z: float = settings.zoom()
+		var z: float = settings.zoom() * ui_scale
 		if not is_equal_approx(z, Critter.zoom):
 			Critter.zoom = z
 			if not all:
@@ -1659,6 +1687,9 @@ func _redraw_all() -> void:
 		if h.state != "live":
 			continue
 		var feet: Vector2 = h.feet_on_screen()
+		if h.kind == "roam":
+			# Inside the work area, which may have changed (_check_screen).
+			feet = Vector2(clampf(feet.x, area.position.x, area.end.x), clampf(feet.y, minf(area.position.y + 260.0, area.end.y), area.end.y))
 		var variant := str(h.critter.get("variant")) if "variant" in h.critter else ""
 		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier, h.version, variant)
 		if n != null:

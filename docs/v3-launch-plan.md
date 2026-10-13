@@ -132,6 +132,15 @@ Findings along the way:
   luck, counted once, which also fixes the stacking in B2.
 - Existing settings files keep their saved Rare Hour start (21:00 for v2.0
   upgraders). The 15:00 default reaches new installs and Start over only.
+- **Phase 3c: built** (F2, F3). Every 2 s the app checks the primary screen's
+  size, work area and display scale. If any changed, it measures again and
+  redraws everyone inside it. Critters, Settings, the welcome, the tray panel
+  and the notes follow the display scale, and Settings and the welcome shrink
+  to fit a small screen. F5 needed no code: a slow drag onto another monitor
+  snaps back when released, and a hard throw off the edge is the existing
+  throw-away, as on any edge. F12 (auto-hide taskbar) stays a VM check in S4.
+- Polish for Phase 4: the welcome's critter strip is wider than its card and
+  clips the card's right edge (seen at every scale, so not new).
 
 ## Phase 1: decisions and housekeeping
 
