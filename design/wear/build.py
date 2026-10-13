@@ -193,7 +193,7 @@ def wizard_hat(m):
     return svg(brim + cone + band + stars)
 
 
-# --- One species only (Harrison, 2026-10-06): sold only once that species has
+# --- One species only (design decision, 2026-10-06): sold only once that species has
 # been met, and only for critters whose design is final.
 
 def fish_bowtie(m):

@@ -1,4 +1,4 @@
-"""Unicorn, studio round 2: Harrison kept A, B, C and E, loved B (lavender),
+"""Unicorn, studio round 2: the designer kept A, B, C and E, loved B (lavender),
 and asked for much more effort ("it's a legendary"). His idea for later:
 about seven colour variants, each with its own secret rarity within
 Legendary. So this round settles the base design, all in B's lavender; the

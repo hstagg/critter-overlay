@@ -1,5 +1,5 @@
 """Perk clothes (8,000 berries): each gives the critter wearing it something
-extra (Harrison, 2026-10-06). What they do lives in the game (wear.gd PERKS):
+extra (design decision, 2026-10-06). What they do lives in the game (wear.gd PERKS):
 disco headphones dance, the aviator cap takes off and floats, the confetti
 crown celebrates, the lucky charm makes that species' visitors luckier."""
 import math

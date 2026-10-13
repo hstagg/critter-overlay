@@ -1,11 +1,11 @@
 """Hedgehog, studio round 1: seven options, each a front view and a side view.
 
-Front language from Harrison's first reference (heart-shaped face mask with a
+Front language from the designer's first reference (heart-shaped face mask with a
 widow's peak, round ears outside it, a spiky halo, button nose, small smile);
-side language from his second (bold swept-back spikes with leaf flecks, peach
+side language from the second (bold swept-back spikes with leaf flecks, peach
 face, long tapering snout with the nose at the tip, pink round ear on the
 quill line, peach belly strip, small dark feet). All on four legs except
-option G, which is his first reference taken literally (upright).
+option G, which is the first reference taken literally (upright).
 
 Side views are drawn facing left, as the rig expects, and mirrored on output
 so they face the same way as the approved critters' side stills.
@@ -229,7 +229,7 @@ OPTIONS['B'] = dict(
               feet=[(130, 241), (232, 241)], far_feet=[(152, 239), (252, 239)]),
 )
 
-# C. Fluffy: the same coat as soft dense tufts (his earlier "almost fluffy").
+# C. Fluffy: the same coat as soft dense tufts (the earlier "almost fluffy").
 OPTIONS['C'] = dict(
     name='Fluffy coat',
     front=dict(n=40, depth=0.07, tip=1.06, puff=0.04, lean=8, jit=0.015, flecks=False, texture=True),
@@ -278,7 +278,7 @@ OPTIONS['F'] = dict(
 )
 
 
-# G. Upright, his first reference literally. Breaks the four-legs rule.
+# G. Upright, the first reference literally. Breaks the four-legs rule.
 def g_front():
     cx = 160
     f = egg(cx, 128, 106, 112)

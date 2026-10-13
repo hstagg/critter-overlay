@@ -1,11 +1,11 @@
 """Rare and Epic versions of each species: godot/art/<species>/<version>/.
 
-Harrison's rarity model (2026-10-07): the Common is the species as built;
+The rarity model (2026-10-07): the Common is the species as built;
 Rare and Epic are versions of it. A version folder holds only the parts it
 changes (critter.gd falls back to the species' own for the rest). Each
 version here is a recipe on the built parts: a colour swap, patches clipped
 to the head or body, a fluffy ruff, coloured irises, new ears, small extras.
-These are concepts for his picks (and for the artist to make their own);
+These are concepts for the design picks (and for the artist to make their own);
 the picked ones are marked in PICKED.
 
     python design/studio/versions.py            # every version

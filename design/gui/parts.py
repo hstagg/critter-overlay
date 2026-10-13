@@ -1,7 +1,8 @@
-import re, pathlib
+import os, re, pathlib
 from theme import THEME_CSS, TIERS_HEX, SP_HEX
 
-SCR = pathlib.Path(r"C:/Users/harry/AppData/Local/Temp/claude/C--Users-harry-OneDrive-Documents-Second-Brain/c2bc2064-940e-4063-91b7-01d67eed348e/scratchpad")
+# The folder holding the Cast design export (artifact-files/...): set CRITTER_DESIGN_DIR.
+SCR = pathlib.Path(os.environ["CRITTER_DESIGN_DIR"])
 CAST = (SCR / "artifact-files/6d837b9a-4e4d-470e-9a29-c5e3c6617246/project/Cast.dc.html").read_text(encoding="utf-8")
 
 # ---------------------------------------------------------------- critter art

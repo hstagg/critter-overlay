@@ -1,4 +1,4 @@
-"""Squirrel, studio round 2: Harrison kept C (chibi), D (stuffed cheeks) and F
+"""Squirrel, studio round 2: the designer kept C (chibi), D (stuffed cheeks) and F
 (curly tail). His note on D: the acorn is a shop item, not part of the
 squirrel, so no option holds one. Five merges.
 
