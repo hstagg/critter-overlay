@@ -221,8 +221,8 @@ func run(action: String, chosen := "kitten") -> void:
 		"present":
 			present()
 		"climb":
-			climb("kitten")
-			climb("kitten", true)
+			climb(chosen)
+			climb(chosen, true)
 		"throw":
 			if main.hosts.size() < 2:
 				spawn("kitten", "common", "", "", 2, "sit")

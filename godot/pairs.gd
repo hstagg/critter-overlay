@@ -34,7 +34,7 @@ const PAIRS := {
 const NEAR := 420.0               # px at zoom 1: close enough to notice each other
 const ROW := 140.0                # and this close up or down the screen
 const CHANCE := 0.12              # per close pair per second, times behaviour frequency
-const APPROACH_LIMIT := 8.0       # s to walk over before giving up
+const APPROACH_LIMIT := 8.0       # s to walk over before giving up, at least: more for a long walk
 const MAX_ACTIVE := 2
 const Y_SPEED := 70.0             # px/s the walker drifts to its partner's level
 
@@ -56,6 +56,7 @@ class Pair:
 	var gap := 60.0
 	var side := 1                 # which side of b that a stands: -1 left, +1 right
 	var done := false
+	var limit := 0.0              # s to walk over; set from the distance on the first step
 
 
 func _init() -> void:
@@ -179,6 +180,10 @@ func _step(p: Pair, delta: float, zoom: float) -> void:
 	if p.stage == "approach":
 		var target: float = clampf(kb.position.x + p.side * p.gap, a.world.left_x, a.world.right_x)
 		var dx: float = target - ka.position.x
+		if p.limit <= 0.0:
+			# Time to walk the gap at its own pace, and a little more: a slow
+			# critter far away used to give up halfway (soak finding 5).
+			p.limit = clampf(absf(dx) / maxf(ka.cruise, 10.0) + 3.0, APPROACH_LIMIT, 25.0)
 		a.y = move_toward(a.y, b.y, Y_SPEED * zoom * delta)
 		ka.mode_left = INF
 		if absf(dx) > 5.0 * zoom:
@@ -193,7 +198,7 @@ func _step(p: Pair, delta: float, zoom: float) -> void:
 			if ka.mode == "walk":
 				ka._go_sit()
 				ka.mode_left = INF
-		if p.t > APPROACH_LIMIT:
+		if p.t > p.limit:
 			_finish(p)
 		return
 	# Acting.
@@ -245,8 +250,14 @@ func _act(p: Pair) -> void:
 			ka.start_behaviour("stretch", p.length)
 			kb.start_behaviour("stretch", p.length)
 		"mutual_groom", "splash_play", "panda_snuggle":
-			ka.start_behaviour("groom", p.length)
-			kb.start_behaviour("groom", p.length)
+			# Each grooms if it can; one without groom art (the turtle, the
+			# unicorn) looks fondly at the other instead.
+			for side in [[ka, p.a, p.b], [kb, p.b, p.a]]:
+				if side[0].can_do("groom"):
+					side[0].start_behaviour("groom", p.length)
+				else:
+					side[1].world.look_at = heads.call(side[2])
+					side[0].start_behaviour("look_at_cursor", p.length)
 		"sit_together":
 			ka._go_loaf(p.length)
 			kb._go_loaf(p.length)

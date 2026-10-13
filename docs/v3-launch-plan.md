@@ -144,6 +144,20 @@ Findings along the way:
 - **Phase 3e: built** (F11). Fredoka and Nunito are bundled in `godot/fonts`
   (the variable TTFs from google/fonts, SIL OFL 1.1). The OFL text ships with
   them and is shown in Credits, which covers the font part of L1.
+- **Phase 3d: built** (F6, F7, F8).
+  - F6: a pair's walk-over limit follows the distance and the walker's pace
+    (8 to 25 s). On a 10-minute VM run with 8 critters, 7 of 8 pairs reached
+    the interaction; the soak report had a third giving up. 8 is too few to
+    judge the 90% bar, so the Phase 5 soak measures it.
+  - F7: in grooming pairs, the turtle and unicorn (no groom art) look at
+    their partner instead. The duckling no longer has tail_swish, which
+    showed nothing while sitting.
+  - F8: the Admin climb check runs for the species chosen. VM frames of all
+    10 climbing the right wall: head upright and body along the wall for
+    every one. Whether the rabbit hops instead of climbing shows only in
+    motion, which is an Admin audit item.
+- Working rule from 2026-10-13: anything that opens windows is tested on the
+  VM, never the developer's PC.
 
 ## Phase 1: decisions and housekeeping
 
