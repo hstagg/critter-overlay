@@ -41,10 +41,15 @@ static func font(weight: int, display := false) -> Font:
 	# draws any character they lack.
 	var key := "%s%d" % ["d" if display else "t", weight]
 	if not _fonts.has(key):
+		var segoe := SystemFont.new()
+		segoe.font_names = PackedStringArray(["Segoe UI"])
+		segoe.font_weight = weight
 		var file: FontFile = load("res://fonts/Fredoka.ttf" if display else "res://fonts/Nunito.ttf")
+		if file == null:
+			push_warning("ui: a bundled font did not load; using Segoe UI")
+			_fonts[key] = segoe
+			return segoe
 		if file.fallbacks.is_empty():
-			var segoe := SystemFont.new()
-			segoe.font_names = PackedStringArray(["Segoe UI"])
 			file.fallbacks = [segoe]
 		var v := FontVariation.new()
 		v.base_font = file
