@@ -48,8 +48,6 @@ extends Node2D
 ##   --throw-demo=SPEED throws the first critter at the second (px/s) after 1.5 s
 ##   --fake-pointer     a pretend pointer for the bond test: it circles the first
 ##                      critter for eight seconds, then rests
-##   --beta             beta-tester mode, kept once set: the rarity odds and
-##                      each critter's tier range can be changed in Settings
 ##   --pair-demo=NAME   two critters in the middle do pair interaction NAME
 ##                      (see pairs.gd), again every eight seconds
 ##   --update-url=URL   ask URL for the newest release instead of GitHub
@@ -137,7 +135,7 @@ var toast_demo := false
 var pair_demo := ""
 var fake_pointer := false
 var throw_demo := 0.0
-var beta_flag := false
+var _paid_spawn := false       # the next arrival was bought with Spawn now: it always rolls
 var wear_flag := []
 var props := {}               # showpiece id -> prop.gd node on the desktop
 var sheet_dir := ""
@@ -252,8 +250,6 @@ func _ready() -> void:
 			sheet_dir = v
 		elif arg.begins_with("--stills="):
 			stills_dir = v
-		elif arg == "--beta":
-			beta_flag = true
 		elif arg == "--admin":
 			admin_flag = true
 		elif arg.begins_with("--admin-run="):
@@ -308,8 +304,7 @@ func _ready() -> void:
 	var real_run := settings_path == "" and seconds <= 0.0 and demo == ""
 	var v2 := _v2_settings() if real_run and not FileAccess.file_exists(settings.path) else {}
 	settings.load_file()
-	if beta_flag:
-		settings.set_value("system.beta", true)
+	settings.tuning = admin_on()   # odds and tier ranges: the admin build only
 	if not v2.is_empty():
 		settings.import_v2(v2)
 	Palette.theme = settings.value("system.theme")
@@ -595,29 +590,48 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 
 
 func _roll_visitor(sp: String) -> Array:
-	# [species, tier, whether it was the day's first-visitor bonus]. The
-	# everyday species top out at Epic; a Legendary roll brings a special
-	# visitor instead (unless a species was asked for).
+	# [species, tier, whether it was the day's first-visitor bonus]. Rarity
+	# first (game design rules, docs/v3-launch-plan.md): focus time banks
+	# rolls, an arrival takes one if there is one, and a paid Spawn now always
+	# rolls; without a roll it comes as a Common. Then the species (see
+	# economy.pick_species). Everyday species top out at Epic; a Legendary
+	# roll brings a special visitor instead, unless a species was asked for.
+	var tier := "common"
+	var bonus := false
+	var paid := _paid_spawn
+	_paid_spawn = false
+	if settings.value("world.rarity") and (paid or economy.take_roll()):
+		var roll: Array = economy.roll_arrival("legendary", "common", _charm_luck())
+		tier = roll[0]
+		bonus = roll[1]
 	if sp == "":
-		sp = _pick_species()
+		sp = _pick_species(tier)
 	if sp == "":
 		return ["", "", false]
 	if Species.is_special(sp):
 		return [sp, "legendary", false]
-	var rarity_on: bool = settings.value("world.rarity")
-	var row: Dictionary = settings.species(sp)
-	var roll: Array = economy.roll_arrival("legendary", row.tier_min, Wear.luck_mult(economy.worn.get(sp, [])))
-	var tier: String = roll[0] if rarity_on else "common"
 	if tier == "legendary" and not species_fixed:
 		var special := _pick_special()
 		if special != "":
-			return [special, "legendary", roll[1]]
+			return [special, "legendary", bonus]
+	var row: Dictionary = settings.species(sp)
 	var top: String = Species.row(sp).get("rarity_max", "epic")
 	if Economy.TIERS.find(row.tier_max) >= 0 and Economy.TIERS.find(row.tier_max) < Economy.TIERS.find(top):
 		top = row.tier_max
 	if Economy.TIERS.find(tier) > Economy.TIERS.find(top):
 		tier = top
-	return [sp, tier, roll[1]]
+	if Economy.TIERS.find(tier) < Economy.TIERS.find(row.tier_min):
+		tier = row.tier_min
+	return [sp, tier, bonus]
+
+
+func _charm_luck() -> float:
+	# A lucky charm worn by any critter: 1.5x luck on every roll, counted
+	# once however many wear one.
+	var best := 1.0
+	for sp in economy.worn:
+		best = maxf(best, Wear.luck_mult(economy.worn[sp]))
+	return best
 
 
 func _pick_special() -> String:
@@ -757,9 +771,10 @@ func _trail_for(h) -> void:
 	h.set_trail(style, palette)
 
 
-func _pick_species() -> String:
-	# A built species that is switched on, weighted by how often it visits
-	# (Settings > Critters), unless one was asked for. "" when none are on.
+func _pick_species(tier := "common") -> String:
+	# A built species that is switched on, unless one was asked for. A Common
+	# follows how often each visits (Settings > Critters); a Rare or better
+	# is any of them, evenly (economy.pick_species). "" when none are on.
 	if species_fixed:
 		return species
 	# A treat calls its species next (Shop > Treats).
@@ -768,23 +783,11 @@ func _pick_species() -> String:
 		economy.save()
 		if Species.has(called) and settings.sp(called, "enabled"):
 			return called
-	var pool := []
-	var weights := []
-	var total := 0.0
+	var weights := {}
 	for sp in Species.DATA:
-		if Species.row(sp).get("special", false) or not settings.sp(sp, "enabled"):
-			continue
-		pool.append(sp)
-		weights.append(Settings.VISITS[int(settings.sp(sp, "visits"))])
-		total += weights[-1]
-	if pool.is_empty():
-		return ""
-	var r := randf() * total
-	for i in pool.size():
-		r -= weights[i]
-		if r <= 0.0:
-			return pool[i]
-	return pool[-1]
+		if not Species.row(sp).get("special", false) and settings.sp(sp, "enabled"):
+			weights[sp] = Settings.VISITS[int(settings.sp(sp, "visits"))]
+	return economy.pick_species(tier, weights)
 
 
 func _on_gone(h) -> void:
@@ -1331,11 +1334,22 @@ func _group() -> void:
 
 # --- What the tray and Settings ask for -------------------------------------------
 
-func spawn_now() -> void:
+func spawn_now() -> bool:
+	# Spawn now (the tray, Settings, the spawn key) costs berries, and the
+	# critter always rolls its rarity (game design rules, rule 2).
+	if hosts.size() >= HARD_MAX:
+		return false
+	if not economy.pay_spawn():
+		toasts.show_note(Icons.berry(40), "Spawn now", "Not enough berries",
+			"A critter costs %d berries, and you have %d. Focus time earns more." % [Economy.SPAWN_PRICE, economy.berries])
+		return false
 	if paused:
 		_set_paused(false)
-	if hosts.size() < HARD_MAX:
-		_arrive()
+	_paid_spawn = true
+	_arrive()
+	_paid_spawn = false
+	_update_tray()
+	return true
 
 
 func toggle_pause() -> void:
@@ -1609,16 +1623,12 @@ func _on_setting(key: String) -> void:
 	if under.call("world"):
 		_time_of_day()
 		economy.odds = settings.odds()
-		economy.first_bonus_enabled = settings.value("world.first_bonus")
 		economy.rare_hour_enabled = settings.value("world.rare_hour")
 		economy.rare_hour_start = int(settings.value("world.rare_hour_start"))
-		economy.rare_hour_min = int(settings.value("world.rare_hour_min"))
-		economy.rare_hour_boost = float(settings.value("world.rare_hour_boost"))
 		if key == "world.rarity" and not settings.value("world.rarity"):
 			for h in hosts:
 				h.tier = "common"
 	if under.call("focus"):
-		economy.luck_enabled = settings.value("focus.luck")
 		presence.away_after = away_flag if away_flag > 0.0 else float(settings.value("focus.nap_after_min")) * 60.0
 		if key == "focus.gather_every_min":
 			next_arrival = minf(next_arrival, focus_s + _gather_every())
@@ -1678,7 +1688,7 @@ func _update_tray() -> void:
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
-		"found_total": counts[1], "berries": economy.berries,
+		"found_total": counts[1], "berries": economy.berries, "spawn_price": Economy.SPAWN_PRICE,
 		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key")))})
 
 
@@ -1751,8 +1761,8 @@ func diagnostics() -> String:
 	var out := PackedStringArray([start_line(),
 		"Now %s, running %d min | %d critters out | %s | presence from %s" % [Time.get_datetime_string_from_system(),
 			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source],
-		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f" % [economy.berries,
-			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck()],
+		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f" % [economy.berries,
+			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked],
 		"", "Settings:", JSON.stringify(settings.data, " "), "", "Log, most recent last:"])
 	var log := FileAccess.get_file_as_string("user://logs/godot.log").split("
 ")

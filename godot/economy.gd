@@ -61,6 +61,11 @@ const LUCK_KEPT := 0.5             # of session luck kept across a long break
 const NIGHT_S := 6 * 3600          # a break this long starts afresh
 const SAVE_EVERY_S := 60.0
 const SAVE_VERSION := 2            # 2: Uncommon folded into Common (four tiers)
+# Game design rules (docs/v3-launch-plan.md, G1). Provisional numbers, tuned
+# with tools/economy_sim.py in Phase 4.
+const ROLL_EVERY_MIN := 5.5        # focus time banks one rarity roll per this many minutes
+const ROLL_BANK_MAX := 6.0         # the most rolls that wait in the bank
+const SPAWN_PRICE := 30            # berries for Spawn now (always rolls)
 const MAX_TICK_S := 1.0            # the most one frame counts: a sleep or a stall is not focus
 const FIRST_BONUS_ODDS := {"rare": 0.78, "epic": 0.20, "legendary": 0.02}
 # Collection (economy design, section 8): first finds pay, more for rarer;
@@ -107,6 +112,7 @@ var collection := {}               # "species:tier" (and "species:legendary:vari
 var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
 var first_bonus_day := ""          # local date the first-visitor bonus was used
+var rolls_banked := 1.0            # rarity rolls earned by focus time, not yet used
 var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
 
 var rng := RandomNumberGenerator.new()
@@ -151,6 +157,7 @@ func tick(delta: float, present: bool) -> void:
 		paid_first_session = true
 		_earn(FIRST_SESSION_BERRIES)
 	var mins := delta / 60.0
+	rolls_banked = minf(ROLL_BANK_MAX, rolls_banked + mins / ROLL_EVERY_MIN)
 	var rate := BERRIES_PER_MIN if day_focus_min < DAILY_FULL_MIN else BERRIES_PER_MIN * DAILY_TAPER
 	day_focus_min += mins
 	session_min += mins if day_focus_min < DAILY_FULL_MIN else mins * DAILY_TAPER
@@ -225,6 +232,45 @@ func rare_hour_ends() -> String:
 	# "22:00", for the toast.
 	var end := (rare_hour_start * 60 + rare_hour_min) % 1440
 	return "%02d:%02d" % [end / 60, end % 60]
+
+
+func take_roll() -> bool:
+	# An arriving critter takes a banked roll if there is one; without one it
+	# comes as a Common (game design rules, rule 1).
+	if rolls_banked < 1.0:
+		return false
+	rolls_banked -= 1.0
+	return true
+
+
+func pay_spawn() -> bool:
+	# Spawn now costs berries (rule 2). False when there are not enough.
+	if berries < SPAWN_PRICE:
+		return false
+	berries -= SPAWN_PRICE
+	berries_changed.emit(berries)
+	save()
+	return true
+
+
+func pick_species(tier: String, weights: Dictionary) -> String:
+	# Which species arrives, once its tier is rolled (rule 3): a Common
+	# follows each species' "visits" weight; a Rare or better is any of them,
+	# evenly, so the weights cannot aim the rolls at one Collection row.
+	if weights.is_empty():
+		return ""
+	var keys := weights.keys()
+	if tier != "common":
+		return keys[rng.randi() % keys.size()]
+	var total := 0.0
+	for k in keys:
+		total += float(weights[k])
+	var r := rng.randf() * total
+	for k in keys:
+		r -= float(weights[k])
+		if r <= 0.0:
+			return k
+	return keys[-1]
 
 
 func roll_arrival(max_tier := "legendary", min_tier := "common", luck_mult := 1.0) -> Array:
@@ -541,7 +587,7 @@ func to_dict() -> Dictionary:
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
 		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen,
-		"saved_at": int(now())}
+		"rolls_banked": rolls_banked, "saved_at": int(now())}
 
 
 func save() -> void:
@@ -584,6 +630,7 @@ func from_dict(d: Dictionary) -> void:
 	props_out = _typed(d, "props_out", {})
 	bond = _typed(d, "bond", {})
 	v2_custom_seen = _typed(d, "v2_custom_seen", {})
+	rolls_banked = clampf(_num(d, "rolls_banked", 1.0), 0.0, ROLL_BANK_MAX)
 	_frac = 0.0
 	# A long gap since the last save is a long break.
 	var gap := now() - _num(d, "saved_at", now())

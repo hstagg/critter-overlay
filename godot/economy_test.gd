@@ -45,8 +45,10 @@ func _init() -> void:
 	var dir := OS.get_temp_dir().path_join("critter_economy_test")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var path := dir.path_join("economy.json")
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+	# Every file from a run before, the .bak and .tmp copies too, or a load
+	# would fall back to them (save_file.gd).
+	for n in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(n))
 	clock = 1_790_000_000.0 + 8 * 3600.0 + 31600.0   # 08:00 BST, Tue 22 Sep 2026
 
 	# --- First session: bonus, rate, gifts, luck curve.
@@ -274,6 +276,29 @@ func _init() -> void:
 	bd.add_bond("rabbit", 100)
 	check(bd.bond_level("rabbit") == 2 and grew.size() == 2, "nothing past the top level, nothing decays")
 	bd.free()
+
+	# --- Game design rules: rolls come from focus time; Spawn now costs berries;
+	# Rare and better pick a species evenly.
+	var gd = fresh(path + ".gd")
+	check(gd.rolls_banked == 1.0, "a new save starts with one roll banked")
+	check(gd.take_roll() and not gd.take_roll(), "an arrival takes a banked roll; with none left it gets no roll")
+	work(gd, Economy.ROLL_EVERY_MIN * 2.0)
+	check(is_equal_approx(gd.rolls_banked, 2.0), "focus time banks a roll every %.1f min (got %.2f)" % [Economy.ROLL_EVERY_MIN, gd.rolls_banked])
+	work(gd, Economy.ROLL_EVERY_MIN * 20.0)
+	check(gd.rolls_banked == Economy.ROLL_BANK_MAX, "the bank stops at %d" % int(Economy.ROLL_BANK_MAX))
+	gd.berries = Economy.SPAWN_PRICE - 1
+	check(not gd.pay_spawn() and gd.berries == Economy.SPAWN_PRICE - 1, "Spawn now needs %d berries" % Economy.SPAWN_PRICE)
+	gd.berries = Economy.SPAWN_PRICE + 5
+	check(gd.pay_spawn() and gd.berries == 5, "and takes them")
+	var w := {"kitten": 1000.0, "rabbit": 0.001}
+	var rabbits := {"common": 0, "rare": 0}
+	for i in 2000:
+		for t in rabbits:
+			if gd.pick_species(t, w) == "rabbit":
+				rabbits[t] += 1
+	check(rabbits.common < 10, "a Common follows the visit weights (rabbits %d of 2000)" % rabbits.common)
+	check(rabbits.rare > 850 and rabbits.rare < 1150, "a Rare ignores them, picking evenly (rabbits %d of 2000)" % rabbits.rare)
+	gd.free()
 
 	# --- v2.0's Seen Log into the Collection.
 	var v = fresh(path + ".v2")
