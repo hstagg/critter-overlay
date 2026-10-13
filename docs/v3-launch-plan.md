@@ -99,7 +99,7 @@ question below, so later phases do not stall waiting on them.
 **Entry:** this document.
 
 **Items:**
-- Decisions D1-D21 (answers go into the decisions table), and G1 (game design review).
+- Decisions D1-D21 (answers go into the decisions table), and G1 (game design review: decided, see Game design rules).
 - H1 (branch of record), H2 (soak follow-up), H3 (branch cleanup), H4 (scope freeze),
   H5 (CI green).
 - R1 (public-repo hygiene).
@@ -308,6 +308,44 @@ Every question they ask becomes a line in the kit.
 
 ---
 
+## Game design rules (G1, decided 2026-10-13)
+
+v3 is a collection game that rewards focus time. These rules decide what a
+player can change. G2 builds them, and the B items tune the numbers. "Medium
+play" means about 4 focus hours a day, 5 days a week.
+
+1. **Rolls come from focus time, not from arrivals.**
+   - Focus time banks rarity rolls, at about one per 5-6 minutes. The exact
+     rate and any cap on banked rolls come from the sim (B5).
+   - An arriving critter takes a banked roll if there is one; otherwise it
+     arrives Common.
+   - The day's first-visitor bonus applies to the day's first banked roll.
+   - The desk settings stay, as pure comfort: gather every, at most, start
+     with, timer mode, group sizes and solo walkers.
+2. **Spawn now** (the tray button and the spawn key) costs a flat berry price,
+   and always rolls rarity, outside the bank. The price comes from the sim.
+3. **Visit weights shape Commons only.** A Rare or better roll picks evenly
+   among the species that are switched on. Switching species off stays (it
+   means fewer rows to fill).
+4. **Rare Hour:** the player picks the start time (default in the afternoon,
+   D10). The length is fixed at 60 minutes and the boost at 2×.
+5. **Switches:** Luck and First-visitor bonus are removed. "Rarity off" stays,
+   as a calm mode for people who just want pets.
+6. **Developer knobs:** the odds and per-species tier ranges live in the Admin
+   build only. `--beta` and the beta-only Settings controls go.
+7. **Paused:** berries and banked rolls keep coming while the critters are
+   paused (the player is still working).
+8. **"Clear the Seen Log"** is replaced by **Start over** (T4): a full reset of
+   progress, berries and settings, with a backup kept. Nothing re-pays first
+   finds.
+9. **Pacing targets for medium play** (the sim must meet them):
+   - All 24 everyday slots in about **4 weeks**.
+   - Every Legendary colour (7 unicorn, 3 golden kitten) in about **a year**.
+   - The shop has a **wide spread**: the cheapest things cost an hour or two
+     of focus, and the top-end items take weeks of saving.
+
+---
+
 ## Item table
 
 Areas:
@@ -372,11 +410,11 @@ happening.
 
 | ID | Ph | Item | Why / severity | Size | Deps | Verify |
 |---|---|---|---|---|---|---|
-| G1 | 1 | Game design review. v3 is a collection game that rewards focus, but many settings let a player skip it (spawn key, timer mode, gather and start-with counts, visit weights, switching species off, the Rare Hour boost, luck and first-bonus toggles, beta odds). Sort every player-facing control into comfort (keep), game-affecting (limit or charge berries), or developer-only (Admin). Spawn now stays, but costs berries. Pacing targets (D9), beta mode (D18) and berries while paused (D20) are settled here. | Blocker: the balance work needs a fixed rule set. | M | | A table of every control and its class, signed off. |
+| G1 | 1 | Game design review. v3 is a collection game that rewards focus, but many settings let a player skip it (spawn key, timer mode, gather and start-with counts, visit weights, switching species off, the Rare Hour boost, luck and first-bonus toggles, beta odds). Sort every player-facing control into comfort (keep), game-affecting (limit or charge berries), or developer-only (Admin). Spawn now stays, but costs berries. Pacing targets (D9), beta mode (D18) and berries while paused (D20) are settled here. | Done 2026-10-13 (see Game design rules). | M | | A table of every control and its class, signed off. |
 | G2 | 3 | Build the G1 outcome: remove or move the controls, add the spawn-now price, and migrate saved settings so removed keys fall back to defaults. | Blocker | M | G1 | Settings tests cover each removed or limited key. The Admin page still reaches the developer-only ones. |
 | B1 | 4 | Legendary pacing. Completing all 10 visitor colours takes about 140 weeks at medium play and is effectively never for light play (twilight_neon is 3% of visitor rolls, split between two visitors). | Should-fix | M | D9, B5 | The sim meets the D9 target. |
 | B2 | 4 | Luck stacking. Luck ×3, Rare Hour ×2 and the lucky charm ×1.5 make rare+ about 45% per roll, and the charm can be worn by every species. | Should-fix | S | D9 | The sim reports the rare+ share at max stack within the target. |
-| B3 | 4 | Roll farming: | Should-fix | S-M | G1 | One economy test per closed loophole. |
+| B3 | 4 | Roll farming: | Mostly resolved by G1 rules 1, 2 and 8; re-check with the sim | S-M | G1 | One economy test per closed loophole. |
 | | | - a relaunch rolls `start_with` critters at the saved luck; | | | | |
 | | | - timer mode rolls 6-10× more than gather mode; | | | | |
 | | | - the spawn key rolls on every press; | | | | |
@@ -444,7 +482,7 @@ happening.
 | K7 | 6 | The `release.ps1` Admin guard checks for `admin_page.gd` only. | Nice | S | | It checks for `admin.gd` too. |
 | K8 | 6 | A failed build after the version bump leaves `release.ps1`'s tree dirty. The `.import` rewrite may dirty the tree (CRLF). | Should-fix | S | | A dry run on a clean clone leaves `git status` clean. |
 | K9 | 6 | The publisher changes between v2 (a full name) and v3 (`hstagg`) in Apps & features. | Nice | S | D15 | One publisher string. |
-| K10 | 6 | Beta mode (`--beta`) is only reachable from a launch flag, and it sticks once set. | Should-fix | S | D18 | Follows D18. |
+| K10 | 6 | Beta mode (`--beta`) is only reachable from a launch flag, and it sticks once set. | Resolved by G1 rule 6 (`--beta` goes) | S | D18 | Follows D18. |
 | K11 | 6 | The updater depends on GitHub's asset `digest` and the exact asset name. If either changes, every user falls back to a manual download. | Nice | S | | Release checklist step: the API shows a digest for the asset. |
 
 ### Beta kit
@@ -455,7 +493,7 @@ happening.
 | T2 | 7 | Feedback route and bug template: what happened, what was expected, steps, build, diagnostics file, screenshot. | Nice: messages for now (D6) | S | D6 | The template exists and a test report has been filed through it. |
 | T3 | 7 | Tell builds apart: the beta label in About, the tray tooltip and the installer name. | Blocker | S | P1, D4 | Visible in all three places. |
 | T4 | 3 | "Start over" in System: wipes progress and settings and shows the welcome again. Today only "Clear the Seen Log" exists, and "Reset all settings" keeps `onboarded`. Add an Admin control. | Should-fix | S | C2 | After Start over, the welcome shows on next launch and the economy is fresh. A backup of the old save is kept. |
-| T5 | 7 | Whether testers get beta mode (editable odds). | Should-fix | S | D18 | Documented in the guide. |
+| T5 | 7 | Whether testers get beta mode (editable odds). | Resolved by G1 rule 6 (no beta mode) | S | D18 | Documented in the guide. |
 | T6 | 7 | Tester guide plus a one-page checklist: | Blocker | M | T1-T3 | The Phase 7 exit check. |
 | | | - install past SmartScreen; | | | | |
 | | | - the first 15 minutes: welcome, first critters, pop, drag and throw, pause key, tray; | | | | |
@@ -521,7 +559,7 @@ in the last column.
 | D6 | How testers report | (a) GitHub issue form. (b) Private form or email with the diagnostics file attached. (c) A chat group. | **(b)**, with (a) for testers who use GitHub: not everyone has an account, and screenshots of a desktop can be personal. || For now the tester messages the developer directly. An in-app comments window is parked (see the 3.1 pipeline). |
 | D7 | Telemetry | (a) None; opt-in stats inside the diagnostics file (T9). (b) An opt-in network ping. | **(a)**: keeps "the app sends nothing" true. || **(a)** |
 | D8 | Monitors | (a) Primary only for v3.0, made consistent (no losing critters to monitor 2), and documented. (b) Roam all monitors. | **(a)** for beta. || **(a)** for 3.0. Roaming every monitor is planned for 3.1. |
-| D9 | Collection pacing target | (a) Set targets (e.g. a medium player fills the 24 everyday slots in about 4 weeks and meets every visitor colour in about 6 months) and tune the weights with the new sim. (b) Add a pity counter. (c) Leave it and watch. | **(a)**; keep (b) in reserve until beta data says it is needed. || Open: part of the game design review (G1). |
+| D9 | Collection pacing target | (a) Set targets (e.g. a medium player fills the 24 everyday slots in about 4 weeks and meets every visitor colour in about 6 months) and tune the weights with the new sim. (b) Add a pity counter. (c) Leave it and watch. | **(a)**; keep (b) in reserve until beta data says it is needed. || **Decided (G1):** everyday set in about 4 weeks; every Legendary colour in about a year; a wider shop spread (see the design rules). |
 | D10 | Rare Hour default | (a) Keep 21:00. (b) An afternoon default. (c) An hour that moves each day. | Keep the setting, change the default to **(b)**, and ask testers. || **(b)** |
 | D11 | Spoilers before a visitor is met | (a) Silhouettes and colour pips shown (today). (b) Silhouettes only, no colour count. (c) Nothing until first met. | **(b)**: curiosity without giving the count away. || **(b)** |
 | D12 | Start with Windows in the welcome | (a) On by default (today; also flips upgraders on). (b) Off by default. (c) On for fresh installs; upgraders keep their current state. | **(c)** || **(c)** |
@@ -529,10 +567,10 @@ in the last column.
 | D14 | AI-assistance wording in credits | (a) A short accurate line now (e.g. "art made with AI assistance, directed and edited by the author"). (b) Wait for the store page. | **(a)**: the current credit is inaccurate. || **(b)**: wait for the store page. |
 | D15 | The developer's name in the repo | (a) Neutralise code comments ("design pick") and keep the legal name only in the licence and publisher. (b) Leave as is. | **(a)** || **(a)** |
 | D16 | v1/v2 leftovers | (a) Tag `v2-final`, then remove v2 code, `Archive/`, the handoffs and the market document from the v3 tree. (b) Move them to a `legacy/` folder. (c) Leave them. | **(a)**, before any public build; the tag keeps v2 rebuildable. || **(a)** |
-| D17 | Performance thresholds | The Phase 5 table as proposed, or changed. | Accept, then adjust after the first measurements. || Open. |
-| D18 | Beta mode for testers | (a) Off: testers play the real odds. (b) On for everyone. (c) A few testers on purpose. | **(a)**; keep `--beta` for the developer. || Open: part of G1. |
-| D19 | Which roll-farming loops to close before beta (B3) | Clear Seen Log re-paying, relaunch rolls, timer-mode roll count, spawn-key rolls. | Close **Clear Seen Log re-paying** now; watch the rest in beta. || Replaced by G1, a full review of what players can change. Starting position: spawn now stays, but costs berries. |
-| D20 | Berries while paused (by design today) | (a) Keep. (b) No berries while paused. | Keep, and ask testers (T8). || Open: part of G1. |
+| D17 | Performance thresholds | The Phase 5 table as proposed, or changed. | Accept, then adjust after the first measurements. || **(Accept)** |
+| D18 | Beta mode for testers | (a) Off: testers play the real odds. (b) On for everyone. (c) A few testers on purpose. | **(a)**; keep `--beta` for the developer. || **Decided (G1):** odds and tier ranges are Admin-only; `--beta` goes. |
+| D19 | Which roll-farming loops to close before beta (B3) | Clear Seen Log re-paying, relaunch rolls, timer-mode roll count, spawn-key rolls. | Close **Clear Seen Log re-paying** now; watch the rest in beta. || **Decided (G1):** rolls come from focus time; spawn now costs berries. |
+| D20 | Berries while paused (by design today) | (a) Keep. (b) No berries while paused. | Keep, and ask testers (T8). || **Keep earning.** Berries and banked rolls continue while paused. |
 | D21 | History | Rewrite history to drop the once-committed personal README (`73e8af2`)? | Check what it contains first; rewrite only if it holds personal data. || **Done 2026-10-13.** `_README.md` stripped from every commit; branches and tags force-pushed; GitHub Support asked to purge cached views. |
 
 ---
