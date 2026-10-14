@@ -17,7 +17,7 @@ const PROPS := {
 	"tent": ["Pillow tent", 0.55, [Vector2(150, 186), Vector2(84, 186)], false],
 	"cottage": ["Little cottage", 0.62, [Vector2(150, 188), Vector2(150, 188), Vector2(150, 188)], true],
 }
-const PRICE := 4000
+const PRICE: int = preload("res://wear.gd").PRICES["showpiece"]   # one price table (wear.gd)
 
 var id := ""
 var main: Node

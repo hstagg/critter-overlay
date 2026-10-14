@@ -46,7 +46,7 @@ const DEFAULTS := {
 		"behaviour_freq": 1.0,     # 0.3 to 2.0
 		"pairs": true,
 		"rarity": true,
-		"odds": {"common": 95.0, "rare": 4.0, "epic": 0.9, "legendary": 0.1},
+		"odds": {"common": 95.2, "rare": 4.0, "epic": 0.7, "legendary": 0.1},
 		"notes": "rare",           # off | rare | epic | legendary
 		"rare_hour": true,
 		"rare_hour_start": 15,     # an hour; Rare Hour lasts an hour at 2x (economy.gd)

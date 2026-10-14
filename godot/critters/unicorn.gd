@@ -17,8 +17,11 @@ const BACK_HIP := Vector2(203.7, 227.6)
 
 # Secret tiers within Legendary: [variant, weight]. Kept off every screen.
 const VARIANTS := [
-	["lavender", 35.0], ["cotton_candy", 22.0], ["sky", 15.0], ["rainbow", 11.0],
-	["golden_sun", 8.0], ["starry_night", 6.0], ["twilight_neon", 3.0],
+	# Flattened so the rarest is a third as likely as the commonest, not a
+	# twelfth: a medium player meets every colour in about a year
+	# (tools/economy_sim.py).
+	["lavender", 35.0], ["cotton_candy", 28.0], ["sky", 23.0], ["rainbow", 20.0],
+	["golden_sun", 17.0], ["starry_night", 15.0], ["twilight_neon", 10.0],
 ]
 
 const PIVOTS := {

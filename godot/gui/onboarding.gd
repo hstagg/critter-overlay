@@ -194,7 +194,17 @@ func _who_art() -> Control:
 	var crits := []
 	for sp in _built():
 		crits.append([sp, 0.85])
-	a.add_child(_row(crits, 22))
+	# The row is wider than the card: a plain holder crops it, centred,
+	# instead of stretching the card past the window's edge.
+	var holder := Control.new()
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	a.add_child(holder)
+	var r := _row(crits, 22)
+	holder.add_child(r)
+	holder.resized.connect(func():
+		var m := r.get_combined_minimum_size()
+		r.size = m
+		r.position = Vector2((holder.size.x - m.x) * 0.5, holder.size.y - m.y))
 	return a
 
 
@@ -250,7 +260,7 @@ func _who_body(body: VBoxContainer) -> void:
 			_build())
 		grid.add_child(b)
 	body.add_child(grid)
-	var note := UI.label("More critters join as they are drawn. Special visitors turn up on their own.", 13, c.ink2, 400)
+	var note := UI.label("More critters join as they are drawn. Legendary visitors turn up on their own.", 13, c.ink2, 400)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.custom_minimum_size.x = W - 60
 	body.add_child(note)
@@ -302,7 +312,7 @@ func _gather_body(body: VBoxContainer) -> void:
 	priv.add_theme_stylebox_override("panel", ps)
 	var pr := K.hbox(10)
 	pr.add_child(UI.icon(Icons.line("lock", 18, c.outline)))
-	var pl := UI.label("Only the time since your last key press or click is checked. Nothing you type is recorded.", 13, c.ink2, 400)
+	var pl := UI.label("Only the time since your last key press or mouse movement is checked. Nothing you type is recorded.", 13, c.ink2, 400)
 	pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	pl.custom_minimum_size.x = W - 120
 	pr.add_child(pl)
@@ -338,7 +348,7 @@ func _tray_art() -> Control:
 	var clock := K.vbox(0)
 	var now := Time.get_datetime_dict_from_system()
 	clock.add_child(UI.label("%02d:%02d" % [now.hour, now.minute], 11, Color("#E6EAF0"), 600))
-	clock.add_child(UI.label("%02d/%02d/%d" % [now.day, now.month, now.year], 11, Color("#E6EAF0"), 600))
+	# Only the time: a date would need the player's own date format.
 	icons.add_child(clock)
 	bar.add_child(K.margins(icons, 12, 4, 12, 4))
 	v.add_child(bar)

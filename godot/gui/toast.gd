@@ -44,6 +44,7 @@ class Toast extends RefCounted:
 	var click := Callable()      # an update note does this instead
 	var on_close := Callable()   # and this when closed with the cross
 	var left := LIFE
+	var life := LIFE             # how long this one shows (an update note longer)
 	var hovered := false
 	var age := 0.0
 	var y := 0.0               # where it is heading
@@ -123,7 +124,8 @@ func show_update(kicker: String, title: String, sub: String, click: Callable, on
 	var t := Toast.new()
 	t.click = click
 	t.on_close = on_close
-	t.left = LIFE * 3.0
+	t.life = LIFE * 3.0
+	t.left = t.life
 	var well := _well(c.surface, c.outline)
 	var ic := UI.icon(Icons.line("update", 28, c.acc_ink))
 	ic.size = Vector2(60, 60)
@@ -294,7 +296,7 @@ func _process(delta: float) -> void:
 			_dismiss(t)
 			continue
 		if t.bar != null:
-			t.bar.value = t.left / LIFE
+			t.bar.value = t.left / t.life
 		if t.critter != null and is_instance_valid(t.critter):
 			t.critter.tick(delta)
 		t.y_now = lerpf(t.y_now, t.y, minf(1.0, delta * 14.0))

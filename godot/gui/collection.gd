@@ -299,7 +299,7 @@ func _card(sp: String, c: Dictionary) -> Control:
 	critter.setup(floor, (CARD_W - 4) * 0.5, -1, "sit")
 	critter.mode_left = INF
 	if seen == 0:
-		critter.modulate = Color(0, 0, 0, 0.18) if not _dark else Color(1, 1, 1, 0.2)
+		critter.modulate = Color(0, 0, 0, 0.18) if not _dark else Color(0, 0, 0, 0.35)   # a shadow: no colour shows through
 	_previews.append(critter)
 	well.add_child(view)
 	col.add_child(well)
@@ -346,7 +346,7 @@ func _card(sp: String, c: Dictionary) -> Control:
 		if n == 0:
 			pip.add_child(UI.icon(Icons.badge(t, 22, c.surface, c.dash, true)))
 			under = UI.label("?", 11, c.ink3, 800)
-			pip.tooltip_text = {"": "%s: not yet met" % t.capitalize(), "?": "A special visitor, not yet met"}.get(slot[1], "A secret colour, not yet met")
+			pip.tooltip_text = {"": "%s: not yet met" % t.capitalize(), "?": "A Legendary visitor, not yet met"}.get(slot[1], "A secret colour, not yet met")
 		else:
 			pip.add_child(UI.icon(Icons.badge(t, 22, tc.fill, c.badge_line)))
 			under = UI.label("x%d" % n, 11, tc.ink, 800)

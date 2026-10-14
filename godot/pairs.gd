@@ -6,14 +6,15 @@ extends RefCounted
 ##   sniff          one sniffs, the other looks at it
 ##   stare_contest  both stare; one gives in with an ear flick
 ##   play_bow       both bow, then one bounces
-##   mutual_groom   both wash
+##   mutual_groom   both wash (a turtle or unicorn, with no wash, looks on)
 ##   sit_together   they settle down side by side for a short doze
 ##   kitten_tussle  two kittens crouch, wiggle and pounce (kittens only)
 ##   near_miss      a kitten stalks a rabbit, which bolts (kitten and rabbit)
+##   splash_play    an otter and a duckling wash together
+##   hedgehog_defence  a kitten comes close and the hedgehog curls into a ball
+##   panda_snuggle  a panda and anyone settle and wash
 ##   bump           two walking straight at each other bump, hop and turn away
 ##
-## v2.0's splash play (otter and duck), hedgehog defence and panda snuggle
-## are listed with their species and wake up when those critters are built.
 ## World > Pair interactions turns it all off; nothing starts while you are
 ## away or the critters are paused.
 

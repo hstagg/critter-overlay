@@ -158,6 +158,52 @@ Findings along the way:
     motion, which is an Admin audit item.
 - Working rule from 2026-10-13: anything that opens windows is tested on the
   VM, never the developer's PC.
+- **Phase 4, balance: done** (B1, B2, B4, B5, B6).
+  - `tools/economy_sim.py` now models v3. It reads its numbers from the game
+    files and simulates light, medium and heavy players minute by minute.
+  - Changes: Epic odds 0.9% to 0.7%. Visitor colour weights flattened, so
+    the rarest is a third as likely as the commonest, not a twelfth. Prices:
+    small 150, medium 500, large 2,000, showpiece 6,000, perk 12,000. Dye,
+    treat and Spawn now are unchanged at 100, 60 and 30.
+  - Results over 40 seeds, as medians:
+
+    | Player | 24 everyday | 10 Legendary colours | Small | Showpiece | Perk |
+    |---|---|---|---|---|---|
+    | Light (1.5 h, 4 days) | 11 weeks | over 3 years | 1.4 h | 10 weeks | 19 weeks |
+    | Medium (4 h, 5 days) | 3.9 weeks | 53 weeks | 1.3 h | 2.6 weeks | 5.2 weeks |
+    | Heavy (7 h, 6 days) | 1.9 weeks | 26 weeks | 1.9 h | 1.8 weeks | 3.6 weeks |
+
+  - B4 was already fixed by the roll bank (3b): the first-visitor bonus is
+    spent only on a real roll.
+  - B2: with luck at 3x, Rare Hour and a charm, Rare or better reaches about
+    43% of rolls. That peak now needs one charm and an evening of focus, not
+    a charm on every species. Left as a tester question.
+  - The Legendary set is a coupon-collector tail, so its median varies a lot
+    between seeds (p10 32 weeks, p90 135 weeks for medium players).
+- **Phase 4, polish: done** (P2, P3, P5 in part, P7, P9, and the two Phase 3
+  notes).
+  - One word for each idea: "Legendary visitors", one idle phrase, "Record
+    what you meet" instead of v2.0's "Seen Log", and "Timer" in the sidebar
+    in timer mode.
+  - The greeting at night is "Good evening". An update note's bar drains
+    over its own 18 s. The welcome's mock taskbar shows the time only.
+  - Esc closes Settings. "Reset all critters" and "Reset <critter>" ask
+    first.
+  - Stale comments fixed in pairs.gd and critter.gd.
+  - The welcome's critter strip is cropped inside its card instead of
+    stretching it. Unmet critters in dark mode are shadows, so no colour
+    shows through.
+  - Checked on the VM with the new `tools/soak/vm/tour.ps1`.
+- Left open from Phase 4:
+  - P4 (which notes can be turned off) and P8 (live theme switching) are
+    tester questions or nice-to-haves.
+  - The tray's keyboard focus (P5) waits on P6: the panel rebuilds twice a
+    second, which would throw focus away.
+  - F9 (hit boxes for ball poses) and P10 (the hedgehog's copy of
+    two_head.gd) are after beta.
+  - F14 waits for the Rare/Epic picks (3f).
+  - New: on a 1280-wide screen, the Collection's Sightings diary box runs
+    past the right edge of its column.
 
 ## Phase 1: decisions and housekeeping
 

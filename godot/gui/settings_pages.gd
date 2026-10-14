@@ -105,7 +105,7 @@ func _toggle_row(title: String, desc: String, key: String, pill: Control = null,
 func _home(body: VBoxContainer) -> void:
 	var c := K.c
 	var hour: int = Time.get_datetime_dict_from_system().hour
-	var greeting := "Good morning" if hour < 12 else ("Good afternoon" if hour < 18 else "Good evening")
+	var greeting := "Good evening" if hour < 5 or hour >= 18 else ("Good morning" if hour < 12 else "Good afternoon")
 	header(body, greeting, "Your critters have been gathering while you work.")
 	var s: Dictionary = w.main.status()
 
@@ -413,8 +413,9 @@ func _critters(body: VBoxContainer) -> void:
 	var c := K.c
 	header(body, "Critters", "Choose who visits and how each one behaves.",
 		K.button("Reset all critters", "bq", "reset", true, func():
-			S().reset_all_species()
-			w.rebuild()))
+			w.confirm("Reset all critters?", "Every critter's visits, speed, activity, trail and sound go back to how they started.", "Reset", func():
+				S().reset_all_species()
+				w.rebuild())))
 
 	body.add_child(K.section("Everyone", K.card([
 		_slider_row("Size", "Applies to every critter.", "critters.size", 80, 200, 5, func(x): return "%d px" % int(x), "80 px", "200 px", 240, false, true),
@@ -521,7 +522,7 @@ func _species_detail(sp: String) -> Control:
 	well.add_theme_stylebox_override("panel", K.box(Palette.species_tint(sp, w.dark), 20))
 	var pic := CritterView.make(sp, 250, 236, 1.7, "sit", false, -1, [], false, {}, w.main.met_variant(sp))
 	if Species.is_special(sp) and w.main.met_variant(sp) == "":
-		pic.modulate = Color(1, 1, 1, 0.2) if Palette.is_dark() else Color(0, 0, 0, 0.18)   # not met yet
+		pic.modulate = Color(0, 0, 0, 0.35) if Palette.is_dark() else Color(0, 0, 0, 0.18)   # not met yet: a shadow
 	well.add_child(pic)
 	left.add_child(well)
 	var names := K.vbox(2)
@@ -557,8 +558,9 @@ func _species_detail(sp: String) -> Control:
 	bv.add_child(r2)
 	left.add_child(box)
 	var reset := K.button("Reset %s" % name.to_lower(), "bq", "reset", true, func():
-		S().reset_species(sp)
-		w.rebuild())
+		w.confirm("Reset the %s?" % name.to_lower(), "Its visits, speed, activity, trail and sound go back to how they started.", "Reset", func():
+			S().reset_species(sp)
+			w.rebuild()))
 	reset.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left.add_child(reset)
 	grid.add_child(left)
@@ -700,7 +702,7 @@ func _focus(body: VBoxContainer) -> void:
 	privacy.add_theme_stylebox_override("panel", ps)
 	var pr := K.hbox(10)
 	pr.add_child(UI.icon(Icons.line("lock", 18, c.outline)))
-	pr.add_child(UI.label("Only the time since your last input is checked. Nothing you type or click is recorded.", 13, c.ink2, 400))
+	pr.add_child(UI.label("Only the time since your last key press or mouse movement is checked. Nothing you type or click is recorded.", 13, c.ink2, 400))
 	privacy.add_child(pr)
 	body.add_child(K.section("When you step away", K.card([
 		_slider_row("Nap after", "Counts from your last key press or mouse movement.", "focus.nap_after_min", 1, 30, 1, func(x): return mins_text(x), "1 min", "30 min", 260, true),
@@ -1435,7 +1437,7 @@ func _system(body: VBoxContainer) -> void:
 	])))
 
 	body.add_child(K.section("Collection", K.card([
-		_toggle_row("Keep a Seen Log", "Records each critter and tier you meet, for your Collection.", "system.seen_log"),
+		_toggle_row("Record what you meet", "Each critter and tier you meet goes in your Collection. Off: nothing new is added.", "system.seen_log"),
 	])))
 
 	# Help: what a bug report needs, kept on this computer until the player

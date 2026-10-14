@@ -105,7 +105,7 @@ func _init() -> void:
 	for i in 200000:
 		counts[r.roll_tier()] += 1
 	check(absf(counts["rare"] / 200000.0 - 0.04) < 0.004, "rare near 4%% at luck 1 (got %.4f)" % (counts["rare"] / 200000.0))
-	check(absf(counts["epic"] / 200000.0 - 0.009) < 0.002, "epic near 0.9%% (got %.4f)" % (counts["epic"] / 200000.0))
+	check(absf(counts["epic"] / 200000.0 - 0.007) < 0.002, "epic near 0.7%% (got %.4f)" % (counts["epic"] / 200000.0))
 	check(absf(counts["common"] / 200000.0 - 0.95) < 0.005, "common near 95%%, Uncommon gone")
 	r.session_min = 120.0
 	var lucky := 0

@@ -41,7 +41,7 @@ func _init() -> void:
 
 	# Odds are the game's unless this is the admin build.
 	s.set_value("world.odds", {"common": 0, "rare": 0, "epic": 100, "legendary": 0})
-	check(is_equal_approx(s.odds()["epic"], 0.009), "outside the admin build, changed odds are ignored")
+	check(is_equal_approx(s.odds()["epic"], 0.007), "outside the admin build, changed odds are ignored")
 	s.tuning = true
 	# Odds are relative weights.
 	s.set_value("world.odds", {"common": 50, "rare": 25, "epic": 25, "legendary": 0})

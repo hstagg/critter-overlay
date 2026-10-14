@@ -2,8 +2,8 @@ extends Node
 ## The focus economy: luck, berries, session gifts, the welcome-back after a
 ## break, rarity rolls for visitors, the Collection, and saving.
 ##
-## The rules (tuned with tools/economy_sim.py; the numbers below match its
-## PARAMS):
+## The rules. tools/economy_sim.py reads the numbers below and checks them
+## against the pacing targets (docs/v3-launch-plan.md, Game design rules):
 ##   - Only time present counts. Breaks under 30 minutes do not end a
 ##     session; idle minutes simply do not count.
 ##   - Luck multiplies the odds of rare, epic and legendary visitors. It rises
@@ -19,10 +19,10 @@ extends Node
 ##     sixth gift without one.
 ##   - Coming back from a 5 to 30 minute break: the critters found something.
 ##   - Nothing is ever taken away.
-##   - Rare Hour (v2.0): an hour each evening, 21:00 by default, when rare,
-##     epic and legendary are twice as likely, on top of luck.
-##   - The day's first visitor is Rare or better (v2.0's first-spawn bonus:
-##     78% Rare, 20% Epic, 2% Legendary, within the species' cap).
+##   - Rare Hour: an hour a day, 15:00 by default, when rare, epic and
+##     legendary are twice as likely, on top of luck.
+##   - The day's first rarity roll is Rare or better (78% Rare, 20% Epic,
+##     2% Legendary, within the species' cap). v2.0 had 70/20/10.
 ##   - Tiers (design decision, 2026-10-07): Common, Rare, Epic, Legendary. The
 ##     everyday species are Common, and their Rare and Epic versions look
 ##     different (species.gd "versions"). Legendary is only for the special
@@ -42,7 +42,9 @@ signal bond_grew(species: String, level: int)
 const SaveFile := preload("res://save_file.gd")
 
 const TIERS := ["common", "rare", "epic", "legendary"]
-const BASE_ODDS := {"common": 0.95, "rare": 0.04, "epic": 0.009, "legendary": 0.001}
+# Epic 0.7%: a medium player (4 focus h a day, 5 days) fills the 24 everyday
+# slots in about four weeks (tools/economy_sim.py).
+const BASE_ODDS := {"common": 0.952, "rare": 0.04, "epic": 0.007, "legendary": 0.001}
 const LUCKY := ["rare", "epic", "legendary"]
 
 const BERRIES_PER_MIN := 1.0
