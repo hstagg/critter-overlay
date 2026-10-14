@@ -824,6 +824,8 @@ func _pace_frames() -> void:
 		cap = 5
 	elif not ui_open and presence != null and presence.away:
 		cap = 20
+	elif settings.value("system.detail") == "simple":
+		cap = 30   # System > Animation detail > Simple: for slower computers
 	if Engine.max_fps != cap:
 		Engine.max_fps = cap
 
