@@ -17,7 +17,7 @@ as long as they last. Run them on a spare machine or VM, not a PC in use.
 | `relrun.ps1` | Runs an exported build (which ignores `-s`) with the same sampler |
 | `exit_test.ps1` | Exit cleanliness: N launches, exit codes (`timed`, `second`, `wmclose`); `-Settings` for a silent settings file |
 | `night_exit.ps1` | The whole exit test unattended (20 timed, 10 second-instance, 10 WM_CLOSE, sound off) plus crash events from the Application log; for a one-off scheduled task |
-| `soak_settings.json` | Settings for the runs: 10 to start, 12 max, pairs on, beta odds with about 15% Legendary |
+| `soak_settings.json` | Settings for the runs: 10 to start, 12 max, pairs on, odds with about 15% Legendary (they count because run.sh passes `--admin`) |
 
 ## Modes (`--soak-mode=`)
 

@@ -22,7 +22,8 @@ cp "$here/soak_settings.json" "$out/${name}_settings.json"
 rm -f "${out:?}/${name:?}.pid"
 powershell -NoProfile -ExecutionPolicy Bypass -File "$here/sample.ps1" -PidFile "$out/$name.pid" -Out "$out/${name}_proc.csv" -Every "$every" &
 cd "$repo"
-timeout "$to" godot --path godot -s "$here/soak_main.gd" -- --report="$out/${name}_report.json" \
+# --admin: the soak's odds (soak_settings.json) count only in the admin build.
+timeout "$to" godot --path godot -s "$here/soak_main.gd" -- --admin --report="$out/${name}_report.json" \
 	--settings="$out/${name}_settings.json" --soak-every="$every" --soak-log="$out/$name.jsonl" \
 	--soak-pid="$out/$name.pid" "$@" > "$out/${name}_out.txt" 2>&1
 echo "$name exit=$?"
