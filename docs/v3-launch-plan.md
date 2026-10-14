@@ -204,6 +204,30 @@ Findings along the way:
   - F14 waits for the Rare/Epic picks (3f).
   - New: on a 1280-wide screen, the Collection's Sightings diary box runs
     past the right edge of its column.
+- **Phase 5, in progress.**
+  - S3: fewer frames when there is little to see. 5 fps when nothing is on
+    screen (paused, hidden for a full-screen app, nobody out). 20 fps when
+    everyone is asleep. Full speed whenever an app window is open. Animation
+    detail "Simple" also caps at 30 fps. A critter window moves only when its
+    position changes.
+  - VM CPU, 8 critters, before and after: awake 227% to 226% (software
+    rendering dominates, so no change shows); asleep 217% to 127%.
+  - S7: when the window that paces the frame goes, the next one takes over.
+  - S4, sleep: the VM was frozen for 10 minutes mid-run from its host. The
+    save shows 15.0 focus minutes for 15.0 minutes of game time, so nothing
+    was credited for the freeze (C5 holds).
+  - S4, display change and F12: taskbar auto-hide toggled on and off while
+    the app ran. It re-measured both times (work area 800, then 752 tall) and
+    kept all 6 critters. The VM's display adapter offers one resolution only,
+    so a resolution change itself could not be tried there.
+  - The soak harness is updated for admin-only odds (`--admin`); the old
+    "beta" and "uncommon" keys are gone.
+  - **Deferred until before the public release (developer's decision):**
+    the Intel checks on real hardware (fps and CPU at 8, asleep, paused and
+    25 critters; the 30-launch exit test; the arrival hitch, S6). Beta uses
+    VM numbers only.
+  - Not tested: lock and unlock, and RDP (the VM has no second session
+    set up for them).
 
 ## Phase 1: decisions and housekeeping
 
