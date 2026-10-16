@@ -28,6 +28,9 @@ extends Node2D
 ##                      PATH with %d saves a burst (--grab-start, --grab-frames,
 ##                      --grab-fps)
 ##   --zoom=Z           draw the critters Z times larger (for demo captures)
+##   --film=DIR         every frame, save each critter and showpiece window and
+##                      its place on screen to DIR (tools/film/compose.py turns
+##                      them into a video); run Godot with --fixed-fps 30
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
@@ -175,6 +178,9 @@ var grab_count := 0
 var grab_frames := 16
 var grab_fps := 15.0
 var grab_next := 2.0
+var film_dir := ""            # --film
+var film_log: FileAccess
+var film_frame := 0
 
 
 func _ready() -> void:
@@ -215,6 +221,8 @@ func _ready() -> void:
 			grab_next = float(v)
 		elif arg.begins_with("--grab-fps="):
 			grab_fps = float(v)
+		elif arg.begins_with("--film="):
+			film_dir = v
 		elif arg.begins_with("--zoom="):
 			Critter.zoom = float(v)
 			zoom_flag = true
@@ -915,6 +923,8 @@ func _run_queue(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
+	if film_dir != "":
+		_film()
 	delta = minf(delta, Economy.MAX_TICK_S)   # after a sleep or a stall, not hours at once
 	t += delta
 
@@ -1000,6 +1010,33 @@ func _run_demo(delta: float) -> void:
 			k.start_behaviour(demo, evaluator.duration_of(demo))
 	if k.mode == "sit":
 		k.mode_left = INF   # stay sitting between repeats
+
+
+func _film() -> void:
+	# --film: runs before anything moves this frame, so each window's place
+	# matches the picture it last drew. One JSON line per frame; the first line
+	# gives the primary screen and the critters' area for the backdrop.
+	if film_log == null:
+		DirAccess.make_dir_recursive_absolute(film_dir)
+		film_log = FileAccess.open(film_dir.path_join("frames.jsonl"), FileAccess.WRITE)
+		film_log.store_line(JSON.stringify({
+			"screen": [screen_rect.position.x, screen_rect.position.y, screen_rect.size.x, screen_rect.size.y],
+			"area": [area.position.x, area.position.y, area.size.x, area.size.y]}))
+	var wins := []
+	for p in props.values():
+		wins.append(p.win)   # showpieces behind the critters
+	for h in hosts:
+		wins.append(h.win)
+	var shots := []
+	for w in wins:
+		if not is_instance_valid(w) or not w.visible:
+			continue
+		var png := "%05d-%02d.png" % [film_frame, shots.size()]
+		w.get_texture().get_image().save_png(film_dir.path_join(png))
+		shots.append({"png": png, "x": w.position.x, "y": w.position.y})
+	film_log.store_line(JSON.stringify({"t": t, "wins": shots}))
+	film_log.flush()   # _quit ends the process without tearing down
+	film_frame += 1
 
 
 func _grab() -> void:
