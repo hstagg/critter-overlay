@@ -1,0 +1,116 @@
+{
+  "fps": 30,
+  "backdrop": "studio",
+  "from": {
+    "on": "t:0.0",
+    "lead": 0
+  },
+  "length": 11,
+  "camera": {
+    "mode": "follow",
+    "tight": 0.5,
+    "push": [
+      {
+        "on": "t:2.9",
+        "tight": 0.4,
+        "hold": 3.0
+      }
+    ]
+  },
+  "slowmo": [
+    {
+      "on": "t:2.9",
+      "before": 0.0,
+      "dur": 1.2,
+      "speed": 0.45
+    }
+  ],
+  "fx": [
+    {
+      "t": 2.35,
+      "kind": "dark",
+      "dur": 0.55
+    },
+    {
+      "on": "t:2.9",
+      "kind": "flash",
+      "dur": 0.6
+    },
+    {
+      "on": "t:2.9",
+      "kind": "impact",
+      "dy": -20
+    },
+    {
+      "on": "t:2.95",
+      "kind": "sparkles",
+      "dur": 2.2,
+      "dy": -70
+    }
+  ],
+  "titles": [
+    {
+      "t": 0.15,
+      "dur": 2.2,
+      "text": "you've met the {species}.",
+      "pos": "top",
+      "size": 92
+    },
+    {
+      "t": 1.2,
+      "dur": 1.15,
+      "text": "but have you met...",
+      "pos": "bottom",
+      "size": 84
+    },
+    {
+      "t": 7.6,
+      "dur": 3.4,
+      "text": "the longer you focus,\nthe rarer they get",
+      "pos": "top",
+      "size": 84
+    }
+  ],
+  "cards": [
+    {
+      "on": "t:2.9",
+      "delay": 0.7,
+      "dur": 4.0,
+      "name": "{name}",
+      "sub": "{label}  ·  1 in {odds} visitors",
+      "tier": "{tier}"
+    }
+  ],
+  "music": {
+    "file": "candy-bubbles_51703654_pixabay-558924.mp3",
+    "gain": 0.5,
+    "drop": 29.2,
+    "at": 2.9,
+    "fade": 1.2
+  },
+  "sfx": [
+    {
+      "on": "t:2.9",
+      "offset": -1.0,
+      "sound": "file:sfx/sparkle-intro-sweep_mixkit-2633.wav",
+      "gain": 0.5
+    },
+    {
+      "on": "t:2.9",
+      "sound": "file:sfx/sparkle-poof_mixkit-3082.wav",
+      "gain": 0.8
+    },
+    {
+      "on": "t:3.1",
+      "sound": "game:{species}",
+      "gain": 0.8
+    },
+    {
+      "on": "t:2.9",
+      "offset": 0.7,
+      "sound": "file:sfx/fanfare-success_mixkit-270.wav",
+      "gain": 0.55
+    }
+  ],
+  "_note": "Splice a Common capture (about 2.9 s) and a Rare or Epic one with splice.py, so the reveal is at 2.9 s; fill {species} {tier} {name} {label} {odds} with --var."
+}

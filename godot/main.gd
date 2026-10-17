@@ -28,6 +28,11 @@ extends Node2D
 ##                      PATH with %d saves a burst (--grab-start, --grab-frames,
 ##                      --grab-fps)
 ##   --zoom=Z           draw the critters Z times larger (for demo captures)
+##   --film=DIR         every frame, save each critter and showpiece window and
+##                      its place on screen to DIR (tools/film/compose.py turns
+##                      them into a video); run Godot with --fixed-fps 30
+##   --pair-species=A,B with --pair-demo: which two species pair up
+##   --variant=NAME     a Legendary visitor arrives in this colour (testing)
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
@@ -175,6 +180,11 @@ var grab_count := 0
 var grab_frames := 16
 var grab_fps := 15.0
 var grab_next := 2.0
+var film_dir := ""            # --film
+var film_log: FileAccess
+var film_frame := 0
+var pair_species := []        # --pair-species
+var variant_flag := ""        # --variant
 
 
 func _ready() -> void:
@@ -215,6 +225,12 @@ func _ready() -> void:
 			grab_next = float(v)
 		elif arg.begins_with("--grab-fps="):
 			grab_fps = float(v)
+		elif arg.begins_with("--film="):
+			film_dir = v
+		elif arg.begins_with("--variant="):
+			variant_flag = v
+		elif arg.begins_with("--pair-species="):
+			pair_species = Array(v.split(","))
 		elif arg.begins_with("--zoom="):
 			Critter.zoom = float(v)
 			zoom_flag = true
@@ -570,6 +586,8 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		version = Species.version_for(sp, tier)
 	if version == "-":
 		version = ""   # the Admin page asking for the Common look at any tier
+	if variant == "" and variant_flag in Species.variants(sp):
+		variant = variant_flag
 	var h = Host.new()
 	h.version = version
 	h.variant = variant
@@ -915,6 +933,8 @@ func _run_queue(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
+	if film_dir != "":
+		_film()
 	delta = minf(delta, Economy.MAX_TICK_S)   # after a sleep or a stall, not hours at once
 	t += delta
 
@@ -1000,6 +1020,42 @@ func _run_demo(delta: float) -> void:
 			k.start_behaviour(demo, evaluator.duration_of(demo))
 	if k.mode == "sit":
 		k.mode_left = INF   # stay sitting between repeats
+
+
+func _film() -> void:
+	# --film: runs before anything moves this frame, so each window's place
+	# matches the picture it last drew. One JSON line per frame; the first line
+	# gives the primary screen and the critters' area for the backdrop.
+	if film_log == null:
+		DirAccess.make_dir_recursive_absolute(film_dir)
+		film_log = FileAccess.open(film_dir.path_join("frames.jsonl"), FileAccess.WRITE)
+		film_log.store_line(JSON.stringify({
+			"screen": [screen_rect.position.x, screen_rect.position.y, screen_rect.size.x, screen_rect.size.y],
+			"area": [area.position.x, area.position.y, area.size.x, area.size.y]}))
+	# Each critter also carries what it is doing, so the compose script can
+	# time effects and sounds to the moment a move or a pair begins.
+	var wins := []
+	for p in props.values():
+		wins.append([p.win, {}])   # showpieces behind the critters
+	for h in hosts:
+		wins.append([h.win, {"id": h.get_instance_id(), "sp": h.species, "tier": h.tier,
+			"mode": h.critter.mode, "act": h.critter.act, "state": h.state}])
+	var shots := []
+	for e in wins:
+		var w: Window = e[0]
+		if not is_instance_valid(w) or not w.visible:
+			continue
+		var png := "%05d-%02d.png" % [film_frame, shots.size()]
+		w.get_texture().get_image().save_png(film_dir.path_join(png))
+		var shot: Dictionary = e[1].duplicate()
+		shot.merge({"png": png, "x": w.position.x, "y": w.position.y})
+		shots.append(shot)
+	var paired := []
+	for p in pairs.active:
+		paired.append({"name": p.name, "stage": p.stage, "a": p.a.get_instance_id(), "b": p.b.get_instance_id()})
+	film_log.store_line(JSON.stringify({"t": t, "wins": shots, "pairs": paired}))
+	film_log.flush()   # _quit ends the process without tearing down
+	film_frame += 1
 
 
 func _grab() -> void:
@@ -1139,6 +1195,9 @@ func _run_pair_demo() -> void:
 	var d: Array = Pairs.PAIRS[pair_demo]
 	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
 	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
+	if pair_species.size() == 2:
+		sa = pair_species[0]
+		sb = pair_species[1]
 	var c := area.get_center() + Vector2(0, 120)
 	# 120 px apart, inside the 8 s approach limit (see admin.gd pair()).
 	var a = _spawn("roam", "sit", c - Vector2(60, 0), sa)

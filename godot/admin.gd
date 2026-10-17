@@ -196,7 +196,7 @@ func run(action: String, chosen := "kitten") -> void:
 		"looks":
 			spawn_looks(arg)
 		"versions":
-			spawn_versions(chosen)
+			spawn_versions(arg if arg != "" else chosen)
 		"wear":
 			var s := arg.get_slice(":", 0)
 			var items := arg.get_slice(":", 1).split(",")

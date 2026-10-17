@@ -1,0 +1,133 @@
+{
+  "fps": 30,
+  "backdrop": "studio",
+  "from": {
+    "on": "t:1.0",
+    "lead": 0
+  },
+  "length": 13.5,
+  "camera": {
+    "mode": "follow",
+    "tight": 0.6,
+    "push": [
+      {
+        "on": "t:3.2",
+        "tight": 0.44,
+        "hold": 3.5
+      }
+    ]
+  },
+  "slowmo": [
+    {
+      "on": "t:3.2",
+      "before": 0.0,
+      "dur": 1.4,
+      "speed": 0.45
+    }
+  ],
+  "fx": [
+    {
+      "t": 0,
+      "kind": "dark",
+      "dur": 2.2
+    },
+    {
+      "on": "t:3.2",
+      "kind": "flash",
+      "dur": 0.7
+    },
+    {
+      "on": "t:3.2",
+      "kind": "impact",
+      "dy": -20
+    },
+    {
+      "on": "t:3.25",
+      "kind": "stars",
+      "dur": 2.0,
+      "dy": -60
+    },
+    {
+      "on": "t:3.3",
+      "kind": "sparkles",
+      "dur": 2.4,
+      "dy": -80
+    }
+  ],
+  "titles": [
+    {
+      "t": 0.25,
+      "dur": 1.9,
+      "text": "you've been in the zone\nfor hours...",
+      "pos": "centre",
+      "size": 84
+    },
+    {
+      "t": 11.4,
+      "dur": 2.1,
+      "text": "Critter Overlay\ncoming soon",
+      "pos": "top",
+      "size": 92
+    }
+  ],
+  "cards": [
+    {
+      "on": "t:3.2",
+      "delay": 0.9,
+      "dur": 3.6,
+      "name": "Unicorn",
+      "sub": "Legendary  ·  1 in 1,000 visitors",
+      "tier": "legendary"
+    }
+  ],
+  "overlays": [
+    {
+      "t": 7.4,
+      "dur": 4.0,
+      "image": "unicorn-secrets.png",
+      "y": 1380,
+      "w": 980
+    }
+  ],
+  "sfx": [
+    {
+      "on": "t:3.2",
+      "offset": -1.6,
+      "sound": "file:sfx/sparkle-intro-sweep_mixkit-2633.wav",
+      "gain": 0.55
+    },
+    {
+      "on": "t:3.2",
+      "sound": "file:sfx/sparkle-poof_mixkit-3082.wav",
+      "gain": 0.8
+    },
+    {
+      "on": "t:3.4",
+      "sound": "game:unicorn",
+      "gain": 0.8
+    },
+    {
+      "on": "t:3.2",
+      "offset": 0.9,
+      "sound": "file:sfx/fanfare-success_mixkit-270.wav",
+      "gain": 0.6
+    },
+    {
+      "on": "t:9.2",
+      "sound": "file:sfx/fairy-sparkle_mixkit-871.wav",
+      "gain": 0.55
+    },
+    {
+      "on": "t:12.4",
+      "sound": "file:sfx/close-bells_mixkit-2256.wav",
+      "gain": 0.5
+    }
+  ],
+  "music": {
+    "file": "candy-bubbles_51703654_pixabay-558924.mp3",
+    "gain": 0.5,
+    "drop": 29.2,
+    "at": 2.2,
+    "fade": 1.2
+  }
+}
