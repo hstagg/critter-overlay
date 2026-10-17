@@ -32,6 +32,7 @@ extends Node2D
 ##                      its place on screen to DIR (tools/film/compose.py turns
 ##                      them into a video); run Godot with --fixed-fps 30
 ##   --pair-species=A,B with --pair-demo: which two species pair up
+##   --variant=NAME     a Legendary visitor arrives in this colour (testing)
 ##   --no-passthrough   leave the critter windows wholly clickable
 ##   --stay=S           visits last up to S seconds of focus (testing)
 ##   --save=PATH        the economy save (timed runs use a throwaway one)
@@ -183,6 +184,7 @@ var film_dir := ""            # --film
 var film_log: FileAccess
 var film_frame := 0
 var pair_species := []        # --pair-species
+var variant_flag := ""        # --variant
 
 
 func _ready() -> void:
@@ -225,6 +227,8 @@ func _ready() -> void:
 			grab_fps = float(v)
 		elif arg.begins_with("--film="):
 			film_dir = v
+		elif arg.begins_with("--variant="):
+			variant_flag = v
 		elif arg.begins_with("--pair-species="):
 			pair_species = Array(v.split(","))
 		elif arg.begins_with("--zoom="):
@@ -582,6 +586,8 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 		version = Species.version_for(sp, tier)
 	if version == "-":
 		version = ""   # the Admin page asking for the Common look at any tier
+	if variant == "" and variant_flag in Species.variants(sp):
+		variant = variant_flag
 	var h = Host.new()
 	h.version = version
 	h.variant = variant

@@ -28,6 +28,10 @@ The cut (JSON, every key optional):
   "slowmo": [{"on": "pair_act", "before": 0.1, "dur": 1.2, "speed": 0.4}]
   "fx": [{"on": "pair_act", "kind": "hearts"|"sparkles"|"stars"|"impact"|
           "flash"|"spotlight", "dur": 1.5, "who": "a"|"b"|"pair"}]
+  "fx" also takes {"t": 0, "kind": "dark", "dur": 1.5}: the screen held near
+  black from t, lifting over the last 0.2 s (pair it with a flash)
+  "overlays": [{"t": 6.5, "dur": 3, "image": "row.png", "y": 1450, "w": 900}]
+                                    an image popped in like a title (t output s)
   "titles": [{"t": 0.0, "dur": 2.5, "text": "...", "pos": "top"|"bottom"|"centre",
               "size": 84}]       (t in output seconds)
   "cards": [{"on": "...", "delay": 0.4, "dur": 3, "name": "Sea otter",
@@ -255,6 +259,13 @@ class Burst:
                            "delay": rng.uniform(0, 0.35), "hue": rng.random()})
         self.origin = origin
 
+    def shift(self, x, y):
+        dx, dy = x - self.origin[0], y - self.origin[1]
+        self.origin = (x, y)
+        for q in self.p:
+            q["x"] += dx
+            q["y"] += dy
+
     def draw(self, d, t, cam, scale):
         age = t - self.t0
         if age < 0 or age > self.dur:
@@ -284,7 +295,8 @@ class Burst:
             if self.kind == "hearts":
                 x += math.sin(age_q * 5 + q["rot"]) * 12
             pop = min(1.0, age_q / 0.18)
-            r = q["r"] * ease_out_back(pop) * (1 - life * 0.35) * scale
+            # sizes follow the zoom only gently, or a close-up buries the critter
+            r = q["r"] * ease_out_back(pop) * (1 - life * 0.35) * min(scale, 1.8)
             a = int(255 * min(1.0, (1 - life) * 2.2))
             cx, cy = (x - ox) * scale, (y - oy) * scale
             if self.kind == "hearts":
@@ -447,8 +459,11 @@ def main():
         if e:
             pushes.append((out_at(e["t"]), p.get("hold", 2.0), p.get("tight", 0.38)))
 
-    bursts, flashes, spots = [], [], []
+    bursts, flashes, spots, darks = [], [], [], []
     for f in cut.get("fx", []):
+        if f["kind"] == "dark":
+            darks.append((f.get("t", 0.0), f.get("dur", 1.5)))
+            continue
         e = pick(events, f)
         if not e:
             continue
@@ -459,11 +474,17 @@ def main():
         elif k == "spotlight":
             spots.append((t_out - f.get("lead", 0.6), t_out + f.get("dur", 2.0)))
         else:
-            pts = e["pos"] or [(sw / 2, sh / 2)]
+            # A fixed-time event has no place: the burst then starts wherever
+            # the camera's subject is at that moment.
+            pts = e["pos"]
             who = f.get("who", "pair")
-            o = pts[0] if who == "a" else pts[-1] if who == "b" else tuple(np.mean(pts, axis=0))
-            o = (o[0] - sx + f.get("dx", 0), o[1] - sy + f.get("dy", -40))
-            bursts.append(Burst(k, t_out, o, f.get("dur", 1.6), rng))
+            o = None
+            if pts:
+                o = pts[0] if who == "a" else pts[-1] if who == "b" else tuple(np.mean(pts, axis=0))
+                o = (o[0] - sx + f.get("dx", 0), o[1] - sy + f.get("dy", -40))
+            b = Burst(k, t_out, o or (0, 0), f.get("dur", 1.6), rng)
+            b.anchor = None if o else (f.get("dx", 0), f.get("dy", -40))
+            bursts.append(b)
 
     cards = []
     for c in cut.get("cards", []):
@@ -473,6 +494,11 @@ def main():
             cards.append((t0, c.get("dur", 3.0), card_img(c["name"], c.get("sub", ""), c.get("tier", "common"))))
     titles = [(ti.get("t", 0), ti.get("dur", 2.5), ti.get("pos", "top"), text_img(ti["text"], ti.get("size", 84)))
               for ti in cut.get("titles", [])]
+    for o in cut.get("overlays", []):
+        im = Image.open(o["image"]).convert("RGBA")
+        if "w" in o:
+            im = im.resize((o["w"], round(im.height * o["w"] / im.width)), Image.LANCZOS)
+        titles.append((o.get("t", 0), o.get("dur", 3.0), o.get("y", H // 2), im))
 
     yy, xx = np.mgrid[0:H, 0:W]
     vign = 1 - 0.32 * np.clip(((xx - W / 2) ** 2 / (W * 0.62) ** 2 + (yy - H / 2) ** 2 / (H * 0.6) ** 2) - 0.35, 0, 1)
@@ -523,7 +549,7 @@ def main():
         ch = sh * tight
         cw = ch * 9 / 16
         left = min(max(cam[0] - cw / 2, 0), sw - cw)
-        top = min(max(cam[1] - ch * 0.55, 0), sh - ch)
+        top = min(max(cam[1] - ch * 0.6, 0), sh - ch)
 
         # composite only the crop, from the nearest capture frame
         x0, y0, x1, y1 = int(left), int(top), int(math.ceil(left + cw)), int(math.ceil(top + ch))
@@ -548,8 +574,15 @@ def main():
         over = Image.new("RGBA", (W, H))
         d = ImageDraw.Draw(over)
         for b in bursts:
+            if getattr(b, "anchor", None) is not None and t_out >= b.t0:
+                b.shift(subj[0] + b.anchor[0], subj[1] + b.anchor[1])
+                b.anchor = None
             b.draw(d, t_out, (left, top), scale)
         frame.alpha_composite(over)
+        for t0, dur in darks:
+            if t0 <= t_out <= t0 + dur:
+                k = min(1.0, (t0 + dur - t_out) / 0.2)
+                frame.alpha_composite(Image.new("RGBA", (W, H), (22, 14, 34, int(248 * k))))
         for t0, dur in flashes:
             if t0 <= t_out <= t0 + dur:
                 k = 1 - (t_out - t0) / dur
@@ -563,7 +596,7 @@ def main():
             t_im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.LANCZOS)
             if k_out < 1:
                 t_im.putalpha(t_im.getchannel("A").point(lambda v: int(v * k_out)))
-            y = {"top": 260, "bottom": H - 360, "centre": H // 2, "card": H - 470}[pos] - t_im.height // 2
+            y = (pos if isinstance(pos, int) else {"top": 260, "bottom": H - 360, "centre": H // 2, "card": H - 300}[pos]) - t_im.height // 2
             frame.alpha_composite(t_im, ((W - t_im.width) // 2, max(0, y)))
         enc.stdin.write(frame.convert("RGB").tobytes())
     enc.stdin.close()
