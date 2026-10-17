@@ -9,7 +9,8 @@ that log and hangs the edit on them, so a cut written once works on any take.
 
 Events (the "on" field anywhere below):
   pair_start, pair_act, pair_end   a pair walks over / starts acting / ends
-  act:NAME, act:*                  a critter starts a behaviour (groom, pounce...)
+  act:NAME, act:*                  a critter starts a behaviour (groom, hunt...)
+  act_end:NAME                     ...and ends it (a hunt's pounce is 0.6 s before)
   arrive                           a critter appears
   t:SECONDS                        a fixed moment in the capture
 Add "nth": 1 to use the second occurrence, and "offset": -0.3 to shift it.
@@ -37,8 +38,12 @@ The cut (JSON, every key optional):
   "cards": [{"on": "...", "delay": 0.4, "dur": 3, "name": "Sea otter",
              "sub": "Rare  ·  1 in 25", "tier": "rare"}]
   "sfx": [{"on": "pair_act", "sound": "sparkle"|"pop"|"whoosh"|"boing"|
-           "bloop"|"chime"|"game:otter"|"file:path.wav", "gain": 0.8}]
-  "music": {"file": "bed.mp3", "gain": 0.5, "start": 0.0, "fade": 1.0}
+           "bloop"|"chime"|"game:otter"|"file:name.wav", "gain": 0.8}]
+  "music": {"file": "bed.mp3", "gain": 0.5, "drop": 29.2, "at": 2.2, "fade": 1.0}
+                                    drop/at line a moment of the track up with an
+                                    output second (or give "start" in the track)
+Sound and music file names are looked up in --sounds DIR (licensed files stay
+out of this public repo). --music FILE --drop S overrides the cut's music.
   "backdrop": "studio" | "image.png"   studio is a soft brand-coloured set for
                                     close-ups; default is the mock work screen
 
@@ -85,7 +90,10 @@ def find_events(frames, fps_in):
                 seen.add(w["id"])
                 ev.append({"t": t, "kind": "arrive", "name": w["sp"], "pos": [pos[w["id"]]], "tier": w["tier"]})
             a = w.get("act", "")
-            if a and a != prev_act.get(w["id"], ""):
+            was = prev_act.get(w["id"], "")
+            if was and a != was:
+                ev.append({"t": t, "kind": "act_end", "name": was, "pos": [pos[w["id"]]], "tier": w["tier"]})
+            if a and a != was:
                 ev.append({"t": t, "kind": "act", "name": a, "pos": [pos[w["id"]]], "tier": w["tier"]})
             prev_act[w["id"]] = a
         live = set()
@@ -115,9 +123,9 @@ def pick(events, spec):
     on = spec["on"]
     if on.startswith("t:"):
         return {"t": float(on[2:]) + spec.get("offset", 0.0), "kind": "t", "pos": [], "name": ""}
-    if on.startswith("act:"):
-        name = on[4:]
-        hits = [e for e in events if e["kind"] == "act" and (name == "*" or e["name"] == name)]
+    if on.startswith("act:") or on.startswith("act_end:"):
+        kind, name = on.split(":", 1)
+        hits = [e for e in events if e["kind"] == kind and (name == "*" or e["name"] == name)]
     else:
         hits = [e for e in events if e["kind"] == on]
     n = spec.get("nth", 0)
@@ -414,9 +422,24 @@ def main():
     ap.add_argument("--cut", type=Path)
     ap.add_argument("--fps-in", type=float, default=0, help="capture rate; read from the log when 0")
     ap.add_argument("--events", action="store_true", help="list the capture's events and stop")
+    ap.add_argument("--sounds", type=Path, default=Path("."), help="folder for file: sounds and music")
+    ap.add_argument("--music", help="music file, overriding the cut's")
+    ap.add_argument("--drop", type=float, help="with --music: the track second to land on the cut's music 'at'")
     a = ap.parse_args()
     cut = json.loads(a.cut.read_text(encoding="utf-8")) if a.cut else {}
     rng = random.Random(cut.get("seed", 7))
+    if a.music:
+        cut["music"] = dict(cut.get("music", {}), file=a.music)
+        if a.drop is not None:
+            cut["music"]["drop"] = a.drop
+    if cut.get("music"):
+        m = cut["music"]
+        m["file"] = str(a.sounds / m["file"])
+        if "drop" in m:
+            m["start"] = max(0.0, m["drop"] - m.get("at", 0.0))
+    for sx_ in cut.get("sfx", []):
+        if sx_["sound"].startswith("file:"):
+            sx_["sound"] = "file:" + str(a.sounds / sx_["sound"][5:])
 
     head, frames = load_frames(a.capture)
     sx, sy, sw, sh = head["screen"]
@@ -611,7 +634,8 @@ def main():
     audio = a.out.with_suffix(".wav")
     write_wav(audio, mix_audio(len(src) / fps, cues, cut.get("music"), rng))
     subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", str(silent), "-i", str(audio), "-c:v", "copy",
-                    "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(a.out)], check=True)
+                    # social feeds play at about -14 LUFS; match them so clips aren't quiet
+                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", str(SR), "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(a.out)], check=True)
     silent.unlink()
     audio.unlink()
     print(f"{a.out}: {len(src)} frames, {len(src) / fps:.1f} s, {len(cues)} sound cues")
