@@ -23,6 +23,7 @@ The cut (JSON, every key optional):
                                     before the event) and how long it runs
                                     (output seconds)
   "camera": {"mode": "pair"|"follow"|"all", "tight": 0.55,
+             "targets": [{"t": 0, "tier": "common"}, {"t": 2.2, "tier": "rare"}],
              "push": [{"on": "pair_act", "tight": 0.36, "hold": 2.0}]}
                                     tight = crop height / screen height; push
                                     eases in at the event and back after hold
@@ -424,9 +425,14 @@ def main():
     ap.add_argument("--events", action="store_true", help="list the capture's events and stop")
     ap.add_argument("--sounds", type=Path, default=Path("."), help="folder for file: sounds and music")
     ap.add_argument("--music", help="music file, overriding the cut's")
+    ap.add_argument("--var", action="append", default=[], help="NAME=VALUE, filling {NAME} in the cut")
     ap.add_argument("--drop", type=float, help="with --music: the track second to land on the cut's music 'at'")
     a = ap.parse_args()
-    cut = json.loads(a.cut.read_text(encoding="utf-8")) if a.cut else {}
+    text = a.cut.read_text(encoding="utf-8") if a.cut else "{}"
+    for kv in a.var:
+        k, v = kv.split("=", 1)
+        text = text.replace("{" + k + "}", v)
+    cut = json.loads(text)
     rng = random.Random(cut.get("seed", 7))
     if a.music:
         cut["music"] = dict(cut.get("music", {}), file=a.music)
@@ -545,6 +551,16 @@ def main():
         fr = frames[min(f0, len(frames) - 1)]
         # subject: the pair if one is running, else everyone, else the nearest
         centres = {w["id"]: (w["x"] - sx + wsz / 2, w["y"] - sy + wsz / 2) for w in fr["wins"] if "id" in w}
+        # targets: the camera watches only critters of one tier, and jumps
+        # (no easing) when the target changes, so hide the change under a flash
+        tgt = [g for g in cam_cfg.get("targets", []) if g["t"] <= t_out]
+        if tgt:
+            tier = tgt[-1]["tier"]
+            keep = {w["id"] for w in fr["wins"] if w.get("tier") == tier}
+            centres = {k: v for k, v in centres.items() if k in keep} or centres
+            if tgt[-1] is not getattr(main, "_last_tgt", None):
+                main._last_tgt = tgt[-1]
+                cam = None
         subj, fit = None, 0.0
         if mode == "pair" and fr.get("pairs"):
             ids = [fr["pairs"][0]["a"], fr["pairs"][0]["b"]]
