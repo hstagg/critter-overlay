@@ -95,8 +95,7 @@ start, but the problem would muddy the feedback. **nice** is polish that can wai
 
 Updated 2026-10-13.
 
-- **Phase 1: done**, except D2 (the Rare/Epic picks, waiting on the
-  developer's choices) and GitHub Support's purge of cached old commits
+- **Phase 1: done** (D2, the Rare/Epic picks, answered 2026-10-17), except GitHub Support's purge of cached old commits
   (requested by the developer). Done: D21 history rewrite, H1-H5, R1, R3,
   D16 (v1/v2 kept at tag `v2-final`).
 - **Phase 2: built** (C1-C6, C8, C9, C11, C13, P1). C7 needed no code:
@@ -690,7 +689,7 @@ in the last column.
 | ID | Question | Options | Recommendation | Answer |
 |---|---|---|---|---|
 | D1 | Branch of record and release flow | (a) Merge v3 into main now; main becomes the dev branch again (as CLAUDE.md says); CI moves to main; v3 retires. (b) Keep v3 as the dev branch; merge to main only to release; CI on both. (c) Let `release.ps1` release from v3. | **(a)**: one branch, matching `release.ps1` and CLAUDE.md. || **(a)**, 2026-10-13. CI moved to main; v3 merges into main and retires. |
-| D2 | The 11 missing Rare/Epic looks | (a) Pick from the 24 candidates already drawn (Admin > Every version drawn), polish later. (b) Ship the beta with Common look plus glow, and say so. (c) New designs first. | **(a)**: the candidates exist; picking is the bottleneck. || Open: needs a visual pick. |
+| D2 | The 11 missing Rare/Epic looks | (a) Pick from the 24 candidates already drawn (Admin > Every version drawn), polish later. (b) Ship the beta with Common look plus glow, and say so. (c) New designs first. | **(a)**: the candidates exist; picking is the bottleneck. || **(a)**, 2026-10-17. Kitten calico / snow, rabbit dutch / lop, duckling brown / cygnet, hedgehog blonde / albino, otter sea / snow, squirrel Epic snowy (Rare / Epic). Wired in `species.gd`; F1 done. |
 | D3 | v2.0 users' custom critters on upgrade (v3 skips `custom:` entries; v2's files in `%APPDATA%\CritterOverlay\custom` are untouched unless an uninstall deletes data) | (a) Do nothing: they silently disappear from the overlay. (b) Preserve and tell: a one-time notice ("your N custom critters are safe and will come back in a later update"); keep the `custom:` sightings in the save for the later import; make "delete data" on uninstall spare or name that folder. (c) Sticker carry-over (plan Tier 1: still image with procedural motion) in v3.0. (d) Keep v2 runnable alongside: not possible, since both share the AppId. | **(b)**: small, loses nothing, and keeps v3.0's scope; (c) is real engine work that belongs to the custom-critters update. || **(b)** |
 | D4 | Beta channel and numbering | (a) GitHub prereleases numbered below 3.0.0 (e.g. `2.90.N`, shown as "3.0 beta N"); testers reinstall each build; 3.0.0 final then auto-updates them; no updater change. (b) Teach the updater a beta channel (reads `/releases`, accepts prereleases when beta is on): automatic beta updates, but it touches the updater (a discuss-first area). (c) Private download link, outside GitHub. | **(a)** for a small group; revisit (b) if there are many builds. || **Neither needed yet:** no outside users (the developer and one tester), so builds go out as normal releases through the updater. Selling and advertising wait until it is polished. K1 drops to nice. |
 | D5 | Code signing for the beta | (a) Unsigned, with SmartScreen steps and a VirusTotal link per build. (b) Buy a signing service now. | **(a)** for known testers; signing before any public build. || **(a)** |

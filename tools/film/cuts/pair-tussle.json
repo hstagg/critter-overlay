@@ -1,0 +1,112 @@
+{
+  "fps": 30,
+  "backdrop": "studio",
+  "from": {
+    "on": "pair_start",
+    "lead": 0.4
+  },
+  "length": 9.5,
+  "camera": {
+    "mode": "pair",
+    "tight": 0.66,
+    "push": [
+      {
+        "on": "pair_act",
+        "tight": 0.5,
+        "hold": 2.6
+      }
+    ]
+  },
+  "slowmo": [
+    {
+      "on": "act_end:hunt",
+      "offset": -0.6,
+      "before": 0.25,
+      "dur": 0.75,
+      "speed": 0.35
+    }
+  ],
+  "fx": [
+    {
+      "on": "act_end:hunt",
+      "offset": -0.6,
+      "kind": "impact",
+      "who": "pair"
+    },
+    {
+      "on": "act_end:hunt",
+      "offset": -0.55,
+      "kind": "stars",
+      "dur": 1.6,
+      "who": "pair"
+    },
+    {
+      "on": "pair_end",
+      "offset": -0.3,
+      "kind": "hearts",
+      "dur": 2.2,
+      "who": "pair"
+    }
+  ],
+  "titles": [
+    {
+      "t": 0.2,
+      "dur": 3.0,
+      "text": "two kittens.\none tiny feud.",
+      "pos": "top",
+      "size": 96
+    },
+    {
+      "t": 7.0,
+      "dur": 2.5,
+      "text": "friends again",
+      "pos": "top",
+      "size": 96
+    }
+  ],
+  "music": {
+    "file": "pizzicato-flow_vitmatnotes_pixabay-558613.mp3",
+    "gain": 0.42,
+    "drop": 5.5,
+    "at": 5.1,
+    "fade": 1.2
+  },
+  "sfx": [
+    {
+      "on": "pair_start",
+      "offset": 0.3,
+      "sound": "file:sfx/kitty-meow-sweet_mixkit-93.wav",
+      "gain": 0.7
+    },
+    {
+      "on": "act_end:hunt",
+      "offset": -0.95,
+      "sound": "file:sfx/sparkle-whoosh_mixkit-2350.wav",
+      "gain": 0.35
+    },
+    {
+      "on": "act_end:hunt",
+      "offset": -0.6,
+      "sound": "file:sfx/boing_mixkit-2894.wav",
+      "gain": 0.8
+    },
+    {
+      "on": "act_end:hunt",
+      "offset": -0.58,
+      "sound": "file:sfx/soft-punch_mixkit-2151.wav",
+      "gain": 0.6
+    },
+    {
+      "on": "pair_end",
+      "offset": -0.3,
+      "sound": "file:sfx/kiss_mixkit-2194.wav",
+      "gain": 0.7
+    },
+    {
+      "on": "pair_end",
+      "offset": 0.2,
+      "sound": "file:sfx/kitty-meow-cartoon_mixkit-91.wav",
+      "gain": 0.55
+    }
+  ]
+}

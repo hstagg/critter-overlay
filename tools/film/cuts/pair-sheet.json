@@ -1,0 +1,20 @@
+{
+  "fps": 30,
+  "backdrop": "studio",
+  "from": {
+    "on": "pair_start",
+    "lead": 0.3
+  },
+  "length": 6,
+  "camera": {
+    "mode": "pair",
+    "tight": 0.6,
+    "push": [
+      {
+        "on": "pair_act",
+        "tight": 0.45,
+        "hold": 2.5
+      }
+    ]
+  }
+}
