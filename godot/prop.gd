@@ -8,6 +8,8 @@ extends Node
 
 signal moved(id: String, x_fraction: float)
 
+const WinPool := preload("res://win_pool.gd")
+
 const ART := 300.0                # the art's frame, px across (art/props/*.svg)
 const ART_H := 200.0
 
@@ -22,6 +24,8 @@ const PRICE: int = preload("res://wear.gd").PRICES["showpiece"]   # one price ta
 var id := ""
 var main: Node
 var win: Window
+var at := Vector2i.ZERO            # where the window stands, even while parked
+var parked := false
 var sprite: Sprite2D
 var zz: Label
 var scale_px := 0.5
@@ -53,7 +57,6 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
 	add_child(win)
 	win.close_requested.connect(main.close_requested_by_windows)
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	var img := Image.new()
 	img.load_svg_from_string(FileAccess.get_file_as_string("res://art/props/%s.svg" % pid), scale_px)
 	sprite = Sprite2D.new()
@@ -70,6 +73,8 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 	win.window_input.connect(_on_input)
 	_place()
 	win.show()
+	# Only now does the window exist, so only now can its vsync be set.
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	# Clicks pass through except on the lower part, where it is solid.
 	DisplayServer.window_set_mouse_passthrough(PackedVector2Array([
 		Vector2(size.x * 0.1, size.y * 0.3), Vector2(size.x * 0.9, size.y * 0.3),
@@ -79,14 +84,26 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 func _place() -> void:
 	var r: Rect2 = main.area
 	var x := r.position.x + x_fraction * (r.size.x - size.x)
-	win.position = Vector2i(int(x), int(r.end.y - size.y + 4))
+	at = Vector2i(int(x), int(r.end.y - size.y + 4))
+	if not parked:
+		win.position = at
+
+
+func show_window(on: bool) -> void:
+	# Paused or a full-screen app: parked off the screen, not hidden, as the
+	# critters' windows are (win_pool.gd says why).
+	parked = not on
+	if on:
+		win.position = at
+	else:
+		WinPool.park(win)
 
 
 func _on_input(e: InputEvent) -> void:
 	# Drag along the bottom of the screen.
 	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
-			_drag_from = DisplayServer.mouse_get_position().x - win.position.x
+			_drag_from = DisplayServer.mouse_get_position().x - at.x
 		elif _drag_from >= 0.0:
 			_drag_from = -1.0
 			moved.emit(id, x_fraction)
@@ -106,7 +123,7 @@ func free_spot() -> int:
 
 func spot_feet(i: int) -> Vector2:
 	# Where a sleeper's feet go, on screen.
-	return Vector2(win.position) + PROPS[id][2][i] * scale_px
+	return Vector2(at) + PROPS[id][2][i] * scale_px
 
 
 func hides() -> bool:
@@ -116,7 +133,7 @@ func hides() -> bool:
 func take(i: int, h) -> void:
 	sleepers[i] = h
 	if hides():
-		h.win.visible = false
+		h.show_window(false)
 		zz.visible = true
 
 
@@ -124,7 +141,7 @@ func release_all() -> void:
 	# Everyone wakes: those inside come out of the door.
 	for h in sleepers:
 		if h != null and is_instance_valid(h) and hides():
-			h.win.visible = not main.paused and not main.busy_hidden
+			h.show_window(not main.paused and not main.busy_hidden)
 	for i in sleepers.size():
 		sleepers[i] = null
 	zz.visible = false

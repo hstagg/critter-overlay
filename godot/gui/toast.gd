@@ -16,6 +16,7 @@ const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const Species := preload("res://species.gd")
+const WinPool := preload("res://win_pool.gd")
 
 const W := 360
 const EDGE := 16
@@ -26,6 +27,12 @@ const SLIDE := 0.22            # s to slide in from the right
 const LEGENDARY_EDGE := "#E3A72F"
 
 var toasts := []               # Toast, oldest first
+var pool := WinPool.new()      # their windows, used again (win_pool.gd)
+
+
+func _ready() -> void:
+	pool.keep = MAX_SHOWN
+	add_child(pool)
 
 
 class Floor extends Node:
@@ -163,14 +170,7 @@ func _well(bg: Color, border := Color.TRANSPARENT) -> Control:
 
 func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Control, kick: Label,
 		title: String, sub: String, sub_ink: Color, track: Color) -> void:
-	var win := Window.new()
-	win.borderless = true
-	win.transparent = true
-	win.transparent_bg = true
-	win.always_on_top = true
-	win.unfocusable = true
-	win.visible = false
-	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
+	var win := pool.take()
 	t.win = win
 
 	var card := PanelContainer.new()
@@ -244,11 +244,9 @@ func _build(t: Toast, c: Dictionary, bg: Color, edge: Color, bw: int, well: Cont
 		bar_pad.add_child(t.bar)
 		col.add_child(bar_pad)
 
-	add_child(win)
 	var f := UI.scale()   # the display scale
 	win.content_scale_factor = f
 	win.size = Vector2i(Vector2(W, int(card.get_combined_minimum_size().y) + 6) * f)
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())   # one vsync'd window only
 
 
 func _push(t: Toast) -> void:
@@ -258,7 +256,7 @@ func _push(t: Toast) -> void:
 	_restack()
 	t.y_now = t.y
 	_place(t, 1.0)
-	t.win.show()
+	pool.put_out(t.win, t.win.position)   # without vsync: one vsync'd window only
 
 
 func _restack() -> void:
@@ -283,7 +281,7 @@ func _dismiss(t: Toast) -> void:
 	if not t in toasts:
 		return
 	toasts.erase(t)
-	t.win.queue_free()
+	pool.give_back(t.win)
 	_restack()
 
 

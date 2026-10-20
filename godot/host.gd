@@ -22,6 +22,7 @@ const Region := preload("res://region.gd")
 const Species := preload("res://species.gd")
 const Aura := preload("res://aura.gd")
 const Trail := preload("res://trail.gd")
+const WinPool := preload("res://win_pool.gd")
 
 const WINDOW := 240.0          # px across at zoom 1: room for a tall hat and a hop
 const FOOT_DROP := 50.0        # px at zoom 1 the feet sit below the window's centre
@@ -43,7 +44,9 @@ var version := ""              # set before setup(): a Rare or Epic version's ar
 var variant := ""              # a Legendary visitor's colour, "" for a random one
 var has_vsync := false         # this window paces the frame (main.gd hands it on when it goes)
 var critter: Node2D
-var win: Window
+var win: Window                # from main's win_pool; given back when this host goes
+var at := Vector2i.ZERO        # where the window stands on the screen, even while parked
+var parked := false            # off the screen (show_window)
 var spin: Node2D               # rotated to the edge being walked on
 var track: Node2D              # slides the critter's track under the window
 var size := 200
@@ -135,26 +138,14 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	size = int(WINDOW * zoom)
 	foot_drop = FOOT_DROP * zoom
 
-	win = Window.new()
-	win.borderless = true
-	win.transparent = true
-	win.transparent_bg = true
-	win.always_on_top = true
-	win.unfocusable = true
+	# A spare window or a new one (win_pool.gd), put on the screen once the
+	# critter is in place (end of setup).
+	win = main.win_pool.take()
 	win.size = Vector2i(size, size)
-	# Created hidden and shown once it is in place (end of setup), so no
-	# window flashes up in the middle of the screen, and shown without taking
-	# the keyboard from whatever the user is typing in.
-	win.visible = false
-	win.initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
-	add_child(win)
-	win.close_requested.connect(main.close_requested_by_windows)
 	# One window paces the frame; more vsyncs only cost frames.
 	if not main.vsync_taken:
 		main.vsync_taken = true
 		has_vsync = true
-	else:
-		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	win.window_input.connect(_on_input)
 
 	spin = Node2D.new()
@@ -193,7 +184,31 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 		vy = randf_range(-35.0, 35.0)
 	critter.setup(world, x0, face, start_mode)
 	_place()
-	win.show()
+	main.win_pool.put_out(win, at, has_vsync)
+
+
+func show_window(on: bool) -> void:
+	# Paused, a full-screen app, or asleep inside the cottage: the window is
+	# parked off the screen rather than hidden (win_pool.gd says why), and
+	# what is drawn in it stops.
+	parked = not on
+	if on:
+		win.position = at
+	else:
+		WinPool.park(win)
+	win.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+
+
+func release_window() -> void:
+	# The window goes back to the pool for the next critter.
+	if win != null and is_instance_valid(main) and is_instance_valid(main.win_pool):
+		main.win_pool.give_back(win)
+	win = null
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and win != null:
+		release_window()
 
 
 # --- Where it is ----------------------------------------------------------------
@@ -249,18 +264,18 @@ func _place() -> void:
 	# The critter's track slides under the window so it stays in the middle.
 	track.position = Vector2(-critter.position.x, foot_drop)
 	var centre := feet - Vector2(0, foot_drop).rotated(rot)
-	var to := Vector2i((centre - Vector2(size, size) * 0.5).round())
-	if to != win.position:
-		win.position = to   # only when it moved: each move is a call into Windows
+	at = Vector2i((centre - Vector2(size, size) * 0.5).round())
+	if not parked and at != win.position:
+		win.position = at   # only when it moved: each move is a call into Windows
 
 
 func feet_on_screen() -> Vector2:
-	return Vector2(win.position) + Vector2(size, size) * 0.5 + Vector2(0, foot_drop).rotated(spin.rotation)
+	return Vector2(at) + Vector2(size, size) * 0.5 + Vector2(0, foot_drop).rotated(spin.rotation)
 
 
 func to_critter(screen_pt: Vector2) -> Vector2:
 	# A screen point in the coordinates the critter moves in.
-	var local := screen_pt - Vector2(win.position)
+	var local := screen_pt - Vector2(at)
 	return (track.get_global_transform()).affine_inverse() * local
 
 
@@ -673,7 +688,7 @@ func _update_hole() -> void:
 	if main.no_passthrough:
 		return
 	var s := Vector2(size, size)
-	var m := Vector2(DisplayServer.mouse_get_position() - win.position)
+	var m := Vector2(DisplayServer.mouse_get_position() - at)
 	var hole := Rect2()
 	if state == "live" and Rect2(Vector2.ZERO, s).has_point(m) and not _critter_box().grow(4.0).has_point(m):
 		hole = Rect2(m + Region.HOLE_FROM, Region.HOLE_TO - Region.HOLE_FROM)

@@ -14,6 +14,7 @@ const Pairs := preload("res://pairs.gd")
 const Wear := preload("res://wear.gd")
 const Onboarding := preload("res://gui/onboarding.gd")
 const Critter := preload("res://critters/critter.gd")
+const Icons := preload("res://gui/icons.gd")
 
 const WALK_S := 4.0               # the walk at the start of a run of moves
 const SIT_S := 1.5
@@ -218,6 +219,8 @@ func run(action: String, chosen := "kitten") -> void:
 			spawn("unicorn", "legendary")
 		"toasts":
 			toasts()
+		"windows":
+			window_churn()
 		"present":
 			present()
 		"climb":
@@ -283,6 +286,28 @@ func undress(sp: String) -> void:
 
 func toasts() -> void:
 	main._run_toast_demo()
+
+
+func window_churn(rounds := 10) -> void:
+	# S2: rounds of pops and refills, a pause and a note each, then a note
+	# with the window counts. With windows used again (win_pool.gd), the
+	# number made stops near the most out at once instead of growing.
+	var made_before: int = main.win_pool.made + main.toasts.pool.made
+	for i in rounds:
+		get_tree().create_timer(1.0 + i * 1.5).timeout.connect(func():
+			for h in main.hosts.duplicate():
+				if h.state == "live":
+					h.pop()
+			spawn(Species.DATA.keys().pick_random(), "common", "", "", 4)
+			main._set_paused(true)
+			main._set_paused(false)
+			main.toasts.show_note(Icons.berry(40), "Admin", "Window churn %d of %d" % [i + 1, rounds], "Pops, refills, a pause and this note."))
+	get_tree().create_timer(2.5 + rounds * 1.5).timeout.connect(func():
+		var p = main.win_pool
+		var tp = main.toasts.pool
+		main.toasts.show_note(Icons.berry(40), "Admin", "Windows used again",
+			"Critters: %d made, %d used again, %d spare. Notes: %d made, %d used again. Made during the run: %d." % [
+				p.made, p.reused, p.spare.size(), tp.made, tp.reused, p.made + tp.made - made_before]))
 
 
 func rare_hour_now() -> void:

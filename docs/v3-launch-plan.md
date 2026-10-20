@@ -227,6 +227,42 @@ Findings along the way:
     VM numbers only.
   - Not tested: lock and unlock, and RDP (the VM has no second session
     set up for them).
+- **Phase 5, 2026-10-20** (the VM is on hold, so code and headless tests only):
+  - S2 built: windows are made once and reused (`win_pool.gd`). Found in
+    Godot 4.7.2's source: hiding a `Window` destroys the native window and
+    showing it makes a new one, which leaks another GDI object. So pausing,
+    hiding for a full-screen app and napping in the cottage leaked one per
+    critter each time, as well as each arrival and toast. Now a window not in
+    use is parked off the screen (drawing off) instead of hidden, and handed to
+    the next critter or toast. At most 8 spare critter windows and 3 toast
+    windows are kept. Showpieces are parked but not reused (they are rarely
+    made). Admin: "Windows used again" (churn and the counts). Diagnostics
+    show windows made and used again. `win_pool_test.gd` covers the
+    bookkeeping.
+  - Found with S2: the vsync calls for critter, toast and showpiece windows
+    ran before those windows existed (they are made hidden), so they reached
+    whichever window was current, and every re-shown window took the main
+    window's vsync. Each window's vsync is now set right after it is first
+    shown, and it sticks because windows are no longer re-made. On ANGLE (the
+    VM) the vsync switch is global, not per window, which may be part of
+    the VM's high CPU numbers.
+  - The window-count threshold allows for the spares: at most critters +
+    props + 3 toasts + 8 spare + 3.
+  - F13 (touch and pen as presence): no touch device to test, so it goes on
+    the known-issues list.
+  - **Waiting on the VM** (all of Phase 5's measuring):
+    - S2: the Admin churn and a churn soak, GDI before and after (baseline
+      62 → 1,061 in 8 min); a pause and full-screen cycle does not add GDI
+      objects; nothing flashes mid-screen; pause still hides everyone.
+    - S4: lock/unlock, RDP connect and disconnect, a resolution change.
+    - S5: the 8 h soak on the current build; a `pktmon` capture during it
+      covers L3.
+    - S6: measure the first-arrival hitch (fix only if p99 > 50 ms).
+    - S8: working set with every species and version loaded.
+    - F12: feet visible with an auto-hidden taskbar.
+    - S1: a script per threshold row (`tools/soak/`).
+  - **Waiting on a slot the developer picks** (dev PC, sound off): fps and
+    CPU at 8, asleep, paused and 25; the 30-launch exit test.
 
 ## Phase 1: decisions and housekeeping
 
@@ -362,7 +398,7 @@ checks go on the developer PC, at a time the developer picks, with sound off.
 | GDI objects after 8 h default play | VM | ≤ 2,000 and not climbing linearly with arrivals |
 | USER objects, threads, child processes | VM, 8 h | flat after hour 1 |
 | Working set | VM, 8 h | hour 8 ≤ hour 1 + 15% |
-| Window count | VM, sampled | ≤ critters + props + 3 toasts + 3 |
+| Window count | VM, sampled | ≤ critters + props + 3 toasts + 8 spare + 3 |
 | Script errors, crashes | VM, 8 h with `--idle-sim` | 0 |
 | Clean exits | Dev PC, scheduled, 30 exits | 30/30 exit code 0 (Intel GL teardown) |
 | Sleep/resume | Laptop or VM suspend | berries gained ≤ minutes actually present |

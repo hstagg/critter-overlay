@@ -66,6 +66,7 @@ const Species := preload("res://species.gd")
 const Behaviours := preload("res://behaviours.gd")
 const Presence := preload("res://presence.gd")
 const Host := preload("res://host.gd")
+const WinPool := preload("res://win_pool.gd")
 const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
 const Tray := preload("res://gui/tray.gd")
@@ -104,6 +105,7 @@ var vsync_taken := false       # host.gd: only the first window waits for vsync
 var t := 0.0
 
 var hosts := []
+var win_pool := WinPool.new()   # the critters' windows, made once and used again
 var evaluator := Behaviours.new()
 var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
 var admin_flag := false
@@ -188,6 +190,8 @@ var variant_flag := ""        # --variant
 
 
 func _ready() -> void:
+	win_pool.close_request = close_requested_by_windows
+	add_child(win_pool)
 	presence = Presence.new()
 	if ResourceLoader.exists(ADMIN_SCRIPT):
 		admin = load(ADMIN_SCRIPT).new(self)
@@ -606,7 +610,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	_trail_for(h)
 	if paused or busy_hidden:
-		h.win.visible = false   # arrives hidden; _show_critters brings it out
+		h.show_window(false)   # arrives parked; _show_critters brings it out
 		h.process_mode = Node.PROCESS_MODE_DISABLED
 	return h
 
@@ -1345,10 +1349,10 @@ func _show_critters() -> void:
 		if p.hides():
 			inside.append_array(p.sleepers)
 	for h in hosts:
-		h.win.visible = shown and not h in inside
+		h.show_window(shown and not h in inside)
 		h.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
 	for p in props.values():
-		p.win.visible = shown
+		p.show_window(shown)
 
 
 func _time_of_day() -> void:
@@ -1787,14 +1791,18 @@ func _redraw_all() -> void:
 			# Inside the work area, which may have changed (_check_screen).
 			feet = Vector2(clampf(feet.x, area.position.x, area.end.x), clampf(feet.y, minf(area.position.y + 260.0, area.end.y), area.end.y))
 		var variant := str(h.critter.get("variant")) if "variant" in h.critter else ""
-		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier, h.version, variant)
+		var mode := "walk" if h.critter.mode == "walk" else "sit"
+		var worn: Array = h.critter.worn
+		var napping: bool = h.critter.is_napping()
+		hosts.erase(h)
+		h.release_window()   # first, so the new critter takes it
+		h.queue_free()
+		var n = _spawn(h.kind, mode, feet, h.species, h.tier, h.version, variant)
 		if n != null:
 			n.stay_left = h.stay_left
-			n.critter.wear(h.critter.worn, economy.dyed.get(h.species, {}))
-			if h.critter.is_napping():
+			n.critter.wear(worn, economy.dyed.get(h.species, {}))
+			if napping:
 				n.critter.go_to_sleep()
-		hosts.erase(h)
-		h.queue_free()
 	for pid in props.keys():
 		props[pid].release_all()
 		props[pid].queue_free()
@@ -1886,8 +1894,9 @@ func diagnostics() -> String:
 	# player to paste into a message. Nothing is sent anywhere.
 	var counts := collection_counts()
 	var out := PackedStringArray([start_line(),
-		"Now %s, running %d min | %d critters out | %s | presence from %s" % [Time.get_datetime_string_from_system(),
-			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source],
+		"Now %s, running %d min | %d critters out | %s | presence from %s | windows made %d, used again %d" % [Time.get_datetime_string_from_system(),
+			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source,
+			win_pool.made + toasts.pool.made, win_pool.reused + toasts.pool.reused],
 		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f" % [economy.berries,
 			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked],
 		"", "Settings:", JSON.stringify(settings.data, " "), "", "Log, most recent last:"])
