@@ -69,7 +69,14 @@ $most = ($samples | ForEach-Object { $_.windows } | Measure-Object -Maximum).Max
 Say "windows" ("most {0}; {1} of {2} samples over" -f $most, $over.Count, $samples.Count) "<= critters + props + 14" ($over.Count -eq 0 -and $samples.Count -gt 0)
 
 # Script errors, anomalies, exit code, crash events
-$errs = ([regex]::Matches($out, "SCRIPT ERROR|ERROR:")).Count
+# The VM has no sound device: Godot's WASAPI start-up errors there are not the game's.
+$noSound = "WASAPI|audio_driver_wasapi"
+$lines = $out -split "`n"
+$errs = 0
+for ($i = 0; $i -lt $lines.Count; $i++) {
+    # An error and the "at:" line after it.
+    if ($lines[$i] -match "SCRIPT ERROR|ERROR:" -and ($lines[$i] + $(if ($i + 1 -lt $lines.Count) { $lines[$i + 1] })) -notmatch $noSound) { $errs++ }
+}
 $anom = ([regex]::Matches($out, "SOAK ANOMALY")).Count
 $exitFile = Join-Path $Dir "${Name}_exit.txt"
 $code = if (Test-Path $exitFile) { (Get-Content $exitFile -Raw).Trim() } else { "?" }

@@ -138,6 +138,7 @@ func _drive(delta: float) -> void:
 				_bump("pop")
 			for i in 3:
 				if main.hosts.size() < 14:
+					_afford_spawn()
 					main.spawn_now()
 					_bump("spawn")
 		"throw":
@@ -145,6 +146,7 @@ func _drive(delta: float) -> void:
 			if live.size() >= 2:
 				_throw(live, randf_range(150.0, 4000.0))
 			if main.hosts.size() < 12:
+				_afford_spawn()
 				main.spawn_now()
 				_bump("spawn")
 		"specials":
@@ -163,6 +165,13 @@ func _drive(delta: float) -> void:
 				k.start_behaviour(pick, main.evaluator.duration_of(pick))
 				last_specials[h.species] = last_specials.get(h.species, 0) + 1
 				_bump("act:" + pick)
+
+
+func _afford_spawn() -> void:
+	# Spawn now costs berries (game design rules, rule 2): top them up so the
+	# harness can keep refilling. The run's save is a throwaway one.
+	if main.economy.berries < 1000:
+		main.economy.berries = 1000
 
 
 func _throw(live: Array, speed: float) -> void:
