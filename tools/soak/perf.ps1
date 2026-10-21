@@ -1,12 +1,12 @@
 # The Phase 5 rows measured on real hardware (docs/v3-launch-plan.md,
 # "Proposed thresholds"), each run on the exported release build:
 #
-#   fps8        8 critters, 2 min: median fps >= 55, p95 frame <= 20 ms
+#   fps8        8 critters, 2 min: median fps >= 28, p95 frame <= 40 ms (30 fps cap)
 #   cpu8        8 critters awake, 10 min: <= 25% of one core
 #   paused      8 critters, paused with the pause shortcut, 10 min: <= 3%
 #   fullscreen  8 critters behind a full-screen window, 10 min: <= 3%
-#   napping     8 critters all asleep (presence faked away), 10 min: <= 3%
-#   cap25       25 critters, 2 min: median fps >= 30, no errors
+#   napping     8 critters all asleep (presence faked away), 10 min: <= 5%
+#   cap25       25 critters, 2 min: median fps >= 25, no errors
 #   all         each of the above in turn (about 45 min)
 #
 #   perf.ps1 -Exe C:\path\CritterOverlay.exe -Row all [-Out dir] [-Minutes 10]
@@ -113,7 +113,7 @@ foreach ($r in $rows) {
         "fps8" {
             $g = Run-Game $r 120 "--kittens=8 $present"
             $m = $g.report.fps.median; $p95 = $g.report.frame_gap_ms.p95
-            Say $r ("median {0} fps, p95 frame {1} ms" -f $m, $p95) "median >= 55, p95 <= 20 ms" ($m -ge 55 -and $p95 -le 20) $(if (-not $g.report) { "no report, exit $($g.exit)" })
+            Say $r ("median {0} fps, p95 frame {1} ms" -f $m, $p95) "median >= 28, p95 <= 40 ms" ($m -ge 28 -and $p95 -le 40) $(if (-not $g.report) { "no report, exit $($g.exit)" })
         }
         "cpu8" {
             $g = Run-Game $r $cpuS "--kittens=8 $present"
@@ -137,13 +137,13 @@ foreach ($r in $rows) {
             $g = Run-Game $r $cpuS "--kittens=8 --idle-sim=1,100000 --away-after=5"
             $c = Cpu-Percent $g.cpu
             $took = $g.report -and $g.report.away -and $g.report.napping -eq $g.report.critters
-            Say $r ("{0:F1}% of a core" -f $c) "<= 3%" ($took -and $c -ne $null -and $c -le 3) $(if (-not $took) { "not everyone was asleep at the end" })
+            Say $r ("{0:F1}% of a core" -f $c) "<= 5%" ($took -and $c -ne $null -and $c -le 5) $(if (-not $took) { "not everyone was asleep at the end" })
         }
         "cap25" {
             $g = Run-Game $r 120 "--kittens=25 $present"
             $m = $g.report.fps.median
             $errs = ([regex]::Matches($g.text, "SCRIPT ERROR|ERROR:")).Count
-            Say $r ("median {0} fps, {1} errors" -f $m, $errs) "median >= 30, no errors" ($m -ge 30 -and $errs -eq 0) $(if (-not $g.report) { "no report, exit $($g.exit)" })
+            Say $r ("median {0} fps, {1} errors" -f $m, $errs) "median >= 25, no errors" ($m -ge 25 -and $errs -eq 0) $(if (-not $g.report) { "no report, exit $($g.exit)" })
         }
     }
 }

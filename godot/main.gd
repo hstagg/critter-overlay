@@ -839,19 +839,20 @@ func _hand_on_vsync() -> void:
 
 
 func _pace_frames() -> void:
-	# Fewer frames when there is little to see: nothing on screen (paused,
-	# hidden for a full-screen app, or nobody out) needs only enough for the
-	# tray and the shortcuts; everyone asleep needs only the slow breathing.
-	# Any of the app's own windows open: full speed.
+	# Each critter window is drawn and presented every frame, so CPU follows
+	# the frame rate. Critters run at 30 fps: on Intel Iris Xe, 8 of them took
+	# 41% of a core at 60 and 22% at 30 (developer's decision, 2026-10-21,
+	# docs/v3-launch-plan.md Phase 5). Nothing on screen (paused, hidden for a
+	# full-screen app, or nobody out) needs only enough for the tray and the
+	# shortcuts; everyone asleep needs only the slow breathing (10 fps). Any of
+	# the app's own windows open: full speed, so they feel smooth.
 	var ui_open: bool = waiting_welcome or (settings_win != null and settings_win.visible) \
 		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
-	var cap := 0
+	var cap := 0 if ui_open else 30
 	if not ui_open and (paused or busy_hidden or hosts.is_empty()):
 		cap = 5
 	elif not ui_open and presence != null and presence.away:
-		cap = 20
-	elif settings.value("system.detail") == "simple":
-		cap = 30   # System > Animation detail > Simple: for slower computers
+		cap = 10
 	if Engine.max_fps != cap:
 		Engine.max_fps = cap
 

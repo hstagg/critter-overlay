@@ -278,8 +278,11 @@ Findings along the way:
     | 25 critters | median 32 fps, no errors | ≥ 30 | PASS |
 
     CPU follows the frame rate about linearly: each critter window is drawn
-    and presented every frame. Awake and napping need a decision (frame
-    caps, or the thresholds).
+    and presented every frame. Decided (developer, 2026-10-21): critters run
+    at 30 fps for everyone (Simple now only drops layers), 10 fps when all
+    are asleep, and that row's threshold is 5%. The fps and 25-critter rows
+    follow the cap (median ≥ 28 fps with p95 frame ≤ 40 ms, and ≥ 25 fps).
+    To be re-measured on the RC build.
   - S8: with all 34 looks loaded (`--soak-mode=looks`), texture memory tops
     out at 174 MB, and static memory stays flat at 45 MB. The cache is
     bounded by the number of looks, so no eviction is needed.
@@ -319,7 +322,22 @@ Findings along the way:
     lists godot-cpp.
   - L3: only `updater.gd` uses the network (code check).
     `tools/soak/vm/net_check.ps1` records the installed app's connections.
-  - K3: `tools/soak/vm/install_matrix.ps1` (results below).
+  - K3: `tools/soak/vm/install_matrix.ps1`, all 8 rows PASS on the VM
+    (2026-10-21, after the fixes above):
+    - v2.0 per-user and running → v3: the installer closed v2.0; one install,
+      v3.0.0, in the same folder; v2.0's `_internal` gone.
+    - The v2.0 import: settings (size, Rare Hour) carried over, and the
+      Seen Log is in the Collection.
+    - Reinstall over a running v3; uninstall while running (app closed, exe
+      gone, data kept, start-up entry removed); reinstall picks the kept
+      data up.
+    - Uninstall answering Yes deletes both data folders; a fresh install.
+    - v2.0 for all users and running → v3: one install, still in Program
+      Files.
+    - Also found: v2.0's uninstall log came along on an upgrade, with a
+      step that started the app at uninstall and waited for it, so the
+      uninstall hung. `UninstallLogMode=overwrite` fixes it.
+    - v3 → v3 through the updater is Phase 8's two-release check.
   - K2 (VirusTotal) waits for the release candidate's installer.
 - **Phase 7, 2026-10-21** (no tester guide, by the developer's choice):
   - R2 README rewritten for v3 (the in-app Help link opens it). R4
@@ -457,10 +475,11 @@ checks go on the developer PC, at a time the developer picks, with sound off.
 
 | Measure | Where | Pass |
 |---|---|---|
-| Frame rate, default 8 critters | Dev PC, Iris Xe, 2 min | median ≥ 55 fps, p95 frame ≤ 20 ms |
+| Frame rate, default 8 critters | Dev PC, Iris Xe, 2 min | median ≥ 28 fps, p95 frame ≤ 40 ms (30 fps cap, decided 2026-10-21) |
 | CPU, default 8 critters, active | Dev PC, 10 min | ≤ 25% of one core |
-| CPU while paused, hidden by a full-screen app, or all napping | Dev PC, 10 min each | ≤ 3% of one core |
-| 25 critters (the cap) | Dev PC, 2 min | ≥ 30 fps, no errors |
+| CPU while paused or hidden by a full-screen app | Dev PC, 10 min each | ≤ 3% of one core |
+| CPU, all napping (10 fps) | Dev PC, 10 min | ≤ 5% of one core (decided 2026-10-21) |
+| 25 critters (the cap) | Dev PC, 2 min | ≥ 25 fps, no errors |
 | GDI objects after 8 h default play | VM | ≤ 2,000 and not climbing linearly with arrivals |
 | USER objects, threads, child processes | VM, 8 h | flat after hour 1 |
 | Working set | VM, 8 h | hour 8 ≤ hour 1 + 15% |

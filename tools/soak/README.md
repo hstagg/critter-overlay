@@ -29,12 +29,12 @@ printed as measured, threshold, PASS or FAIL.
 
 | Row | Where | Script | PASS when |
 |---|---|---|---|
-| Frame rate, 8 critters | Dev PC | `perf.ps1 -Row fps8` | the report's median fps >= 55 and p95 gap between frames <= 20 ms (2 min, the first 20% skipped) |
+| Frame rate, 8 critters | Dev PC | `perf.ps1 -Row fps8` | the report's median fps >= 28 and p95 gap between frames <= 40 ms (critters run at 30 fps; 2 min, the first 20% skipped) |
 | CPU, 8 active | Dev PC | `perf.ps1 -Row cpu8` | CPU seconds over wall seconds, after the first minute, <= 25% of a core (10 min) |
 | CPU while paused | Dev PC | `perf.ps1 -Row paused` | as above, <= 3%, and the report says paused (Ctrl+Shift+P pressed at 20 s) |
 | CPU behind a full-screen app | Dev PC | `perf.ps1 -Row fullscreen` | <= 3%, and the report says hidden (a black full-screen window from 20 s) |
-| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 3%, and at the end the report says away with every critter napping |
-| 25 critters | Dev PC | `perf.ps1 -Row cap25` | median fps >= 30 and no `ERROR:` or `SCRIPT ERROR` in the run's `godot.log` |
+| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 5%, and at the end the report says away with every critter napping |
+| 25 critters | Dev PC | `perf.ps1 -Row cap25` | median fps >= 25 and no `ERROR:` or `SCRIPT ERROR` in the run's `godot.log` |
 | GDI objects | VM, 8 h | `judge.ps1` (gdi) | <= 2,000 at the end, and flat after hour 1 |
 | USER objects, threads, children | VM, 8 h | `judge.ps1` (user) | each flat after hour 1 |
 | Working set | VM, 8 h | `judge.ps1` (memory) | end <= hour 1 + 15% |
