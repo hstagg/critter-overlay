@@ -21,7 +21,8 @@ param(
     [Parameter(Mandatory)][string]$Exe,
     [ValidateSet("fps8", "cpu8", "paused", "fullscreen", "napping", "cap25", "all")][string]$Row = "all",
     [string]$Out = (Join-Path ([IO.Path]::GetTempPath()) "critter-perf"),
-    [int]$Minutes = 10          # the CPU rows' length; the first minute is not counted
+    [int]$Minutes = 10,         # the CPU rows' length; the first minute is not counted
+    [string]$Extra = ""         # more flags for every run, e.g. '--set=system.detail:"simple"'
 )
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force $Out | Out-Null
@@ -45,7 +46,7 @@ function Run-Game([string]$Name, [int]$Seconds, [string]$Extra, [string]$Poke = 
     $report = Join-Path $Out "$Name.report.json"
     $save = Join-Path $Out "$Name.economy.json"
     Remove-Item $report, $save, (Join-Path $Out "$Name.godot.log") -ErrorAction SilentlyContinue
-    $a = "-- --seconds=$Seconds --report=`"$report`" --settings=`"$settings`" --save=`"$save`" $Extra"
+    $a = "-- --seconds=$Seconds --report=`"$report`" --settings=`"$settings`" --save=`"$save`" $Extra $script:Extra"
     $p = Start-Process -FilePath $Exe -ArgumentList $a -PassThru `
         -RedirectStandardOutput (Join-Path $Out "$Name.out.txt") -RedirectStandardError (Join-Path $Out "$Name.err.txt")
     $h = $p.Handle   # keep a handle so ExitCode is readable afterwards

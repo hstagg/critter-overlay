@@ -1,216 +1,92 @@
 # Critter Overlay
 
-Adorable cartoon animals that wander across your screen. They have personalities, react to each other, slow down at night, and occasionally show up as rare glowing variants. Click them to pop them. Import your own.
+Small companions for long days. Critters wander your Windows desktop while you
+work: they arrive as you keep at it, nap when you step away and wake when you
+come back. Meet them all in your Collection, earn berries for your focus time,
+and dress them up.
 
----
+Windows 10 or 11.
 
-## For end users
+## Install
 
-You need Python installed (any 3.8+ from [python.org](https://www.python.org/downloads/) — tick "Add Python to PATH" if installing fresh).
+1. Download **CritterOverlaySetup-&lt;version&gt;.exe** from the
+   [latest release](https://github.com/hstagg/critter-overlay/releases/latest).
+2. Open it. The installer isn't signed yet, so Windows may show "Windows
+   protected your PC": choose **More info**, then **Run anyway**.
+3. Accept the licence and choose **Install**. Critter Overlay starts when
+   it's done, and a short welcome shows you around.
 
-1. **Double-click `Critter Overlay v*.pyzw`.**
-2. First launch only: a small dark window appears for 20-40s while it sets itself up. It closes on its own.
-3. Critter Overlay opens. Done.
+**Coming from v2.0?** Install straight over it: no need to uninstall first.
+If v2.0 is running, the installer closes it. Your settings and the critters
+you'd seen in v2.0 come with you. Custom critters made in v2.0 are kept safe
+on your PC, but don't appear in v3 yet; they'll come back in a later update.
 
-That's the entire install. No batch files, no folders to extract, nothing to configure. Every subsequent launch is silent.
+## Using it
 
-The app installs into an isolated environment at `%APPDATA%\CritterOverlay\venv` so it doesn't touch your system Python or any other projects. To uninstall completely, delete that folder and the .pyzw file.
+- **Critters** walk in from the sides while you work, up to the number you
+  choose. Click one to pop it; drag one to pick it up; fling it to throw it.
+- **Pause** with **Ctrl+Shift+P** (change it in Settings › System), or from the
+  tray icon. Critters hide while a full-screen game, film or presentation has
+  the screen.
+- **The tray icon** (bottom right, by the clock): click it for a panel with
+  who's out, your berries, the next gift, Spawn, Pause, Settings and Quit.
+  Double-click it for Settings.
+- **Berries** come from focus time. Spend them in the Shop on clothes, dyes,
+  treats and showpieces (beds for napping critters), or on **Spawn now**.
+- **The Collection** records every critter you meet: Common, Rare and Epic,
+  plus the Legendary visitors, which stay secret until you meet them.
+- **Rare Hour**: once a day, for an hour you pick, rarer critters turn up more
+  often.
 
-### Keyboard shortcuts
+Everything is in **Settings**: Home, Critters, Focus, World, Sound,
+Collection, Shop and System.
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl+Shift+P` | Pause / resume spawning |
+## Privacy
 
-Right-click the paw icon in the system tray for Settings, Spawn Now, Pause/Resume, Quit.
+Critter Overlay keeps everything on your computer. To tell when you're
+working, it checks how long it's been since your last key press or mouse
+movement; it never records which keys you press, what you type or where you
+click. Once a day it asks GitHub whether there's a newer version, and when
+there is, downloads it (Settings › System › Updates: download, only tell
+you, or never check). Nothing about you or your critters is sent.
 
----
+## Updates
 
-## For the developer
+New versions install themselves with one click: a note appears when one is
+ready. You can also check from Settings › System.
 
-### Project layout
+## Uninstall
 
-```
-Critter Overlay App/
-├── __main__.py              Bootstrapper: detects/builds venv, then launches the app
-├── src/
-│   ├── main.py              Entry point: tray icon, hotkeys, single-instance check
-│   ├── config.py            JSON settings stored at %APPDATA%\CritterOverlay
-│   ├── overlay.py           Pygame transparent window + render loop + DROPFILE handler
-│   ├── events.py            Thread-safe event dispatch (pause, config, spawn, file-drop)
-│   ├── animals.py           8 built-in animal classes + particle system + aura hook
-│   ├── animals_custom.py    CustomAnimal class — locomotion, rarity, aura
-│   ├── spawn_manager.py     Weighted spawn pool, rarity tier rolls, behaviour triggers
-│   ├── rarity.py            Tier enum, distribution roll, per-tier modifier dataclass
-│   ├── auras.py             4 aura render functions (uncommon → legendary)
-│   ├── locomotion.py        9 locomotion profiles (classic, hop, dart, waddle, ...)
-│   ├── behaviours.py        40+ named behaviours with trigger logic
-│   ├── time_of_day.py       Day/night activity scalar (6 time buckets)
-│   ├── settings_window.py   Tkinter settings UI (4 tabs: Critters, Behaviour, Audio, System)
-│   ├── preview_renderer.py  pygame→PIL animated preview frames for settings UI
-│   ├── sounds.py            Procedural sound synthesis, 14 preset profiles
-│   └── custom_critters/
-│       ├── registry.py      Runtime store of loaded custom critter frames + masks
-│       ├── storage.py       Disk layout, meta.json v2 I/O, ID generation, migration
-│       ├── import_pipeline.py  Import flow: validate → bg remove → animate → mask → write
-│       ├── sharing.py       .critter zip export / import / validation / bulk export
-│       ├── bg_removal.py    Corner flood-fill background removal
-│       ├── procedural.py    Walk-cycle generator (bob + lean + stride shear)
-│       ├── masks.py         Alpha-mask generation and numpy dilation
-│       └── palette.py       Dominant-colour extraction
-├── requirements.txt
-├── README.md
-└── Archive/                 Old builds
-```
+Settings › Apps › Installed apps › Critter Overlay › Uninstall. It asks
+whether to delete your Collection, berries and settings too; the default
+keeps them, so a reinstall picks up where you left off.
 
-### Running from source
+## Something wrong?
 
-```
-pip install -r requirements.txt
-python src/main.py
-```
+See [Troubleshooting](docs/TROUBLESHOOTING.md). For a bug report, Settings ›
+System › Help › **Copy diagnostics** puts what's needed on your clipboard
+(your version, screens, settings and the recent log). Nothing is sent
+anywhere unless you paste it into a message.
 
-### Building a release
+## For developers
 
-```
-.\release.ps1 -Version 2.0.0 -Title "a living desktop" -NotesFile release-notes-v2.0.md
-```
+v3 is a [Godot 4.7](https://godotengine.org) project in `godot/`, with a
+small C++ GDExtension for the Windows calls Godot can't make in `native/`.
 
-The script: validates inputs → checks git is clean on main → bumps `src/version.py` → builds the installer → commits, pushes, creates the GitHub release.
-
----
-
-## Animals
-
-| Animal | Default weight | Locomotion | Rarity cap |
-|---|---|---|---|
-| 🐱 Kitten | 3× | pounce-pause | legendary |
-| 🐢 Turtle | 1× | plod | epic |
-| 🦆 Duck | 1× | waddle | legendary |
-| 🐰 Rabbit | 1× | hop | legendary |
-| 🦔 Hedgehog | 1× | snuffle | legendary |
-| 🐿️ Squirrel | 1× | dart-freeze | legendary |
-| 🦦 Otter | 1× | slide | legendary |
-| 🐼 Panda | 1× | lumber | epic |
-
----
-
-## Living world
-
-Each species moves with a characteristic locomotion profile. The kitten punctuates walks with pounce-pauses; the rabbit hops in arcs; the otter occasionally belly-slides; the squirrel darts and freezes. You can tell the species apart from movement alone with your eyes half-closed.
-
-**Behaviours** fire based on state and proximity: napping, grooming, playing, pair-interactions (sniffing, following, near-miss chases, splashing). Over a 30-minute session, 15+ distinct behaviours will fire without any input.
-
-**Day/night cycle** reads the system clock. Activity, spawn rate, and idle bias shift across six time buckets. No visual changes — no tint, no colour shift — just pace and frequency.
-
-All three systems have on/off toggles in Settings → Behaviour. Setting `behaviour_frequency` to 0 reduces critters to pure locomotion.
-
----
-
-## Rarity
-
-Every critter that spawns is assigned a rarity tier:
-
-| Tier | Default odds | Visual |
-|---|---|---|
-| Common | 90% | no aura |
-| Uncommon | 7% | soft shimmer |
-| Rare | 2% | glowing outline |
-| Epic | 0.9% | pulsing halo |
-| Legendary | 0.1% | full corona |
-
-**Rare hour** (default 9 PM–10 PM) doubles rare+ odds. **First spawn of the day** also gets a boosted roll. Both can be configured or disabled.
-
-Per-species `rarity_min` / `rarity_max` constrain the range — turtles and pandas cap at epic by default. The Seen Log in Settings → System records every rare+ sighting.
-
----
-
-## .critter sharing
-
-Custom critters can be exported and shared as `.critter` files — standard ZIPs with a defined layout:
-
-```
-mycritter.critter
-├── meta.json       name, author, license, personality settings
-├── manifest.json   content hash, min app version
-├── frames/         frame_0.png ... frame_N.png
-├── masks/          (optional — regenerated on import if absent)
-├── sounds/         (optional)
-├── source/         (optional — original image for re-import)
-└── thumb.png       (optional)
+```powershell
+godot --path godot                    # run from source
+godot --path godot -- --admin         # with the Admin page
+.\run-tests.ps1                       # the headless tests (-Native adds the DLL's)
+.\build-v3.ps1 -Version 3.0.0         # the player installer, in installer\output
 ```
 
-**Export** — Settings → Critters → Export button on any custom critter card, or "Export all" to write everything to a folder at once.
+Building needs Godot 4.7 with its export templates, Inno Setup 6 and rcedit;
+the native DLL is described in [native/README.md](native/README.md). The
+plan for v3.0 is [docs/v3-launch-plan.md](docs/v3-launch-plan.md), and the
+soak and measuring tools are in [tools/soak](tools/soak/README.md). v1 and
+v2 (the Python app) are kept at the tag `v2-final`.
 
-**Import** — Settings → Critters → "Import .critter", or drag-and-drop a `.critter` file directly onto the overlay window. A confirm dialog shows the name, author, and license before anything is written to disk.
+## Licence
 
-**Validation** — packages are checked before extraction: size ≤ 50 MB, file count ≤ 100, per-file ≤ 10 MB, allowed extensions only (`.png .json .wav .txt .md`), no path traversal, frame dimensions within 10% of declared size, `.wav` files ≤ 2 MB.
-
----
-
-## Settings
-
-Right-click the tray paw → Settings. All changes save immediately.
-
-- **Critters** — built-in species (toggle, spawn weight, personality) and custom critters (inline controls: size, speed, activity level, animation trail, sound) in one scrollable list. Import and export from the top button row.
-- **Behaviour** — spawning frequency and group size; living world toggles (day/night, behaviour frequency, pair interactions); rarity distribution, rare hour, and first-spawn-of-day bonus.
-- **Audio** — master toggle, volume, and per-species sound toggle with preview button.
-- **System** — auto-launch on startup, hotkey reference, Seen Log (all rare+ sightings colour-coded by tier).
-
-### Custom critters
-
-Three import modes in Settings → Critters:
-
-**Import image** — single PNG, JPG, or animated GIF. Background is removed automatically (transparent PNGs used as-is). A preview of the processed critter appears before anything is written to disk — accept or cancel.
-
-**Import frames** — 2–8 hand-drawn PNG frames in walk-cycle order. Frames are used directly.
-
-**Import .critter** — install a shared `.critter` package. Confirm dialog shows metadata before install.
-
-Per-critter controls are always visible on each card:
-- **Size** — tiny / small / normal / large / huge
-- **Speed** — snail / slow / average / fast / rapid / supersonic
-- **Activity level** — narcoleptic / sleepy / lazy / normal / active / wired
-- **Animation trail** — none / dots / stars / sparkles / bubbles / glitter / hearts
-- **Sound** — choose from 14 preset profiles or upload a `.wav`; preview with ▶
-
-Custom critters inherit all built-in behaviour: elastic collision, perimeter walking, idle pauses, drag, throw, pop, particle burst, sound, rarity auras, day/night scaling. They live in `%APPDATA%\CritterOverlay\custom\`.
-
-### Critter physics
-
-All critters interact physically. Elastic equal-mass collisions — throw one at a group and they scatter. A thrown critter that hits another transfers momentum; the hit critter coasts before resuming normal walking.
-
----
-
-## Upgrading from v1
-
-Settings and custom critters from v1 are preserved automatically. The v2 config loader deep-merges with new defaults so no existing keys are overwritten. v1 custom critters auto-migrate to schema v2 in memory on first load; the folder on disk is only updated when you next change a setting for that critter.
-
-The first-run welcome modal fires once on upgrade (because `first_run_completed` was absent in v1 configs) and not again.
-
----
-
-## Troubleshooting
-
-**Setup window says install failed.** Almost always a network issue — pip couldn't reach PyPI. Check connection and double-click again. The .pyzw is safe to relaunch.
-
-**Tray hotkey (Ctrl+Shift+P) doesn't fire.** Some security software blocks global keyboard hooks. Run as administrator once to confirm.
-
-**High CPU.** Settings → Behaviour → set behaviour frequency lower. Reduce max animals per spawn.
-
-**Magenta flash on screen.** Rare graphics glitch with the Win32 colour-key transparency layer. Quit and relaunch.
-
-**Start fresh.** Delete `%APPDATA%\CritterOverlay\` and relaunch — reinstalls cleanly, all settings reset.
-
----
-
-## Technical notes
-
-- **Transparency**: Win32 `SetLayeredWindowAttributes` with magenta `(255, 0, 255)` colour key. Magenta pixels are click-through; animal pixels are visible and clickable.
-- **No taskbar entry**: `WS_EX_TOOLWINDOW` extended style.
-- **Always on top**: `SetWindowPos(HWND_TOPMOST, ...)`.
-- **Sounds**: 14 pre-generated WAV profiles bundled with the installer. Numpy synthesis fallback when running from source.
-- **Settings UI**: Tkinter in a daemon thread, sv-ttk dark theme, 4-tab layout.
-- **Single instance**: Windows named mutex `CritterOverlayMutex_v1`.
-- **Config**: JSON at `%APPDATA%\CritterOverlay\settings.json`. Deep-merged with defaults on load; unknown keys preserved.
-- **Custom critter storage**: `%APPDATA%\CritterOverlay\custom\<slug>-<hash6>\` — self-contained folders, safe to back up or delete manually.
+Free for personal, non-commercial use: see [installer/license.txt](installer/license.txt).
+Third-party components: [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).

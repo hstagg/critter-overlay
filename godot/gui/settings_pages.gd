@@ -1543,4 +1543,5 @@ func _credits() -> String:
 			out += "  %s (%s)\n" % [", ".join(part.copyright), part.license]
 	for f in ["Fredoka", "Nunito"]:
 		out += "\n\n%s font\n\n%s" % [f, FileAccess.get_file_as_string("res://fonts/%s-OFL.txt" % f)]
+	out += "\n\ngodot-cpp (in the Windows helper, critter_native.dll)\n\n%s" % FileAccess.get_file_as_string("res://licenses/godot-cpp.txt")
 	return out

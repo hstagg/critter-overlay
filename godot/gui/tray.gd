@@ -60,12 +60,14 @@ func update(new_info: Dictionary) -> void:
 
 
 func _tooltip() -> String:
+	# With the version, so a tester can tell builds apart at a glance.
+	var name := "Critter Overlay %s" % info.get("version", "")
 	match info.mode:
 		"paused":
-			return "Critter Overlay · paused"
+			return "%s · paused" % name
 		"napping":
-			return "Critter Overlay · napping"
-	return "Critter Overlay · %d critter%s out" % [info.out, "" if info.out == 1 else "s"]
+			return "%s · napping" % name
+	return "%s · %d critter%s out" % [name, info.out, "" if info.out == 1 else "s"]
 
 
 func _refresh_icon() -> void:

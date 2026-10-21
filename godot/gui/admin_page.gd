@@ -104,6 +104,8 @@ func checks() -> Array:
 		["The app", "saves", "Saves survive damage", "Quit, put junk in economy.json, start again: the Collection comes back from the .bak and the junk is kept as economy.json.corrupt-<time>.", ""],
 		["The app", "v2", "Your v2.0 settings carried over", "Rare Hour, behaviour frequency, size, trails, and the old Seen Log in the Collection.", ""],
 		["The app", "install", "Installer and update check", "Install over the old copy; System > Check for updates.", ""],
+		["The app", "build", "Telling builds apart", "The tray icon's tooltip, About and the sidebar show the full version (3.0.0); the installer's name carries it too. Copy diagnostics shows arrivals and arrivals an hour.", "open:system"],
+		["The app", "credits", "Credits and notices", "System > About > Credits and licences lists Godot and its components, both fonts and godot-cpp. THIRD-PARTY-NOTICES.txt sits beside the installed exe.", "open:system"],
 	]
 	return out
 

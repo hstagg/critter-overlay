@@ -118,6 +118,7 @@ var zoom_flag := false        # --zoom, over the size setting
 var focus_s := 0.0            # focus seconds this run (gathering, solo walkers)
 var next_arrival := 0.0
 var wall_s := 0.0             # seconds this run, not paused (timer arrivals)
+var arrivals := 0             # this run, for the diagnostics
 var next_group := 0.0
 var next_solo := 0.0
 var tidied := false           # everyone went home during a long break
@@ -376,6 +377,7 @@ func _ready() -> void:
 		var seen = (v2 if not v2.is_empty() else _v2_settings()).get("rarity", {}).get("seen_log", {})
 		if typeof(seen) == TYPE_DICTIONARY and not seen.is_empty():
 			economy.import_v2_seen(seen)
+			economy.save()   # now, before the flag below can be saved without it
 			settings.set_value("system.v2_seen_done", true)
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(_on_gift)
@@ -855,6 +857,7 @@ func _pace_frames() -> void:
 
 
 func _arrive() -> void:
+	arrivals += 1
 	# A newcomer: a roamer walks in from a side.
 	var from_left := randf() < 0.5
 	var x := area.position.x - 80.0 if from_left else area.end.x + 80.0
@@ -1822,7 +1825,7 @@ func _update_tray() -> void:
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
 	var counts := collection_counts()
-	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
+	tray.update({"version": VERSION, "mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
@@ -1900,8 +1903,9 @@ func diagnostics() -> String:
 		"Now %s, running %d min | %d critters out | %s | presence from %s | windows made %d, used again %d" % [Time.get_datetime_string_from_system(),
 			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source,
 			win_pool.made + toasts.pool.made, win_pool.reused + toasts.pool.reused],
-		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f" % [economy.berries,
-			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked],
+		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f | arrivals %d (%.1f an hour)" % [economy.berries,
+			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked,
+			arrivals, arrivals / maxf(t / 3600.0, 1.0 / 60.0)],
 		"", "Settings:", JSON.stringify(settings.data, " "), "", "Log, most recent last:"])
 	var log := FileAccess.get_file_as_string("user://logs/godot.log").split("
 ")

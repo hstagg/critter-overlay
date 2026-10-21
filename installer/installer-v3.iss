@@ -17,7 +17,8 @@
 ; went through or not, so nobody is left without their critters. An update
 ; also moves the old files aside first and puts them back if it fails part
 ; way (see PrepareToInstall). A manual install behaves as before. Any
-; install first closes a running v2.0 (CloseV2), which nothing else would.
+; install first closes a running v2.0, and an uninstall a running copy of
+; either (CloseRunning), which nothing else would.
 
 #define MyAppName "Critter Overlay"
 #define MyAppPublisher "hstagg"
@@ -71,6 +72,7 @@ Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "..\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -134,32 +136,38 @@ begin
   DelTree(BackupDir(), True, True, True);
 end;
 
-// v2.0 (the Python app) holds its own mutex, so nothing above waits for it,
-// and it minimises when asked to close, so Restart Manager may not shut it
-// either. Left running, it keeps its files locked and runs beside v3. So it
-// is asked to close, and ended if it is still there after 3 s. v2.0 writes
-// its settings as they change; only sightings since the last change are at
-// risk, as in any v2.0 exit.
-procedure CloseV2();
+// Closes a running copy, found by its single-instance mutex: asked to close
+// (taskkill without /F, which v3 answers by saving and quitting), then ended
+// if it still holds the mutex after GraceMs.
+//
+// Installing closes v2.0 (the Python app). Its mutex is not v3's, so nothing
+// else waits for it, and it minimises when asked to close, so Restart Manager
+// may not shut it either: left running, it keeps its files locked and runs
+// beside v3. v2.0 writes its settings as they change; only sightings since
+// the last change are at risk, as in any v2.0 exit.
+//
+// Uninstalling closes v3 too: the uninstaller does not, and a running copy
+// keeps its exe locked until the next restart.
+procedure CloseRunning(Mutex, What: String; GraceMs: Integer);
 var
   Code, Waited: Integer;
 begin
-  if not CheckForMutexes('CritterOverlayMutex_v1') then
+  if not CheckForMutexes(Mutex) then
     Exit;
-  Log('Critter Overlay v2.0 is running: closing it.');
+  Log(What + ' is running: closing it.');
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Waited := 0;
-  while CheckForMutexes('CritterOverlayMutex_v1') and (Waited < 3000) do
+  while CheckForMutexes(Mutex) and (Waited < GraceMs) do
   begin
     Sleep(250);
     Waited := Waited + 250;
   end;
-  if CheckForMutexes('CritterOverlayMutex_v1') then
+  if CheckForMutexes(Mutex) then
   begin
-    Log('v2.0 did not close: ending it.');
+    Log(What + ' did not close: ending it.');
     Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
     Waited := 0;
-    while CheckForMutexes('CritterOverlayMutex_v1') and (Waited < 5000) do
+    while CheckForMutexes(Mutex) and (Waited < 5000) do
     begin
       Sleep(250);
       Waited := Waited + 250;
@@ -174,7 +182,7 @@ var
   I, N: Integer;
 begin
   Result := '';
-  CloseV2();
+  CloseRunning('CritterOverlayMutex_v1', 'Critter Overlay v2.0', 3000);
   if not Updating then
     Exit;
   N := 0;
@@ -235,12 +243,16 @@ end;
 
 function InitializeUninstall(): Boolean;
 begin
-  ShouldDeleteAppData := MsgBox(
+  // Suppressible, so a silent uninstall (/SUPPRESSMSGBOXES) keeps the data
+  // instead of stopping to ask.
+  ShouldDeleteAppData := SuppressibleMsgBox(
     'Do you also want to delete your critters'' Collection, berries, clothes and settings?' + #13#10 +
     'YES - remove everything.' + #13#10 +
     'NO  - keep it, so a reinstall picks up where you left off.' + #13#10 +
     'The default is NO.',
-    mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES;
+  CloseRunning('CritterOverlay.v3', 'Critter Overlay', 5000);
+  CloseRunning('CritterOverlayMutex_v1', 'Critter Overlay v2.0', 3000);
   Result := True;
 end;
 

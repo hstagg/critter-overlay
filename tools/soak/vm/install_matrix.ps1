@@ -37,6 +37,7 @@ function Say([string]$row, [bool]$ok, [string]$detail) {
 
 function Entries {
     # Apps & features entries for Critter Overlay, per-user and per-machine.
+    # (Callers wrap it in @(): PowerShell 5.1 gives one object no .Count.)
     @(Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
@@ -86,6 +87,20 @@ function Close-App {
     Wait-Gone 5
 }
 
+function Seed-V2 {
+    # A used v2.0's settings, as v2.0 writes them when a setting changes (a
+    # v2.0 never changed has none, and nothing to import): a few settings and
+    # a Seen Log.
+    New-Item -ItemType Directory -Force $v2Data | Out-Null
+    '{"visual": {"animal_size": 100, "opacity": 90}, "audio": {"sound_enabled": false, "volume": 30},
+ "behaviour": {"day_night_enabled": true, "behaviour_frequency": 2.0, "interactions_enabled": true},
+ "rarity": {"enabled": true, "rare_hour": {"enabled": true, "start_hour": 16, "duration_minutes": 60, "rare_tier_boost": 2.0},
+  "seen_log_enabled": true, "seen_log": {"cat": {"common": 5, "rare": 1}, "duck": {"common": 2}}},
+ "system": {"auto_launch": true},
+ "animals": {"cat": {"enabled": true, "weight": 1.0}, "duck": {"enabled": true, "weight": 2.0}}}' |
+        Out-File (Join-Path $v2Data "settings.json") -Encoding ascii
+}
+
 function V3-Settings {
     $f = Join-Path $v3Data "settings.json"
     if (Test-Path $f) { Get-Content $f -Raw | ConvertFrom-Json } else { $null }
@@ -98,13 +113,14 @@ foreach ($row in $Rows.Split(",").Trim()) {
             Close-App; Uninstall-All
             Remove-Item -Recurse -Force $v3Data, $v2Data -ErrorAction SilentlyContinue
             $r2 = Run-Setup "CritterOverlaySetup-2.0.0.exe" "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER" "v2user-v2"
+            Seed-V2
             $dir = AppDir
             $null = Start-App (Join-Path $dir "CritterOverlay.exe") 20
             $v2Up = (Running).Count -gt 0
             $r3 = Run-Setup $V3 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" "v2user-v3"
             Wait-Gone 10
             $left = (Running).Count
-            $es = Entries
+            $es = @(Entries)
             $closed = (Select-String $r3[1] -Pattern "v2.0 is running: closing it" -Quiet)
             $ver = (Get-Item (Join-Path $dir "CritterOverlay.exe")).VersionInfo.FileVersion
             $ok = $r2[0] -eq 0 -and $v2Up -and $r3[0] -eq 0 -and $closed -and $left -eq 0 -and $es.Count -eq 1 -and
@@ -116,15 +132,18 @@ foreach ($row in $Rows.Split(",").Trim()) {
             Close-App
             $s = V3-Settings
             $run = (Get-ItemProperty $runKey -ErrorAction SilentlyContinue).CritterOverlay
-            $ok = $s -and $s.system.from_v2 -eq $true -and (Test-Path (Join-Path $v3Data "economy.json"))
-            Say "v2import" $ok ("settings from_v2 {0}, economy.json {1}, startup entry '{2}'" -f $s.system.from_v2, (Test-Path (Join-Path $v3Data "economy.json")), $run)
+            $econ = Join-Path $v3Data "economy.json"
+            $seen = (Test-Path $econ) -and (Get-Content $econ -Raw) -match '"kitten'
+            $ok = $s -and $s.system.from_v2 -eq $true -and $s.system.v2_seen_done -eq $true -and $seen -and $s.critters.size -eq 100
+            Say "v2import" $ok ("settings from_v2 {0}, Seen Log done {1}, kitten in the Collection {2}, size {3}, startup entry '{4}'" -f
+                $s.system.from_v2, $s.system.v2_seen_done, $seen, $s.critters.size, $run)
         }
         "reinstall" {
             $dir = AppDir
             $null = Start-App (Join-Path $dir "CritterOverlay.exe") 20
             $r = Run-Setup $V3 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" "reinstall"
             Wait-Gone 10
-            $es = Entries
+            $es = @(Entries)
             $ok = $r[0] -eq 0 -and $es.Count -eq 1 -and (Test-Path (Join-Path $dir "CritterOverlay.exe")) -and (V3-Settings).system.from_v2 -eq $true
             Say $row $ok ("setup {0}, entries {1}, left running {2}, settings kept {3}" -f $r[0], $es.Count, (Running).Count, (V3-Settings).system.from_v2)
         }
@@ -134,24 +153,24 @@ foreach ($row in $Rows.Split(",").Trim()) {
             Uninstall-All
             Wait-Gone 10
             $run = (Get-ItemProperty $runKey -ErrorAction SilentlyContinue).CritterOverlay
-            $ok = (Entries).Count -eq 0 -and -not (Test-Path (Join-Path $dir "CritterOverlay.exe")) -and (Running).Count -eq 0 -and
+            $ok = @(Entries).Count -eq 0 -and -not (Test-Path (Join-Path $dir "CritterOverlay.exe")) -and (Running).Count -eq 0 -and
                 (Test-Path (Join-Path $v3Data "settings.json")) -and -not $run
-            Say $row $ok ("entries {0}, exe left {1}, running {2}, data kept {3}, startup entry '{4}'" -f (Entries).Count,
+            Say $row $ok ("entries {0}, exe left {1}, running {2}, data kept {3}, startup entry '{4}'" -f @(Entries).Count,
                 (Test-Path (Join-Path $dir "CritterOverlay.exe")), (Running).Count, (Test-Path (Join-Path $v3Data "settings.json")), $run)
         }
         "keepdata" {
             $r = Run-Setup $V3 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" "keepdata"
             $null = Start-App (Join-Path (AppDir) "CritterOverlay.exe") 25
             Close-App
-            $ok = $r[0] -eq 0 -and (Entries).Count -eq 1 -and (V3-Settings).system.from_v2 -eq $true
-            Say $row $ok ("setup {0}, entries {1}, earlier settings picked up {2}" -f $r[0], (Entries).Count, (V3-Settings).system.from_v2)
+            $ok = $r[0] -eq 0 -and @(Entries).Count -eq 1 -and (V3-Settings).system.from_v2 -eq $true
+            Say $row $ok ("setup {0}, entries {1}, earlier settings picked up {2}" -f $r[0], @(Entries).Count, (V3-Settings).system.from_v2)
         }
         "deletedata" {
             # Not /SUPPRESSMSGBOXES: the question is asked, and Y must be pressed.
             "deletedata: waiting for Y on the uninstaller's question" | Out-File $results -Append -Encoding utf8
             Uninstall-All "/SILENT"
-            $ok = (Entries).Count -eq 0 -and -not (Test-Path $v3Data) -and -not (Test-Path $v2Data)
-            Say $row $ok ("entries {0}, v3 data left {1}, v2 data left {2}" -f (Entries).Count, (Test-Path $v3Data), (Test-Path $v2Data))
+            $ok = @(Entries).Count -eq 0 -and -not (Test-Path $v3Data) -and -not (Test-Path $v2Data)
+            Say $row $ok ("entries {0}, v3 data left {1}, v2 data left {2}" -f @(Entries).Count, (Test-Path $v3Data), (Test-Path $v2Data))
         }
         "fresh" {
             Close-App; Uninstall-All
@@ -160,19 +179,20 @@ foreach ($row in $Rows.Split(",").Trim()) {
             $null = Start-App (Join-Path (AppDir) "CritterOverlay.exe") 25
             Close-App
             $s = V3-Settings
-            $ok = $r[0] -eq 0 -and (Entries).Count -eq 1 -and $s -and -not $s.system.from_v2
-            Say $row $ok ("setup {0}, entries {1}, settings written {2}, from_v2 {3}" -f $r[0], (Entries).Count, [bool]$s, $s.system.from_v2)
+            $ok = $r[0] -eq 0 -and @(Entries).Count -eq 1 -and $s -and -not $s.system.from_v2
+            Say $row $ok ("setup {0}, entries {1}, settings written {2}, from_v2 {3}" -f $r[0], @(Entries).Count, [bool]$s, $s.system.from_v2)
         }
         "v2machine" {
             Close-App; Uninstall-All
             Remove-Item -Recurse -Force $v3Data, $v2Data -ErrorAction SilentlyContinue
             $r2 = Run-Setup "CritterOverlaySetup-2.0.0.exe" "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS" "v2machine-v2"
+            Seed-V2
             $dir = AppDir
             $null = Start-App (Join-Path $dir "CritterOverlay.exe") 20
             $v2Up = (Running).Count -gt 0
             $r3 = Run-Setup $V3 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" "v2machine-v3"
             Wait-Gone 10
-            $es = Entries
+            $es = @(Entries)
             $ver = (Get-Item (Join-Path $dir "CritterOverlay.exe")).VersionInfo.FileVersion
             $ok = $r2[0] -eq 0 -and $v2Up -and $r3[0] -eq 0 -and (Running).Count -eq 0 -and $es.Count -eq 1 -and
                 $es[0].DisplayVersion -eq "3.0.0" -and $dir -like "*Program Files*" -and $ver -like "3.0.0*"
