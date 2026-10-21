@@ -95,9 +95,9 @@ function Seed-V2 {
     '{"visual": {"animal_size": 100, "opacity": 90}, "audio": {"sound_enabled": false, "volume": 30},
  "behaviour": {"day_night_enabled": true, "behaviour_frequency": 2.0, "interactions_enabled": true},
  "rarity": {"enabled": true, "rare_hour": {"enabled": true, "start_hour": 16, "duration_minutes": 60, "rare_tier_boost": 2.0},
-  "seen_log_enabled": true, "seen_log": {"cat": {"common": 5, "rare": 1}, "duck": {"common": 2}}},
+  "seen_log_enabled": true, "seen_log": {"kitten": {"common": 5, "rare": 1}, "duck": {"common": 2}}},
  "system": {"auto_launch": true},
- "animals": {"cat": {"enabled": true, "weight": 1.0}, "duck": {"enabled": true, "weight": 2.0}}}' |
+ "animals": {"kitten": {"enabled": true, "weight": 1.0}, "duck": {"enabled": true, "weight": 2.0}}}' |
         Out-File (Join-Path $v2Data "settings.json") -Encoding ascii
 }
 

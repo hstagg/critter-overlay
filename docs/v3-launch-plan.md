@@ -258,18 +258,77 @@ Findings along the way:
     each script can tell when its scenario didn't take. Checked for syntax.
     `judge.ps1` was also run on made-up soak output. None of them has run
     against the game yet.
-  - **Waiting on the VM** (all of Phase 5's measuring):
-    - S2: the Admin churn and a churn soak, GDI before and after (baseline
-      62 → 1,061 in 8 min); a pause and full-screen cycle does not add GDI
-      objects; nothing flashes mid-screen; pause still hides everyone.
-    - S4: lock/unlock, RDP connect and disconnect, a resolution change.
-    - S5: the 8 h soak on the current build; a `pktmon` capture during it
-      covers L3.
-    - S6: measure the first-arrival hitch (fix only if p99 > 50 ms).
-    - S8: working set with every species and version loaded.
-    - F12: feet visible with an auto-hidden taskbar.
-  - **Waiting on a slot the developer picks** (dev PC, sound off): fps and
-    CPU at 8, asleep, paused and 25; the 30-launch exit test.
+- **Phase 5, 2026-10-21** (VM back; Intel run on the dev PC at the
+  developer's word):
+  - S2 measured on the VM: 8 min of churn (472 pops, 465 spawns) made 25
+    windows in all, and GDI went 57 → 63. Before: 62 → 1,061. Pausing
+    parks everyone (VM screenshots before and after).
+  - Parked windows now stop drawing too, except the one pacing the frame.
+    The VM's paused run had used half a core in software rendering.
+  - Intel, dev PC (`perf.ps1`, release exe, sound off):
+
+    | Row | Measured | Threshold | |
+    |---|---|---|---|
+    | fps, 8 | median 60, p95 frame 16.7 ms | ≥ 55, ≤ 20 ms | PASS |
+    | CPU, 8 awake (60 fps) | 41% | ≤ 25% | FAIL |
+    | CPU, 8 awake, Animation detail Simple (30 fps) | 21.7% | ≤ 25% | PASS |
+    | CPU, paused | 3.0%, then 2.7% with parked windows not drawing | ≤ 3% | PASS |
+    | CPU, behind a full-screen app | 1.8% | ≤ 3% | PASS |
+    | CPU, all napping (20 fps) | 10.6%, 9.4% | ≤ 3% | FAIL |
+    | 25 critters | median 32 fps, no errors | ≥ 30 | PASS |
+
+    CPU follows the frame rate about linearly: each critter window is drawn
+    and presented every frame. Awake and napping need a decision (frame
+    caps, or the thresholds).
+  - S8: with all 34 looks loaded (`--soak-mode=looks`), texture memory tops
+    out at 174 MB, and static memory stays flat at 45 MB. The cache is
+    bounded by the number of looks, so no eviction is needed.
+  - S6 on the VM (debug build, software rendering): a wave of new looks
+    gives 125-150 ms frames. That says little about real hardware; a check
+    on the Intel PC is still open.
+  - F12: with the taskbar auto-hidden, feet sit at the bottom edge and are
+    visible.
+  - S4: lock/unlock and RDP need someone to sign in to the VM: left to the
+    developer.
+  - Harness fixes: the churn and throw modes top up berries (Spawn now
+    costs them), and `judge.ps1` ignores the VM's no-sound errors.
+- **Phase 6, 2026-10-21:**
+  - Installer (developer's choice: close a running v2.0, nothing else):
+    `CloseRunning` asks v2.0 to close, then ends it after 3 s. The K3 rows
+    found two more problems, now fixed:
+    - uninstalling while v3 ran left the exe locked and the app running, so
+      the uninstaller now closes v3 (and v2.0) first;
+    - the delete-data question ignored `/SUPPRESSMSGBOXES`, so a silent
+      uninstall stopped to ask. It is now suppressible, defaulting to No.
+  - Found by K3: after importing the v2.0 Seen Log, v3 marked it done
+    (settings, saved within a second) but saved the Collection only at the
+    next 60 s autosave. A hard exit in that minute lost the v2.0 history for
+    good. The economy is now saved straight after the import.
+  - K4 stays as it is (developer's choice): "delete data" also removes
+    v2.0's folder. It is on the known-issues list.
+  - K5: godot-cpp pinned at 10.0.0-stable. The release DLL depends only on
+    USER32, ADVAPI32, SHELL32 and KERNEL32.
+  - K6: CI exports the player pack and fails on any Admin script; it also
+    compiles the installer.
+  - K7, K8, K11 in `release.ps1`. K8's other half: `build-v3.ps1` wrote the
+    `.import` files with CRLF and left 1,300 changed. It now writes them
+    as committed, and a build leaves the tree clean.
+  - K9: the publisher stays `hstagg`. L2: no licence change (developer's
+    choice).
+  - L1: `THIRD-PARTY-NOTICES.txt` is installed beside the exe, and Credits
+    lists godot-cpp.
+  - L3: only `updater.gd` uses the network (code check).
+    `tools/soak/vm/net_check.ps1` records the installed app's connections.
+  - K3: `tools/soak/vm/install_matrix.ps1` (results below).
+  - K2 (VirusTotal) waits for the release candidate's installer.
+- **Phase 7, 2026-10-21** (no tester guide, by the developer's choice):
+  - R2 README rewritten for v3 (the in-app Help link opens it). R4
+    `docs/TROUBLESHOOTING.md`. R6 and T7 `release-notes-v3.0.md`, with the
+    known issues.
+  - T3: the version is in About, the sidebar, the tray tooltip and the
+    installer's name. T9: diagnostics show arrivals and arrivals per hour.
+  - The Phase 7 exit check (someone new installs and reports using only the
+    kit) will be the first tester.
 
 ## Phase 1: decisions and housekeeping
 

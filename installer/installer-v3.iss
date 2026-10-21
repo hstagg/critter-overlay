@@ -59,12 +59,22 @@ LicenseFile=license.txt
 CloseApplications=yes
 RestartApplications=no
 MinVersion=10.0
+; A new uninstall log, not v2.0's with v3 added on. v2.0's log ran the app at
+; uninstall ([UninstallRun]) and the uninstaller then waited for it to quit:
+; critters appeared and the uninstall hung. v2.0 installed nothing that v3
+; does not replace or delete itself (its _internal folder, below), except
+; perhaps a desktop shortcut, which [UninstallDelete] removes.
+UninstallLogMode=overwrite
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+
+[UninstallDelete]
+; v2.0's optional desktop shortcut, which the new uninstall log no longer lists.
+Type: files; Name: "{autodesktop}\{#MyAppName}.lnk"
 
 [InstallDelete]
 ; v2.0 was a PyInstaller build: its runtime folder is not part of v3.
