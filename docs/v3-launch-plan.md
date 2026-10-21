@@ -250,6 +250,14 @@ Findings along the way:
     props + 3 toasts + 8 spare + 3.
   - F13 (touch and pen as presence): no touch device to test, so it goes on
     the known-issues list.
+  - S1 built: a script for every threshold row (`tools/soak/README.md`,
+    "Phase 5 thresholds"). `perf.ps1` runs the dev-PC rows on the release
+    exe, `judge.ps1` judges an 8 h soak and the exit test, and
+    `sleep_check.ps1` covers sleep/resume. `--report` now carries the gaps
+    between frames and how the run ended (paused, hidden, away, napping), so
+    each script can tell when its scenario didn't take. Checked for syntax.
+    `judge.ps1` was also run on made-up soak output. None of them has run
+    against the game yet.
   - **Waiting on the VM** (all of Phase 5's measuring):
     - S2: the Admin churn and a churn soak, GDI before and after (baseline
       62 → 1,061 in 8 min); a pause and full-screen cycle does not add GDI
@@ -260,7 +268,6 @@ Findings along the way:
     - S6: measure the first-arrival hitch (fix only if p99 > 50 ms).
     - S8: working set with every species and version loaded.
     - F12: feet visible with an auto-hidden taskbar.
-    - S1: a script per threshold row (`tools/soak/`).
   - **Waiting on a slot the developer picks** (dev PC, sound off): fps and
     CPU at 8, asleep, paused and 25; the 30-launch exit test.
 
