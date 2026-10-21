@@ -173,6 +173,7 @@ var seconds := 0.0
 var report_path := ""
 var process_ms := []
 var fps := []
+var frame_gaps := []         # ms between frames, for --report (tools/soak/perf.ps1)
 var pops := 0
 var throws := 0
 var live_timer := 0.0
@@ -831,6 +832,7 @@ func _hand_on_vsync() -> void:
 			o.has_vsync = true
 			vsync_taken = true
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED, o.win.get_window_id())
+			WinPool.draw(o.win, true)   # a parked one too: it paces the frame now
 			return
 
 
@@ -1027,6 +1029,7 @@ func _process(delta: float) -> void:
 		# for as long as the app runs.
 		process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
 		fps.append(Engine.get_frames_per_second())
+		frame_gaps.append(delta * 1000.0)
 		live_timer -= delta
 		if live_timer <= 0.0:
 			live_timer = 0.5
@@ -1976,6 +1979,12 @@ func _write_report() -> void:
 		"seconds": t,
 		"fps": _stats(fps.slice(int(fps.size() * 0.2))),   # skip the warm-up
 		"frame_ms": _stats(process_ms),
+		"frame_gap_ms": _stats(frame_gaps.slice(int(frame_gaps.size() * 0.2))),
+		# How the run ended, so a measuring script knows its scenario took.
+		"paused": paused,
+		"hidden": busy_hidden,
+		"away": presence.away,
+		"napping": hosts.filter(func(h): return h.critter.is_napping()).size(),
 		"pops": pops,
 		"berries": economy.berries if economy != null else 0,
 		"collection": economy.collection.size() if economy != null else 0,

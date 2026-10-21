@@ -2,7 +2,7 @@ extends Node
 ## Soak monitor. Flags (after --, alongside main.gd's own):
 ##   --soak-log=PATH     JSON lines, one per --soak-every seconds
 ##   --soak-every=S      sample period (default 60)
-##   --soak-mode=M       soak | legend | churn | throw | specials | idle
+##   --soak-mode=M       soak | legend | churn | throw | specials | looks | idle
 ##   --soak-pid=PATH     write this process id here (for the external sampler)
 
 const Species := preload("res://species.gd")
@@ -21,6 +21,7 @@ var thrown_since := {}      # host instance id -> seconds in thrown/sliding
 var last_specials := {}
 var special_i := 0
 var started := false
+var looks := []             # looks mode: [species, tier, variant] still to bring in
 
 
 func _ready() -> void:
@@ -87,6 +88,17 @@ func _start_mode() -> void:
 		"legend":
 			for sp in ["unicorn", "golden_kitten", "unicorn", "golden_kitten"]:
 				main._spawn("roam", "walk", Vector2(-1, -1), sp)
+		"looks":
+			# Every look there is (S6 and S8): each species Common, Rare and
+			# Epic, and each visitor in every colour, brought in a wave at a
+			# time. The first arrival of each look draws its art.
+			for sp in Species.DATA:
+				if Species.is_special(sp):
+					for v in Species.variants(sp):
+						looks.append([sp, "legendary", v])
+				else:
+					for tier in ["common", "rare", "epic"]:
+						looks.append([sp, tier, ""])
 
 
 func _drive(delta: float) -> void:
@@ -138,6 +150,7 @@ func _drive(delta: float) -> void:
 				_bump("pop")
 			for i in 3:
 				if main.hosts.size() < 14:
+					_afford_spawn()
 					main.spawn_now()
 					_bump("spawn")
 		"throw":
@@ -145,8 +158,21 @@ func _drive(delta: float) -> void:
 			if live.size() >= 2:
 				_throw(live, randf_range(150.0, 4000.0))
 			if main.hosts.size() < 12:
+				_afford_spawn()
 				main.spawn_now()
 				_bump("spawn")
+		"looks":
+			# A wave of up to 12 every 20 s, the last wave leaving first.
+			next_act = 20.0
+			if looks.is_empty():
+				return
+			for h in main.hosts.duplicate():
+				if h.state == "live":
+					h.leave(true)
+			for i in mini(12, looks.size()):
+				var l: Array = looks.pop_front()
+				main._spawn("roam", "walk", Vector2(-1, -1), l[0], l[1], Species.version_for(l[0], l[1]), l[2])
+				_bump("look:%s:%s%s" % [l[0], l[1], ":" + l[2] if l[2] != "" else ""])
 		"specials":
 			next_act = 0.25
 			for h in main.hosts:
@@ -163,6 +189,13 @@ func _drive(delta: float) -> void:
 				k.start_behaviour(pick, main.evaluator.duration_of(pick))
 				last_specials[h.species] = last_specials.get(h.species, 0) + 1
 				_bump("act:" + pick)
+
+
+func _afford_spawn() -> void:
+	# Spawn now costs berries (game design rules, rule 2): top them up so the
+	# harness can keep refilling. The run's save is a throwaway one.
+	if main.economy.berries < 1000:
+		main.economy.berries = 1000
 
 
 func _throw(live: Array, speed: float) -> void:
@@ -248,6 +281,9 @@ func _sample() -> void:
 		"video_mb": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.01),
 		"tex_mb": snappedf(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, 0.01),
 		"windows": DisplayServer.get_window_list().size(),
+		"props": main.props.size(),
+		"spare_windows": main.win_pool.spare.size() + main.toasts.pool.spare.size(),
+		"windows_made": main.win_pool.made + main.toasts.pool.made,
 		"main_fps_len": main.fps.size(),
 		"main_ms_len": main.process_ms.size(),
 		"actions": actions.duplicate(),

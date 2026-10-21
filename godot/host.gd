@@ -190,13 +190,16 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 func show_window(on: bool) -> void:
 	# Paused, a full-screen app, or asleep inside the cottage: the window is
 	# parked off the screen rather than hidden (win_pool.gd says why), and
-	# what is drawn in it stops.
+	# what is in it stops. It stops drawing too, unless it is the window that
+	# paces the frame: then something still waits for vsync while everyone is
+	# parked and Settings is open.
 	parked = not on
 	if on:
 		win.position = at
 	else:
 		WinPool.park(win)
 	win.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+	WinPool.draw(win, on or has_vsync)
 
 
 func release_window() -> void:
