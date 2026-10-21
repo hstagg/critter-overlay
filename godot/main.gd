@@ -832,6 +832,7 @@ func _hand_on_vsync() -> void:
 			o.has_vsync = true
 			vsync_taken = true
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED, o.win.get_window_id())
+			WinPool.draw(o.win, true)   # a parked one too: it paces the frame now
 			return
 
 

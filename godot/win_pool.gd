@@ -53,7 +53,7 @@ func put_out(win: Window, at: Vector2i, vsync := false) -> void:
 	win.position = at
 	if not win.visible:
 		win.show()
-	RenderingServer.viewport_set_update_mode(win.get_viewport_rid(), RenderingServer.VIEWPORT_UPDATE_WHEN_VISIBLE)
+	draw(win, true)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED, win.get_window_id())
 
 
@@ -70,7 +70,7 @@ func give_back(win: Window) -> void:
 		win.queue_free()
 		return
 	park(win)
-	RenderingServer.viewport_set_update_mode(win.get_viewport_rid(), RenderingServer.VIEWPORT_UPDATE_DISABLED)
+	draw(win, false)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	DisplayServer.window_set_mouse_passthrough(PackedVector2Array(), win.get_window_id())
 	win.content_scale_factor = 1.0
@@ -81,3 +81,9 @@ func give_back(win: Window) -> void:
 static func park(win: Window) -> void:
 	# Out of sight without hiding it (hiding would destroy it).
 	win.position = AWAY
+
+
+static func draw(win: Window, on: bool) -> void:
+	# Whether the window is drawn each frame. A parked one need not be.
+	RenderingServer.viewport_set_update_mode(win.get_viewport_rid(),
+		RenderingServer.VIEWPORT_UPDATE_WHEN_VISIBLE if on else RenderingServer.VIEWPORT_UPDATE_DISABLED)

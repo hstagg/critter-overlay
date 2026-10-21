@@ -97,6 +97,7 @@ func show_window(on: bool) -> void:
 		win.position = at
 	else:
 		WinPool.park(win)
+	WinPool.draw(win, on)
 
 
 func _on_input(e: InputEvent) -> void:
