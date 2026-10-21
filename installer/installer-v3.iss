@@ -16,7 +16,8 @@
 ; its mutex. /RELAUNCH starts the app again afterwards, whether the install
 ; went through or not, so nobody is left without their critters. An update
 ; also moves the old files aside first and puts them back if it fails part
-; way (see PrepareToInstall). A manual install behaves as before.
+; way (see PrepareToInstall). A manual install behaves as before. Any
+; install first closes a running v2.0 (CloseV2), which nothing else would.
 
 #define MyAppName "Critter Overlay"
 #define MyAppPublisher "hstagg"
@@ -133,6 +134,39 @@ begin
   DelTree(BackupDir(), True, True, True);
 end;
 
+// v2.0 (the Python app) holds its own mutex, so nothing above waits for it,
+// and it minimises when asked to close, so Restart Manager may not shut it
+// either. Left running, it keeps its files locked and runs beside v3. So it
+// is asked to close, and ended if it is still there after 3 s. v2.0 writes
+// its settings as they change; only sightings since the last change are at
+// risk, as in any v2.0 exit.
+procedure CloseV2();
+var
+  Code, Waited: Integer;
+begin
+  if not CheckForMutexes('CritterOverlayMutex_v1') then
+    Exit;
+  Log('Critter Overlay v2.0 is running: closing it.');
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Waited := 0;
+  while CheckForMutexes('CritterOverlayMutex_v1') and (Waited < 3000) do
+  begin
+    Sleep(250);
+    Waited := Waited + 250;
+  end;
+  if CheckForMutexes('CritterOverlayMutex_v1') then
+  begin
+    Log('v2.0 did not close: ending it.');
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Waited := 0;
+    while CheckForMutexes('CritterOverlayMutex_v1') and (Waited < 5000) do
+    begin
+      Sleep(250);
+      Waited := Waited + 250;
+    end;
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   FindRec: TFindRec;
@@ -140,6 +174,7 @@ var
   I, N: Integer;
 begin
   Result := '';
+  CloseV2();
   if not Updating then
     Exit;
   N := 0;
