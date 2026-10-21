@@ -814,6 +814,38 @@ func _pick_species(tier := "common") -> String:
 
 func _on_gone(h) -> void:
 	hosts.erase(h)
+	if h.has_vsync:
+		_hand_on_vsync()
+
+
+func _hand_on_vsync() -> void:
+	# The window that paced the frame has gone: the next critter's does it,
+	# or the next one to arrive.
+	vsync_taken = false
+	for o in hosts:
+		if is_instance_valid(o) and o.win != null:
+			o.has_vsync = true
+			vsync_taken = true
+			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED, o.win.get_window_id())
+			return
+
+
+func _pace_frames() -> void:
+	# Fewer frames when there is little to see: nothing on screen (paused,
+	# hidden for a full-screen app, or nobody out) needs only enough for the
+	# tray and the shortcuts; everyone asleep needs only the slow breathing.
+	# Any of the app's own windows open: full speed.
+	var ui_open: bool = waiting_welcome or (settings_win != null and settings_win.visible) \
+		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
+	var cap := 0
+	if not ui_open and (paused or busy_hidden or hosts.is_empty()):
+		cap = 5
+	elif not ui_open and presence != null and presence.away:
+		cap = 20
+	elif settings.value("system.detail") == "simple":
+		cap = 30   # System > Animation detail > Simple: for slower computers
+	if Engine.max_fps != cap:
+		Engine.max_fps = cap
 
 
 func _arrive() -> void:
@@ -967,6 +999,7 @@ func _process(delta: float) -> void:
 		if busy_check <= 0.0:
 			busy_check = 1.0
 			_check_busy()
+			_pace_frames()
 			if not presence.away and not paused:
 				_bond_tick()
 		tray_in -= delta
@@ -1279,6 +1312,7 @@ func _set_paused(p: bool) -> void:
 	paused = p
 	_show_critters()
 	_update_tray()
+	_pace_frames()
 
 
 func _check_screen() -> void:
@@ -1591,6 +1625,7 @@ func start_over() -> void:
 	for h in hosts.duplicate():
 		hosts.erase(h)
 		h.queue_free()
+	vsync_taken = false   # the next critter's window paces the frame
 	economy.start_over()
 	settings.start_over()
 	reregister_shortcuts()
@@ -1743,6 +1778,8 @@ func _redraw_all() -> void:
 	# stood, keeping its species, tier, look (version or colour), what it is
 	# wearing and how long it has left. The showpieces are drawn again too.
 	for h in hosts.duplicate():
+		if h.has_vsync:
+			vsync_taken = false   # the new windows take it on
 		if h.state != "live":
 			continue
 		var feet: Vector2 = h.feet_on_screen()

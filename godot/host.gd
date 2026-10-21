@@ -41,6 +41,7 @@ var main: Node                 # main.gd: the screen, the sound, the pointer
 var species := ""
 var version := ""              # set before setup(): a Rare or Epic version's art
 var variant := ""              # a Legendary visitor's colour, "" for a random one
+var has_vsync := false         # this window paces the frame (main.gd hands it on when it goes)
 var critter: Node2D
 var win: Window
 var spin: Node2D               # rotated to the edge being walked on
@@ -151,6 +152,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	# One window paces the frame; more vsyncs only cost frames.
 	if not main.vsync_taken:
 		main.vsync_taken = true
+		has_vsync = true
 	else:
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	win.window_input.connect(_on_input)
@@ -247,7 +249,9 @@ func _place() -> void:
 	# The critter's track slides under the window so it stays in the middle.
 	track.position = Vector2(-critter.position.x, foot_drop)
 	var centre := feet - Vector2(0, foot_drop).rotated(rot)
-	win.position = Vector2i((centre - Vector2(size, size) * 0.5).round())
+	var to := Vector2i((centre - Vector2(size, size) * 0.5).round())
+	if to != win.position:
+		win.position = to   # only when it moved: each move is a call into Windows
 
 
 func feet_on_screen() -> Vector2:
