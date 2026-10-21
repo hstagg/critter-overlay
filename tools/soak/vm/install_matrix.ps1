@@ -22,7 +22,7 @@
 param(
     [string]$Kit = "C:\soak\k3",
     [string]$V3 = "CritterOverlaySetup-3.0.0.exe",
-    [string[]]$Rows = @("v2user", "reinstall", "uninstall", "keepdata", "deletedata", "fresh", "v2machine")
+    [string]$Rows = "v2user,reinstall,uninstall,keepdata,deletedata,fresh,v2machine"   # comma list (powershell -File passes one string)
 )
 $ErrorActionPreference = "Continue"
 $results = Join-Path $Kit "results.txt"
@@ -92,7 +92,7 @@ function V3-Settings {
 }
 
 "--- install_matrix $(Get-Date -Format s), v3 = $V3" | Out-File $results -Append -Encoding utf8
-foreach ($row in $Rows) {
+foreach ($row in $Rows.Split(",").Trim()) {
     switch ($row) {
         "v2user" {
             Close-App; Uninstall-All
