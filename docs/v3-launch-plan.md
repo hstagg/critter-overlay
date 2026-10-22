@@ -363,10 +363,31 @@ Findings along the way:
     `api.github.com` (20.26.156.210:443).
   - The 8 h soak (S5) runs on the VM from 02:07, at 30 fps with 10
     critters.
-  - Still to come: the Intel rows and the exit test on the dev PC (from
-    4 a.m.), the soak result, the Admin audit (VM, by screenshot), then
-    release, VirusTotal (a URL scan of the release asset; the built-in
-    browser can't upload a file) and the 3.0.0 → 3.0.1 update on the VM.
+  - `main` after #21 (`4562724`): `run-tests.ps1 -Native` 8 of 8 pass; a
+    player build leaves the tree clean, with no Admin scripts in the exe.
+  - Intel, dev PC, on that build (`perf.ps1 -Row all`, sound off):
+
+    | Row | Measured | Threshold | |
+    |---|---|---|---|
+    | fps, 8 | median 30, p95 frame 33.3 ms | ≥ 28, ≤ 40 ms | PASS |
+    | CPU, 8 awake | 22.1% | ≤ 25% | PASS |
+    | CPU, paused | 1.0% | ≤ 3% | PASS |
+    | CPU, behind a full-screen app | 2.9% | ≤ 3% | PASS |
+    | CPU, all napping (10 fps) | 6.0% | ≤ 5% | **FAIL** |
+    | 25 critters | median 30 fps, no errors | ≥ 25 | PASS |
+
+    Napping: all 8 asleep at 10 fps. The estimate behind the 10 fps choice
+    was wrong: 9.4% at 20 fps and 6.0% at 10 fps. That fits about 0.34% per
+    frame plus a fixed 2.6% (8 windows drawn each frame), so 5% needs
+    about 7 fps. This needs the developer's decision.
+  - Clean exits (`night_exit.ps1`, release exe): 20 timed and 10 WM_CLOSE,
+    30 of 30 exit code 0, no crash events in the Application log. (The
+    second-instance mode needs an installed copy running, so it was
+    skipped.)
+  - Still to come: the soak result, the Admin audit (VM, by screenshot),
+    then, given a go on napping, release, VirusTotal (a URL scan of the
+    release asset; the built-in browser can't upload a file) and the
+    3.0.0 → 3.0.1 update on the VM.
 
 ## Phase 1: decisions and housekeeping
 
