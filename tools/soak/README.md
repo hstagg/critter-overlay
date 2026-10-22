@@ -44,8 +44,10 @@ printed as measured, threshold, PASS or FAIL.
 | Sleep/resume | Laptop or VM | `sleep_check.ps1` | focus minutes in the save <= minutes awake (a sleep of over a minute must be seen) |
 | Pair completion | VM soak | `judge.ps1` (pairs) | `PAIR act` lines >= 90% of `PAIR start` lines |
 
-"Flat" means the highest value after hour 1 is at most 10% above the value at
-hour 1, plus a small allowance (GDI 50, USER 20, threads 5, children 0).
+"Flat" means the median of the last hour is at most 10% above the median of
+hour 1 (the second hour, after start-up), plus a small allowance (GDI 50,
+USER 20, threads 5, children 0). Medians, because thread pools come and go:
+single samples bob about without a trend.
 `perf.ps1 -Row all` runs the six dev-PC rows in turn (about 45 min; the
 full-screen row covers the screen in black). Frame rate and CPU only count
 from real hardware: the VM renders in software.

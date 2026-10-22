@@ -14,8 +14,9 @@
 # then, on the VM:
 #   judge.ps1 -Dir tools\soak\out -Name soak8h [-Exits C:\soak-kit\results-<time>]
 #
-# "Flat" means the highest value after hour 1 is at most 10% (plus a small
-# allowance) above the value at hour 1. A run shorter than 8 h is judged on
+# "Flat" means the median of the last hour is at most 10% (plus a small
+# allowance) above the median of hour 1 (the second hour, after start-up):
+# thread pools come and go, so single samples bob about without a trend. A run shorter than 8 h is judged on
 # what it has, and says so.
 param(
     [Parameter(Mandatory)][string]$Dir,
@@ -32,25 +33,33 @@ function Say([string]$row, [string]$measured, [string]$threshold, [bool]$ok) {
     $line | Out-File (Join-Path $Dir "$Name-judged.txt") -Append -Encoding utf8
 }
 
+function Median($xs) {
+    $s = @($xs | Sort-Object)
+    if ($s.Count -eq 0) { return $null }
+    return [double]$s[[int][math]::Floor($s.Count / 2)]
+}
+
 function Flat($rows, [string]$col, [double]$allow) {
-    # [value at hour 1, highest after it, whether that is flat]
-    $after = @($rows | Where-Object { [double]$_.t_s -ge 3600 })
-    if ($after.Count -eq 0) { return @($null, $null, $false) }
-    $first = [double]$after[0].$col
-    $top = ($after | ForEach-Object { [double]$_.$col } | Measure-Object -Maximum).Maximum
-    return @($first, $top, ($top -le $first * 1.1 + $allow))
+    # [median of hour 1, median of the last hour, whether that is flat]
+    $end = [double]$rows[-1].t_s
+    $h1 = Median @($rows | Where-Object { [double]$_.t_s -ge 3600 -and [double]$_.t_s -lt 7200 } | ForEach-Object { [double]$_.$col })
+    $last = Median @($rows | Where-Object { [double]$_.t_s -ge $end - 3600 } | ForEach-Object { [double]$_.$col })
+    if ($null -eq $h1 -or $null -eq $last) { return @($null, $null, $false) }
+    return @($h1, $last, ($last -le $h1 * 1.1 + $allow))
 }
 
 $proc = @(Import-Csv (Join-Path $Dir "${Name}_proc.csv"))
 $samples = @(Get-Content (Join-Path $Dir "$Name.jsonl") | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json })
 $out = Get-Content (Join-Path $Dir "${Name}_out.txt") -Raw
 $hours = [double]$proc[-1].t_s / 3600
-$start = (Get-Item (Join-Path $Dir "${Name}_proc.csv")).CreationTime
+# The run's start, from its own samples: a file's creation time can be an
+# older file's of the same name (Windows reuses it for a while).
+$start = (Get-Item (Join-Path $Dir "${Name}_proc.csv")).LastWriteTime.AddSeconds(-[double]$proc[-1].t_s - 120)
 "judge.ps1 $(Get-Date -Format s): $Name, {0:F1} h of samples{1}" -f $hours, $(if ($hours -lt 7.9) { " (shorter than the 8 h the rows ask for)" })
 
 # GDI
 $g = Flat $proc "gdi" 50
-Say "gdi" ("end {0}, hour 1 {1}, highest after {2}" -f $proc[-1].gdi, $g[0], $g[1]) "<= 2,000 and flat after hour 1" ([double]$proc[-1].gdi -le 2000 -and $g[2])
+Say "gdi" ("end {0}, hour 1 median {1}, last hour median {2}" -f $proc[-1].gdi, $g[0], $g[1]) "<= 2,000 and flat after hour 1" ([double]$proc[-1].gdi -le 2000 -and $g[2])
 
 # USER objects, threads, child processes
 $u = Flat $proc "user" 20
