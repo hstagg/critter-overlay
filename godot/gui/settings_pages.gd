@@ -1432,7 +1432,7 @@ func _system(body: VBoxContainer) -> void:
 	body.add_child(K.section("Display", K.card([
 		K.row("Theme", "Follows your Windows light or dark setting unless you pick one.",
 			K.seg(["Match Windows", "Light", "Dark"], maxi(0, themes.find(S().value("system.theme"))), func(i): set_value("system.theme", themes[i]))),
-		K.row("Animation detail", "Simple uses fewer animation layers and 30 frames a second, for slower computers.",
+		K.row("Animation detail", "Simple uses fewer animation layers, for slower computers.",
 			K.seg(["Detailed", "Simple"], maxi(0, details.find(S().value("system.detail"))), func(i): set_value("system.detail", details[i], true))),
 	])))
 
@@ -1543,4 +1543,5 @@ func _credits() -> String:
 			out += "  %s (%s)\n" % [", ".join(part.copyright), part.license]
 	for f in ["Fredoka", "Nunito"]:
 		out += "\n\n%s font\n\n%s" % [f, FileAccess.get_file_as_string("res://fonts/%s-OFL.txt" % f)]
+	out += "\n\ngodot-cpp (in the Windows helper, critter_native.dll)\n\n%s" % FileAccess.get_file_as_string("res://licenses/godot-cpp.txt")
 	return out

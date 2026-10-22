@@ -94,6 +94,7 @@ func checks() -> Array:
 		["The app", "v2custom", "v2.0 custom critters", "Upgrade from v2.0 with custom critters: one note says they are safe, and it never shows again.", ""],
 		["Moving about", "screen", "The display changes", "Run: within 2 s everyone is drawn again where they stood, inside the screen. Then for real on the test VM: change the resolution, move the taskbar, undock.", "screen"],
 		["Moving about", "dpi", "Display scale", "At 150% Windows scaling, critters are 1.5x the Size setting and Settings, the tray and notes are drawn larger; on a small screen Settings shrinks to fit.", ""],
+		["Moving about", "windows", "Windows used again", "Ten rounds of pops, refills, a pause and a note, then a note with the counts: the windows made during the run stay near the most out at once (a dozen at most, not 40 or more), nothing flashes up mid-screen, and pausing hides everyone. On the VM, GDI objects stay flat over a soak.", "windows"],
 		["Moving about", "fullscreen", "A full-screen app", "Play a full-screen video for a minute in timer mode: no critter or showpiece shows over it, none arrive, and they come back after.", ""],
 		["The app", "secret", "Secret visitors", "Before meeting a visitor its Collection card is a silhouette with one ? (no colour count); after, its picture is a colour you have met.", "open:collection"],
 		["The app", "bank", "Rolls come from focus time", "System > Copy diagnostics shows the rolls banked: one per 5.5 focus minutes, at most 6. With none banked, arrivals are Common.", "open:system"],
@@ -103,6 +104,8 @@ func checks() -> Array:
 		["The app", "saves", "Saves survive damage", "Quit, put junk in economy.json, start again: the Collection comes back from the .bak and the junk is kept as economy.json.corrupt-<time>.", ""],
 		["The app", "v2", "Your v2.0 settings carried over", "Rare Hour, behaviour frequency, size, trails, and the old Seen Log in the Collection.", ""],
 		["The app", "install", "Installer and update check", "Install over the old copy; System > Check for updates.", ""],
+		["The app", "build", "Telling builds apart", "The tray icon's tooltip, About and the sidebar show the full version (3.0.0); the installer's name carries it too. Copy diagnostics shows arrivals and arrivals an hour.", "open:system"],
+		["The app", "credits", "Credits and notices", "System > About > Credits and licences lists Godot and its components, both fonts and godot-cpp. THIRD-PARTY-NOTICES.txt sits beside the installed exe.", "open:system"],
 	]
 	return out
 

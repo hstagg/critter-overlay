@@ -16,7 +16,9 @@
 ; its mutex. /RELAUNCH starts the app again afterwards, whether the install
 ; went through or not, so nobody is left without their critters. An update
 ; also moves the old files aside first and puts them back if it fails part
-; way (see PrepareToInstall). A manual install behaves as before.
+; way (see PrepareToInstall). A manual install behaves as before. Any
+; install first closes a running v2.0, and an uninstall a running copy of
+; either (CloseRunning), which nothing else would.
 
 #define MyAppName "Critter Overlay"
 #define MyAppPublisher "hstagg"
@@ -57,6 +59,12 @@ LicenseFile=license.txt
 CloseApplications=yes
 RestartApplications=no
 MinVersion=10.0
+; A new uninstall log, not v2.0's with v3 added on. v2.0's log ran the app at
+; uninstall ([UninstallRun]) and the uninstaller then waited for it to quit:
+; critters appeared and the uninstall hung. v2.0 installed nothing that v3
+; does not replace or delete itself (its _internal folder, below), except
+; perhaps a desktop shortcut, which [UninstallDelete] removes.
+UninstallLogMode=overwrite
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -64,12 +72,17 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
+[UninstallDelete]
+; v2.0's optional desktop shortcut, which the new uninstall log no longer lists.
+Type: files; Name: "{autodesktop}\{#MyAppName}.lnk"
+
 [InstallDelete]
 ; v2.0 was a PyInstaller build: its runtime folder is not part of v3.
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "..\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -133,6 +146,45 @@ begin
   DelTree(BackupDir(), True, True, True);
 end;
 
+// Closes a running copy, found by its single-instance mutex: asked to close
+// (taskkill without /F, which v3 answers by saving and quitting), then ended
+// if it still holds the mutex after GraceMs.
+//
+// Installing closes v2.0 (the Python app). Its mutex is not v3's, so nothing
+// else waits for it, and it minimises when asked to close, so Restart Manager
+// may not shut it either: left running, it keeps its files locked and runs
+// beside v3. v2.0 writes its settings as they change; only sightings since
+// the last change are at risk, as in any v2.0 exit.
+//
+// Uninstalling closes v3 too: the uninstaller does not, and a running copy
+// keeps its exe locked until the next restart.
+procedure CloseRunning(Mutex, What: String; GraceMs: Integer);
+var
+  Code, Waited: Integer;
+begin
+  if not CheckForMutexes(Mutex) then
+    Exit;
+  Log(What + ' is running: closing it.');
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Waited := 0;
+  while CheckForMutexes(Mutex) and (Waited < GraceMs) do
+  begin
+    Sleep(250);
+    Waited := Waited + 250;
+  end;
+  if CheckForMutexes(Mutex) then
+  begin
+    Log(What + ' did not close: ending it.');
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM CritterOverlay.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Waited := 0;
+    while CheckForMutexes(Mutex) and (Waited < 5000) do
+    begin
+      Sleep(250);
+      Waited := Waited + 250;
+    end;
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   FindRec: TFindRec;
@@ -140,6 +192,7 @@ var
   I, N: Integer;
 begin
   Result := '';
+  CloseRunning('CritterOverlayMutex_v1', 'Critter Overlay v2.0', 3000);
   if not Updating then
     Exit;
   N := 0;
@@ -200,12 +253,16 @@ end;
 
 function InitializeUninstall(): Boolean;
 begin
-  ShouldDeleteAppData := MsgBox(
+  // Suppressible, so a silent uninstall (/SUPPRESSMSGBOXES) keeps the data
+  // instead of stopping to ask.
+  ShouldDeleteAppData := SuppressibleMsgBox(
     'Do you also want to delete your critters'' Collection, berries, clothes and settings?' + #13#10 +
     'YES - remove everything.' + #13#10 +
     'NO  - keep it, so a reinstall picks up where you left off.' + #13#10 +
     'The default is NO.',
-    mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES;
+  CloseRunning('CritterOverlay.v3', 'Critter Overlay', 5000);
+  CloseRunning('CritterOverlayMutex_v1', 'Critter Overlay v2.0', 3000);
   Result := True;
 end;
 

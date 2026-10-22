@@ -66,6 +66,7 @@ const Species := preload("res://species.gd")
 const Behaviours := preload("res://behaviours.gd")
 const Presence := preload("res://presence.gd")
 const Host := preload("res://host.gd")
+const WinPool := preload("res://win_pool.gd")
 const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
 const Tray := preload("res://gui/tray.gd")
@@ -104,6 +105,7 @@ var vsync_taken := false       # host.gd: only the first window waits for vsync
 var t := 0.0
 
 var hosts := []
+var win_pool := WinPool.new()   # the critters' windows, made once and used again
 var evaluator := Behaviours.new()
 var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
 var admin_flag := false
@@ -116,6 +118,7 @@ var zoom_flag := false        # --zoom, over the size setting
 var focus_s := 0.0            # focus seconds this run (gathering, solo walkers)
 var next_arrival := 0.0
 var wall_s := 0.0             # seconds this run, not paused (timer arrivals)
+var arrivals := 0             # this run, for the diagnostics
 var next_group := 0.0
 var next_solo := 0.0
 var tidied := false           # everyone went home during a long break
@@ -171,6 +174,7 @@ var seconds := 0.0
 var report_path := ""
 var process_ms := []
 var fps := []
+var frame_gaps := []         # ms between frames, for --report (tools/soak/perf.ps1)
 var pops := 0
 var throws := 0
 var live_timer := 0.0
@@ -188,6 +192,8 @@ var variant_flag := ""        # --variant
 
 
 func _ready() -> void:
+	win_pool.close_request = close_requested_by_windows
+	add_child(win_pool)
 	presence = Presence.new()
 	if ResourceLoader.exists(ADMIN_SCRIPT):
 		admin = load(ADMIN_SCRIPT).new(self)
@@ -371,6 +377,7 @@ func _ready() -> void:
 		var seen = (v2 if not v2.is_empty() else _v2_settings()).get("rarity", {}).get("seen_log", {})
 		if typeof(seen) == TYPE_DICTIONARY and not seen.is_empty():
 			economy.import_v2_seen(seen)
+			economy.save()   # now, before the flag below can be saved without it
 			settings.set_value("system.v2_seen_done", true)
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(_on_gift)
@@ -606,7 +613,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 			h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
 	_trail_for(h)
 	if paused or busy_hidden:
-		h.win.visible = false   # arrives hidden; _show_critters brings it out
+		h.show_window(false)   # arrives parked; _show_critters brings it out
 		h.process_mode = Node.PROCESS_MODE_DISABLED
 	return h
 
@@ -827,28 +834,31 @@ func _hand_on_vsync() -> void:
 			o.has_vsync = true
 			vsync_taken = true
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED, o.win.get_window_id())
+			WinPool.draw(o.win, true)   # a parked one too: it paces the frame now
 			return
 
 
 func _pace_frames() -> void:
-	# Fewer frames when there is little to see: nothing on screen (paused,
-	# hidden for a full-screen app, or nobody out) needs only enough for the
-	# tray and the shortcuts; everyone asleep needs only the slow breathing.
-	# Any of the app's own windows open: full speed.
+	# Each critter window is drawn and presented every frame, so CPU follows
+	# the frame rate. Critters run at 30 fps: on Intel Iris Xe, 8 of them took
+	# 41% of a core at 60 and 22% at 30 (developer's decision, 2026-10-21,
+	# docs/v3-launch-plan.md Phase 5). Nothing on screen (paused, hidden for a
+	# full-screen app, or nobody out) needs only enough for the tray and the
+	# shortcuts; everyone asleep needs only the slow breathing (10 fps). Any of
+	# the app's own windows open: full speed, so they feel smooth.
 	var ui_open: bool = waiting_welcome or (settings_win != null and settings_win.visible) \
 		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
-	var cap := 0
+	var cap := 0 if ui_open else 30
 	if not ui_open and (paused or busy_hidden or hosts.is_empty()):
 		cap = 5
 	elif not ui_open and presence != null and presence.away:
-		cap = 20
-	elif settings.value("system.detail") == "simple":
-		cap = 30   # System > Animation detail > Simple: for slower computers
+		cap = 10
 	if Engine.max_fps != cap:
 		Engine.max_fps = cap
 
 
 func _arrive() -> void:
+	arrivals += 1
 	# A newcomer: a roamer walks in from a side.
 	var from_left := randf() < 0.5
 	var x := area.position.x - 80.0 if from_left else area.end.x + 80.0
@@ -1023,6 +1033,7 @@ func _process(delta: float) -> void:
 		# for as long as the app runs.
 		process_ms.append((Time.get_ticks_usec() - t0) / 1000.0)
 		fps.append(Engine.get_frames_per_second())
+		frame_gaps.append(delta * 1000.0)
 		live_timer -= delta
 		if live_timer <= 0.0:
 			live_timer = 0.5
@@ -1345,10 +1356,10 @@ func _show_critters() -> void:
 		if p.hides():
 			inside.append_array(p.sleepers)
 	for h in hosts:
-		h.win.visible = shown and not h in inside
+		h.show_window(shown and not h in inside)
 		h.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
 	for p in props.values():
-		p.win.visible = shown
+		p.show_window(shown)
 
 
 func _time_of_day() -> void:
@@ -1787,14 +1798,18 @@ func _redraw_all() -> void:
 			# Inside the work area, which may have changed (_check_screen).
 			feet = Vector2(clampf(feet.x, area.position.x, area.end.x), clampf(feet.y, minf(area.position.y + 260.0, area.end.y), area.end.y))
 		var variant := str(h.critter.get("variant")) if "variant" in h.critter else ""
-		var n = _spawn(h.kind, "walk" if h.critter.mode == "walk" else "sit", feet, h.species, h.tier, h.version, variant)
+		var mode := "walk" if h.critter.mode == "walk" else "sit"
+		var worn: Array = h.critter.worn
+		var napping: bool = h.critter.is_napping()
+		hosts.erase(h)
+		h.release_window()   # first, so the new critter takes it
+		h.queue_free()
+		var n = _spawn(h.kind, mode, feet, h.species, h.tier, h.version, variant)
 		if n != null:
 			n.stay_left = h.stay_left
-			n.critter.wear(h.critter.worn, economy.dyed.get(h.species, {}))
-			if h.critter.is_napping():
+			n.critter.wear(worn, economy.dyed.get(h.species, {}))
+			if napping:
 				n.critter.go_to_sleep()
-		hosts.erase(h)
-		h.queue_free()
 	for pid in props.keys():
 		props[pid].release_all()
 		props[pid].queue_free()
@@ -1811,7 +1826,7 @@ func _update_tray() -> void:
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
 	var counts := collection_counts()
-	tray.update({"mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
+	tray.update({"version": VERSION, "mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
@@ -1886,10 +1901,12 @@ func diagnostics() -> String:
 	# player to paste into a message. Nothing is sent anywhere.
 	var counts := collection_counts()
 	var out := PackedStringArray([start_line(),
-		"Now %s, running %d min | %d critters out | %s | presence from %s" % [Time.get_datetime_string_from_system(),
-			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source],
-		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f" % [economy.berries,
-			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked],
+		"Now %s, running %d min | %d critters out | %s | presence from %s | windows made %d, used again %d" % [Time.get_datetime_string_from_system(),
+			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source,
+			win_pool.made + toasts.pool.made, win_pool.reused + toasts.pool.reused],
+		"Berries %d (%d ever) | Collection %d of %d | focus today %d min, this session %d min | luck %.2f | rolls banked %.1f | arrivals %d (%.1f an hour)" % [economy.berries,
+			economy.lifetime_berries, counts[0], counts[1], int(economy.day_focus_min), int(economy.session_min), economy.luck(), economy.rolls_banked,
+			arrivals, arrivals / maxf(t / 3600.0, 1.0 / 60.0)],
 		"", "Settings:", JSON.stringify(settings.data, " "), "", "Log, most recent last:"])
 	var log := FileAccess.get_file_as_string("user://logs/godot.log").split("
 ")
@@ -1967,6 +1984,12 @@ func _write_report() -> void:
 		"seconds": t,
 		"fps": _stats(fps.slice(int(fps.size() * 0.2))),   # skip the warm-up
 		"frame_ms": _stats(process_ms),
+		"frame_gap_ms": _stats(frame_gaps.slice(int(frame_gaps.size() * 0.2))),
+		# How the run ended, so a measuring script knows its scenario took.
+		"paused": paused,
+		"hidden": busy_hidden,
+		"away": presence.away,
+		"napping": hosts.filter(func(h): return h.critter.is_napping()).size(),
 		"pops": pops,
 		"berries": economy.berries if economy != null else 0,
 		"collection": economy.collection.size() if economy != null else 0,

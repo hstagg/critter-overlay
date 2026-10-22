@@ -1,6 +1,9 @@
 # Runs the v3 headless tests (godot/*_test.gd, through run-tests.ps1) on every
 # push to main and every pull request into it. native_test.gd is left out: it
-# needs the native DLL, which is built with godot-cpp and SCons.
+# needs the native DLL, which is built with godot-cpp and SCons. Then exports
+# the player build's pack and checks the Admin page is not in it, and compiles
+# the installer (against stand-in files) so a broken script shows here, not at
+# release time.
 
 name: Tests
 
@@ -48,3 +51,31 @@ jobs:
         run: |
           $env:GODOT = "$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe"
           .\run-tests.ps1
+
+      - name: The player pack has no Admin page
+        shell: pwsh
+        run: |
+          $godot = "$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe"
+          $pck = "$env:RUNNER_TEMP\player.pck"
+          & $godot --headless --path godot --export-pack "Windows Desktop" $pck
+          if (-not (Test-Path $pck)) { throw "The player pack was not exported" }
+          $t = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($pck))
+          foreach ($n in "admin.gdc", "admin_page.gdc") { if ($t.Contains($n)) { throw "The player pack carries $n" } }
+          foreach ($n in "main.gdc", "fonts/Fredoka-OFL.txt", "licenses/godot-cpp.txt") { if (-not $t.Contains($n)) { throw "The player pack is missing $n" } }
+
+      - name: Compile the installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y | Out-Null
+          }
+          # Stand-ins for the exported exe and the native DLL.
+          $fake = "$env:RUNNER_TEMP\fake-build"
+          New-Item -ItemType Directory -Force $fake | Out-Null
+          Set-Content "$fake\CritterOverlay.exe" "stand-in"
+          Set-Content "$fake\critter_native.windows.template_release.x86_64.dll" "stand-in"
+          Push-Location installer
+          & $iscc /Q "/DMyAppVersion=0.0.0" "/DBuildDir=$fake" "/O$env:RUNNER_TEMP\setup" installer-v3.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup could not compile installer-v3.iss" }
+          Pop-Location

@@ -11,7 +11,7 @@
 # builds ignore). Output goes to $SOAK_OUT (default tools/soak/out):
 # NAME.jsonl (monitor, one line per sample), NAME_proc.csv (working set,
 # handles, GDI/USER objects, CPU), NAME_report.json (main.gd's report),
-# NAME_out.txt (stdout).
+# NAME_out.txt (stdout), NAME_exit.txt (the exit code). judge.ps1 reads them.
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 out="${SOAK_OUT:-$here/out}"
@@ -26,4 +26,6 @@ cd "$repo"
 timeout "$to" godot --path godot -s "$here/soak_main.gd" -- --admin --report="$out/${name}_report.json" \
 	--settings="$out/${name}_settings.json" --soak-every="$every" --soak-log="$out/$name.jsonl" \
 	--soak-pid="$out/$name.pid" "$@" > "$out/${name}_out.txt" 2>&1
-echo "$name exit=$?"
+code=$?
+echo "$code" > "$out/${name}_exit.txt"
+echo "$name exit=$code"

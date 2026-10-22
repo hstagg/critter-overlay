@@ -227,6 +227,146 @@ Findings along the way:
     VM numbers only.
   - Not tested: lock and unlock, and RDP (the VM has no second session
     set up for them).
+- **Phase 5, 2026-10-20** (the VM is on hold, so code and headless tests only):
+  - S2 built: windows are made once and reused (`win_pool.gd`). Found in
+    Godot 4.7.2's source: hiding a `Window` destroys the native window and
+    showing it makes a new one, which leaks another GDI object. So pausing,
+    hiding for a full-screen app and napping in the cottage leaked one per
+    critter each time, as well as each arrival and toast. Now a window not in
+    use is parked off the screen (drawing off) instead of hidden, and handed to
+    the next critter or toast. At most 8 spare critter windows and 3 toast
+    windows are kept. Showpieces are parked but not reused (they are rarely
+    made). Admin: "Windows used again" (churn and the counts). Diagnostics
+    show windows made and used again. `win_pool_test.gd` covers the
+    bookkeeping.
+  - Found with S2: the vsync calls for critter, toast and showpiece windows
+    ran before those windows existed (they are made hidden), so they reached
+    whichever window was current, and every re-shown window took the main
+    window's vsync. Each window's vsync is now set right after it is first
+    shown, and it sticks because windows are no longer re-made. On ANGLE (the
+    VM) the vsync switch is global, not per window, which may be part of
+    the VM's high CPU numbers.
+  - The window-count threshold allows for the spares: at most critters +
+    props + 3 toasts + 8 spare + 3.
+  - F13 (touch and pen as presence): no touch device to test, so it goes on
+    the known-issues list.
+  - S1 built: a script for every threshold row (`tools/soak/README.md`,
+    "Phase 5 thresholds"). `perf.ps1` runs the dev-PC rows on the release
+    exe, `judge.ps1` judges an 8 h soak and the exit test, and
+    `sleep_check.ps1` covers sleep/resume. `--report` now carries the gaps
+    between frames and how the run ended (paused, hidden, away, napping), so
+    each script can tell when its scenario didn't take. Checked for syntax.
+    `judge.ps1` was also run on made-up soak output. None of them has run
+    against the game yet.
+- **Phase 5, 2026-10-21** (VM back; Intel run on the dev PC at the
+  developer's word):
+  - S2 measured on the VM: 8 min of churn (472 pops, 465 spawns) made 25
+    windows in all, and GDI went 57 → 63. Before: 62 → 1,061. Pausing
+    parks everyone (VM screenshots before and after).
+  - Parked windows now stop drawing too, except the one pacing the frame.
+    The VM's paused run had used half a core in software rendering.
+  - Intel, dev PC (`perf.ps1`, release exe, sound off):
+
+    | Row | Measured | Threshold | |
+    |---|---|---|---|
+    | fps, 8 | median 60, p95 frame 16.7 ms | ≥ 55, ≤ 20 ms | PASS |
+    | CPU, 8 awake (60 fps) | 41% | ≤ 25% | FAIL |
+    | CPU, 8 awake, Animation detail Simple (30 fps) | 21.7% | ≤ 25% | PASS |
+    | CPU, paused | 3.0%, then 2.7% with parked windows not drawing | ≤ 3% | PASS |
+    | CPU, behind a full-screen app | 1.8% | ≤ 3% | PASS |
+    | CPU, all napping (20 fps) | 10.6%, 9.4% | ≤ 3% | FAIL |
+    | 25 critters | median 32 fps, no errors | ≥ 30 | PASS |
+
+    CPU follows the frame rate about linearly: each critter window is drawn
+    and presented every frame. Decided (developer, 2026-10-21): critters run
+    at 30 fps for everyone (Simple now only drops layers), 10 fps when all
+    are asleep, and that row's threshold is 5%. The fps and 25-critter rows
+    follow the cap (median ≥ 28 fps with p95 frame ≤ 40 ms, and ≥ 25 fps).
+    To be re-measured on the RC build.
+  - S8: with all 34 looks loaded (`--soak-mode=looks`), texture memory tops
+    out at 174 MB, and static memory stays flat at 45 MB. The cache is
+    bounded by the number of looks, so no eviction is needed.
+  - S6 on the VM (debug build, software rendering): a wave of new looks
+    gives 125-150 ms frames. That says little about real hardware; a check
+    on the Intel PC is still open.
+  - F12: with the taskbar auto-hidden, feet sit at the bottom edge and are
+    visible.
+  - S4: lock/unlock and RDP need someone to sign in to the VM: left to the
+    developer.
+  - Harness fixes: the churn and throw modes top up berries (Spawn now
+    costs them), and `judge.ps1` ignores the VM's no-sound errors.
+- **Phase 6, 2026-10-21:**
+  - Installer (developer's choice: close a running v2.0, nothing else):
+    `CloseRunning` asks v2.0 to close, then ends it after 3 s. The K3 rows
+    found two more problems, now fixed:
+    - uninstalling while v3 ran left the exe locked and the app running, so
+      the uninstaller now closes v3 (and v2.0) first;
+    - the delete-data question ignored `/SUPPRESSMSGBOXES`, so a silent
+      uninstall stopped to ask. It is now suppressible, defaulting to No.
+  - Found by K3: after importing the v2.0 Seen Log, v3 marked it done
+    (settings, saved within a second) but saved the Collection only at the
+    next 60 s autosave. A hard exit in that minute lost the v2.0 history for
+    good. The economy is now saved straight after the import.
+  - K4 stays as it is (developer's choice): "delete data" also removes
+    v2.0's folder. It is on the known-issues list.
+  - K5: godot-cpp pinned at 10.0.0-stable. The release DLL depends only on
+    USER32, ADVAPI32, SHELL32 and KERNEL32.
+  - K6: CI exports the player pack and fails on any Admin script; it also
+    compiles the installer.
+  - K7, K8, K11 in `release.ps1`. K8's other half: `build-v3.ps1` wrote the
+    `.import` files with CRLF and left 1,300 changed. It now writes them
+    as committed, and a build leaves the tree clean.
+  - K9: the publisher stays `hstagg`. L2: no licence change (developer's
+    choice).
+  - L1: `THIRD-PARTY-NOTICES.txt` is installed beside the exe, and Credits
+    lists godot-cpp.
+  - L3: only `updater.gd` uses the network (code check).
+    `tools/soak/vm/net_check.ps1` records the installed app's connections.
+  - K3: `tools/soak/vm/install_matrix.ps1`, all 8 rows PASS on the VM
+    (2026-10-21, after the fixes above):
+    - v2.0 per-user and running → v3: the installer closed v2.0; one install,
+      v3.0.0, in the same folder; v2.0's `_internal` gone.
+    - The v2.0 import: settings (size, Rare Hour) carried over, and the
+      Seen Log is in the Collection.
+    - Reinstall over a running v3; uninstall while running (app closed, exe
+      gone, data kept, start-up entry removed); reinstall picks the kept
+      data up.
+    - Uninstall answering Yes deletes both data folders; a fresh install.
+    - v2.0 for all users and running → v3: one install, still in Program
+      Files.
+    - Also found: v2.0's uninstall log came along on an upgrade, with a
+      step that started the app at uninstall and waited for it, so the
+      uninstall hung. `UninstallLogMode=overwrite` fixes it.
+    - v3 → v3 through the updater is Phase 8's two-release check.
+  - K2 (VirusTotal) waits for the release candidate's installer.
+- **Phase 7, 2026-10-21** (no tester guide, by the developer's choice):
+  - R2 README rewritten for v3 (the in-app Help link opens it). R4
+    `docs/TROUBLESHOOTING.md`. R6 and T7 `release-notes-v3.0.md`, with the
+    known issues.
+  - T3: the version is in About, the sidebar, the tray tooltip and the
+    installer's name. T9: diagnostics show arrivals and arrivals per hour.
+  - The Phase 7 exit check (someone new installs and reports using only the
+    kit) will be the first tester.
+
+- **Phase 8, release candidate, 2026-10-22** (developer's go given ahead of
+  time: release if every automated check is green):
+  - RC = `phase6` (PR #21), game code as of `047a5b0`. Built on the VM,
+    which now has Inno Setup and rcedit (`C:	ools`). Its Godot must be the
+    console build: PowerShell doesn't wait for the windowed exe, so
+    `build-v3.ps1` checked for the export before it existed.
+  - `run-tests.ps1 -Native` on the VM: 8 of 8 pass. The player exe has no
+    Admin scripts.
+  - K3 on the RC installer: all 8 rows pass. Two runs failed first, from a
+    stray headless Godot of mine holding the log folder open; the row was
+    re-run clean.
+  - L3 on the RC: the only connection in the first 75 s was
+    `api.github.com` (20.26.156.210:443).
+  - The 8 h soak (S5) runs on the VM from 02:07, at 30 fps with 10
+    critters.
+  - Still to come: the Intel rows and the exit test on the dev PC (from
+    4 a.m.), the soak result, the Admin audit (VM, by screenshot), then
+    release, VirusTotal (a URL scan of the release asset; the built-in
+    browser can't upload a file) and the 3.0.0 → 3.0.1 update on the VM.
 
 ## Phase 1: decisions and housekeeping
 
@@ -355,14 +495,15 @@ checks go on the developer PC, at a time the developer picks, with sound off.
 
 | Measure | Where | Pass |
 |---|---|---|
-| Frame rate, default 8 critters | Dev PC, Iris Xe, 2 min | median ≥ 55 fps, p95 frame ≤ 20 ms |
+| Frame rate, default 8 critters | Dev PC, Iris Xe, 2 min | median ≥ 28 fps, p95 frame ≤ 40 ms (30 fps cap, decided 2026-10-21) |
 | CPU, default 8 critters, active | Dev PC, 10 min | ≤ 25% of one core |
-| CPU while paused, hidden by a full-screen app, or all napping | Dev PC, 10 min each | ≤ 3% of one core |
-| 25 critters (the cap) | Dev PC, 2 min | ≥ 30 fps, no errors |
+| CPU while paused or hidden by a full-screen app | Dev PC, 10 min each | ≤ 3% of one core |
+| CPU, all napping (10 fps) | Dev PC, 10 min | ≤ 5% of one core (decided 2026-10-21) |
+| 25 critters (the cap) | Dev PC, 2 min | ≥ 25 fps, no errors |
 | GDI objects after 8 h default play | VM | ≤ 2,000 and not climbing linearly with arrivals |
 | USER objects, threads, child processes | VM, 8 h | flat after hour 1 |
 | Working set | VM, 8 h | hour 8 ≤ hour 1 + 15% |
-| Window count | VM, sampled | ≤ critters + props + 3 toasts + 3 |
+| Window count | VM, sampled | ≤ critters + props + 3 toasts + 8 spare + 3 |
 | Script errors, crashes | VM, 8 h with `--idle-sim` | 0 |
 | Clean exits | Dev PC, scheduled, 30 exits | 30/30 exit code 0 (Intel GL teardown) |
 | Sleep/resume | Laptop or VM suspend | berries gained ≤ minutes actually present |

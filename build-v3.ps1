@@ -64,8 +64,10 @@ if (-not (Test-Path "$Root\godot\bin\critter_native.windows.template_release.x86
 Step "[2/4] Godot export"
 # The game reads its SVG art as text (it rasterises at its own scale), so the
 # export must carry the files themselves, not Godot's imported textures.
+# Written byte for byte as committed (LF, as Godot writes them), so a build
+# leaves the tree clean.
 Get-ChildItem "$Root\godot\art" -Recurse -Filter *.svg | ForEach-Object {
-    Set-Content -Path "$($_.FullName).import" -Value "[remap]`n`nimporter=`"keep`"`n" -Encoding ascii
+    [IO.File]::WriteAllText("$($_.FullName).import", "[remap]`n`nimporter=`"keep`"`n`n")
 }
 & $godot --headless --path "$Root\godot" --import
 

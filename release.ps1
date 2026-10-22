@@ -16,7 +16,9 @@
 # gh CLI, authenticated.
 #
 # Always the player build: the Admin page (build-v3.ps1 -Admin) is never
-# released, and step [4] refuses an installer whose exe carries it.
+# released, and step [4] refuses an installer whose exe carries it. A failed
+# build undoes the version bump; after the release, step [6] checks GitHub
+# gave the asset the sha256 digest the updater needs.
 
 param(
     [Parameter(Mandatory=$true)]
@@ -43,7 +45,14 @@ function Step([string]$msg) {
 }
 
 function Ok([string]$msg)   { Write-Host "  $msg" -ForegroundColor Green }
-function Fail([string]$msg) { Write-Error $msg; exit 1 }
+function Fail([string]$msg) { Write-Host "  $msg" -ForegroundColor Red; exit 1 }
+
+$bumped = @("godot\main.gd", "godot\export_presets.cfg")
+function Undo-Bump {
+    # A failed build leaves the tree as it was, so the next try starts clean.
+    git checkout -- @bumped
+    Write-Host "  Version bump undone." -ForegroundColor Yellow
+}
 
 # ---------------------------------------------------------------------------
 # [0] Validate inputs
@@ -129,19 +138,34 @@ Ok "godot/export_presets.cfg -> $Version.0"
 
 Step "[4] Building installer (build-v3.ps1 -Version $Version)..."
 
-if ($SkipNative) {
-    & "$ProjectRoot\build-v3.ps1" -Version $Version -SkipNative
-} else {
-    & "$ProjectRoot\build-v3.ps1" -Version $Version
+try {
+    if ($SkipNative) {
+        & "$ProjectRoot\build-v3.ps1" -Version $Version -SkipNative
+    } else {
+        & "$ProjectRoot\build-v3.ps1" -Version $Version
+    }
+} catch {
+    Undo-Bump
+    Fail "Build failed: $_"
 }
 
 $installerPath = Join-Path $ProjectRoot "installer\output\CritterOverlaySetup-$Version.exe"
 if (-not (Test-Path $installerPath)) {
+    Undo-Bump
     Fail "Installer not found at expected path: $installerPath"
 }
-$exe = [IO.File]::ReadAllBytes((Join-Path $ProjectRoot "build\CritterOverlay.exe"))
-if ([Text.Encoding]::ASCII.GetString($exe).Contains("admin_page.gd")) {
-    Fail "The built exe carries the Admin page. Check the 'Windows Desktop' export preset's exclude filter."
+# The Admin page's two scripts, as the export names them (compiled to .gdc).
+$exe = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes((Join-Path $ProjectRoot "build\CritterOverlay.exe")))
+$found = @("admin.gdc", "admin_page.gdc", "res://admin.gd", "res://gui/admin_page.gd") | Where-Object { $exe.Contains($_) }
+if ($found) {
+    Undo-Bump
+    Fail "The built exe carries the Admin page ($($found -join ', ')). Check the 'Windows Desktop' export preset's exclude filter."
+}
+$extra = git status --porcelain | Where-Object { $_ -notmatch 'godot/(main\.gd|export_presets\.cfg)$' }
+if ($extra) {
+    Write-Host ($extra -join "`n")
+    Undo-Bump
+    Fail "The build changed files besides the version bump."
 }
 Ok "Installer ready, no Admin page: $installerPath"
 
@@ -152,9 +176,15 @@ Ok "Installer ready, no Admin page: $installerPath"
 Step "[5] Committing version bump..."
 
 git add godot\main.gd godot\export_presets.cfg
-git commit -m "release: v$Version - $Title"
-if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
-Ok "Committed"
+git diff --cached --quiet
+if ($LASTEXITCODE -eq 0) {
+    # The version files already said $Version (the first release of a line).
+    Ok "Version files already at ${Version}: nothing to commit"
+} else {
+    git commit -m "release: v$Version - $Title"
+    if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
+    Ok "Committed"
+}
 
 git push origin main
 if ($LASTEXITCODE -ne 0) { Fail "git push failed." }
@@ -180,6 +210,16 @@ if ($NotesFile) {
 
 & gh @releaseArgs
 if ($LASTEXITCODE -ne 0) { Fail "gh release create failed." }
+
+# The one-click updater (godot/updater.gd) needs the asset under this exact
+# name, with a sha256 digest from GitHub. Without them every installed copy
+# falls back to "download it yourself".
+$asset = (gh api "repos/hstagg/critter-overlay/releases/tags/v$Version" | ConvertFrom-Json).assets |
+    Where-Object { $_.name -eq "CritterOverlaySetup-$Version.exe" }
+if (-not $asset -or $asset.size -le 0 -or "$($asset.digest)" -notlike "sha256:*") {
+    Fail "Released, but the asset has no sha256 digest or the wrong name: one-click updates will not offer it."
+}
+Ok "Asset $($asset.name), $($asset.size) bytes, $($asset.digest)"
 
 # ---------------------------------------------------------------------------
 # Done
