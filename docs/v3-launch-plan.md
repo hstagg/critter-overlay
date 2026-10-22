@@ -348,6 +348,26 @@ Findings along the way:
   - The Phase 7 exit check (someone new installs and reports using only the
     kit) will be the first tester.
 
+- **Phase 8, release candidate, 2026-10-22** (developer's go given ahead of
+  time: release if every automated check is green):
+  - RC = `phase6` (PR #21), game code as of `047a5b0`. Built on the VM,
+    which now has Inno Setup and rcedit (`C:	ools`). Its Godot must be the
+    console build: PowerShell doesn't wait for the windowed exe, so
+    `build-v3.ps1` checked for the export before it existed.
+  - `run-tests.ps1 -Native` on the VM: 8 of 8 pass. The player exe has no
+    Admin scripts.
+  - K3 on the RC installer: all 8 rows pass. Two runs failed first, from a
+    stray headless Godot of mine holding the log folder open; the row was
+    re-run clean.
+  - L3 on the RC: the only connection in the first 75 s was
+    `api.github.com` (20.26.156.210:443).
+  - The 8 h soak (S5) runs on the VM from 02:07, at 30 fps with 10
+    critters.
+  - Still to come: the Intel rows and the exit test on the dev PC (from
+    4 a.m.), the soak result, the Admin audit (VM, by screenshot), then
+    release, VirusTotal (a URL scan of the release asset; the built-in
+    browser can't upload a file) and the 3.0.0 → 3.0.1 update on the VM.
+
 ## Phase 1: decisions and housekeeping
 
 **Goal:** stop the ground moving. One branch, a frozen scope, and answers to every
