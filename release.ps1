@@ -176,9 +176,15 @@ Ok "Installer ready, no Admin page: $installerPath"
 Step "[5] Committing version bump..."
 
 git add godot\main.gd godot\export_presets.cfg
-git commit -m "release: v$Version - $Title"
-if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
-Ok "Committed"
+git diff --cached --quiet
+if ($LASTEXITCODE -eq 0) {
+    # The version files already said $Version (the first release of a line).
+    Ok "Version files already at ${Version}: nothing to commit"
+} else {
+    git commit -m "release: v$Version - $Title"
+    if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
+    Ok "Committed"
+}
 
 git push origin main
 if ($LASTEXITCODE -ne 0) { Fail "git push failed." }
