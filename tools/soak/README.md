@@ -33,7 +33,7 @@ printed as measured, threshold, PASS or FAIL.
 | CPU, 8 active | Dev PC | `perf.ps1 -Row cpu8` | CPU seconds over wall seconds, after the first minute, <= 25% of a core (10 min) |
 | CPU while paused | Dev PC | `perf.ps1 -Row paused` | as above, <= 3%, and the report says paused (Ctrl+Shift+P pressed at 20 s) |
 | CPU behind a full-screen app | Dev PC | `perf.ps1 -Row fullscreen` | <= 3%, and the report says hidden (a black full-screen window from 20 s) |
-| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 5%, and at the end the report says away with every critter napping |
+| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 7%, and at the end the report says away with every critter napping |
 | 25 critters | Dev PC | `perf.ps1 -Row cap25` | median fps >= 25 and no `ERROR:` or `SCRIPT ERROR` in the run's `godot.log` |
 | GDI objects | VM, 8 h | `judge.ps1` (gdi) | <= 2,000 at the end, and flat after hour 1 |
 | USER objects, threads, children | VM, 8 h | `judge.ps1` (user) | each flat after hour 1 |

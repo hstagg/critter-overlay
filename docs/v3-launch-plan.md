@@ -379,7 +379,8 @@ Findings along the way:
     Napping: all 8 asleep at 10 fps. The estimate behind the 10 fps choice
     was wrong: 9.4% at 20 fps and 6.0% at 10 fps. That fits about 0.34% per
     frame plus a fixed 2.6% (8 windows drawn each frame), so 5% needs
-    about 7 fps. This needs the developer's decision.
+    about 7 fps. Decided (developer, 2026-10-22): keep 10 fps and accept
+    about 6%; the threshold is now 7%, so the row passes.
   - Clean exits (`night_exit.ps1`, release exe): 20 timed and 10 WM_CLOSE,
     30 of 30 exit code 0, no crash events in the Application log. (The
     second-instance mode needs an installed copy running, so it was
@@ -519,7 +520,7 @@ checks go on the developer PC, at a time the developer picks, with sound off.
 | Frame rate, default 8 critters | Dev PC, Iris Xe, 2 min | median ≥ 28 fps, p95 frame ≤ 40 ms (30 fps cap, decided 2026-10-21) |
 | CPU, default 8 critters, active | Dev PC, 10 min | ≤ 25% of one core |
 | CPU while paused or hidden by a full-screen app | Dev PC, 10 min each | ≤ 3% of one core |
-| CPU, all napping (10 fps) | Dev PC, 10 min | ≤ 5% of one core (decided 2026-10-21) |
+| CPU, all napping (10 fps) | Dev PC, 10 min | ≤ 7% of one core (decided 2026-10-22: 10 fps kept, 6% accepted) |
 | 25 critters (the cap) | Dev PC, 2 min | ≥ 25 fps, no errors |
 | GDI objects after 8 h default play | VM | ≤ 2,000 and not climbing linearly with arrivals |
 | USER objects, threads, child processes | VM, 8 h | flat after hour 1 |
