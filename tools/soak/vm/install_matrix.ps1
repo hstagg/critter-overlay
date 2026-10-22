@@ -69,7 +69,11 @@ function Uninstall-All([string]$extra = "/VERYSILENT /SUPPRESSMSGBOXES") {
         $u = $e.UninstallString.Trim('"')
         Start-Process $u -ArgumentList "$extra /NORESTART" -Wait
     }
-    Start-Sleep -Seconds 2
+    # unins000.exe hands over to a copy of itself in %TEMP% (_unins.tmp),
+    # which does the work and may still be deleting when the first exits.
+    $t = 0
+    while ((Get-Process _unins* -ErrorAction SilentlyContinue) -and $t -lt 240) { Start-Sleep -Milliseconds 250; $t++ }
+    Start-Sleep -Seconds 1
 }
 
 function Start-App([string]$exe, [int]$s = 25) {
