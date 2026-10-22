@@ -14,6 +14,36 @@ new `import_test.gd` guards them; the Admin page's pair checks and
 `--pair-demo` now start the two close enough to meet (10 of 10 pairs act).
 A 6-hour soak on the test VM (`tools/soak/vm/`) is under way.
 
+**Release candidate, 22 October** (Phase 5's S5 and Phase 8, `main` after
+PR #21; judged by `tools/soak/judge.ps1`). The 6-hour soak above was
+replaced by this one.
+
+- 8 h VM soak, 02:07-10:10: `run.sh soak8h 30600 --seconds=28800
+  --idle-sim=480,240 --soak-mode=soak`. Debug editor binary, software
+  rendering, 10 to start and 12 at most, 30 fps.
+
+  | Row | Measured | Threshold | |
+  |---|---|---|---|
+  | GDI objects | end 49; hour 1 median 47, last hour 49 | ≤ 2,000, flat | PASS |
+  | USER objects, threads, child processes | 49 → 51, 35 → 31, 0 → 0 (hourly medians) | flat | PASS |
+  | Working set | hour 1 89 MB, end 75 MB | ≤ hour 1 + 15% | PASS |
+  | Window count | at most 14; no sample over its limit | ≤ critters + props + 14 | PASS |
+  | Errors, crashes | 0 errors, 0 anomalies, exit 0, 0 crash events | 0 | PASS |
+  | Pair completion | 419 of 439 (95%) | ≥ 90% | PASS |
+
+  Finding 4 (the GDI leak) no longer shows over 8 h: windows are reused
+  (`win_pool.gd`), and only 12 were made all night. The first judging
+  failed threads and crash events. Threads bob between about 25 and 44
+  each hour with no trend, and the "crash events" were two Windows
+  RADAR_PRE_LEAK notices from before the soak. `judge.ps1` now compares
+  hourly medians and takes the run's start from its samples; the corrected
+  rules still fail a made-up leaking run.
+- Dev PC (Intel Iris Xe), release export, `perf.ps1 -Row all`: frame rate,
+  CPU awake, paused, full screen and 25 critters all pass. Napping at
+  10 fps measured 6.0%, accepted by the developer, so its threshold is now
+  7%. Exit test: 30 of 30 clean, no crash events. The numbers are in
+  `docs/v3-launch-plan.md`, Phase 8.
+
 ## Findings
 
 | # | Finding | Severity | Evidence | Status |
