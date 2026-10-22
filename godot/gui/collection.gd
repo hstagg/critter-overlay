@@ -368,6 +368,7 @@ func _diary(c: Dictionary) -> Control:
 	card.add_child(rows)
 	if economy.sightings.is_empty():
 		var empty := UI.label("No rare sightings yet. They will appear here, with the day and time.", 13, c.ink2, 600)
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # one line ran past the column at 1280 px
 		var m := MarginContainer.new()
 		m.add_theme_constant_override("margin_left", 16)
 		m.add_theme_constant_override("margin_top", 10)
