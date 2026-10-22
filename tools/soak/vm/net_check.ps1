@@ -25,11 +25,17 @@ while (((Get-Date) - $t0).TotalSeconds -lt $Seconds -and -not $p.HasExited) {
 }
 taskkill /IM CritterOverlay.exe | Out-Null
 $cache = Get-DnsClientCache -ErrorAction SilentlyContinue
+# GitHub's own names, resolved now: an address seen before it reached the
+# cache is still named.
+$github = @{}
+foreach ($n in "api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com") {
+    Resolve-DnsName $n -Type A -ErrorAction SilentlyContinue | Where-Object IPAddress | ForEach-Object { $github[$_.IPAddress] = $n }
+}
 $lines = @()
 $ok = $true
 foreach ($k in $seen.Keys) {
     $ip = $k.Substring(0, $k.LastIndexOf(":"))
-    $names = @($cache | Where-Object { $_.Data -eq $ip } | ForEach-Object Entry | Select-Object -Unique)
+    $names = @($cache | Where-Object { $_.Data -eq $ip } | ForEach-Object Entry) + @($github[$ip] | Where-Object { $_ }) | Select-Object -Unique
     $github = @($names | Where-Object { $_ -match "github" }).Count -gt 0
     if (-not $github) { $ok = $false }
     $lines += "  $k  $($names -join ', ')"
