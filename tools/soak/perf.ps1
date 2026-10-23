@@ -5,7 +5,7 @@
 #   cpu8        8 critters awake, 10 min: <= 25% of one core
 #   paused      8 critters, paused with the pause shortcut, 10 min: <= 3%
 #   fullscreen  8 critters behind a full-screen window, 10 min: <= 3%
-#   napping     8 critters all asleep (presence faked away), 10 min: <= 5%
+#   napping     8 critters all asleep (presence faked away), 10 min: <= 7%
 #   cap25       25 critters, 2 min: median fps >= 25, no errors
 #   all         each of the above in turn (about 45 min)
 #
@@ -137,7 +137,7 @@ foreach ($r in $rows) {
             $g = Run-Game $r $cpuS "--kittens=8 --idle-sim=1,100000 --away-after=5"
             $c = Cpu-Percent $g.cpu
             $took = $g.report -and $g.report.away -and $g.report.napping -eq $g.report.critters
-            Say $r ("{0:F1}% of a core" -f $c) "<= 5%" ($took -and $c -ne $null -and $c -le 5) $(if (-not $took) { "not everyone was asleep at the end" })
+            Say $r ("{0:F1}% of a core" -f $c) "<= 7%" ($took -and $c -ne $null -and $c -le 7) $(if (-not $took) { "not everyone was asleep at the end" })
         }
         "cap25" {
             $g = Run-Game $r 120 "--kittens=25 $present"

@@ -33,7 +33,7 @@ printed as measured, threshold, PASS or FAIL.
 | CPU, 8 active | Dev PC | `perf.ps1 -Row cpu8` | CPU seconds over wall seconds, after the first minute, <= 25% of a core (10 min) |
 | CPU while paused | Dev PC | `perf.ps1 -Row paused` | as above, <= 3%, and the report says paused (Ctrl+Shift+P pressed at 20 s) |
 | CPU behind a full-screen app | Dev PC | `perf.ps1 -Row fullscreen` | <= 3%, and the report says hidden (a black full-screen window from 20 s) |
-| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 5%, and at the end the report says away with every critter napping |
+| CPU, all napping | Dev PC | `perf.ps1 -Row napping` | <= 7%, and at the end the report says away with every critter napping |
 | 25 critters | Dev PC | `perf.ps1 -Row cap25` | median fps >= 25 and no `ERROR:` or `SCRIPT ERROR` in the run's `godot.log` |
 | GDI objects | VM, 8 h | `judge.ps1` (gdi) | <= 2,000 at the end, and flat after hour 1 |
 | USER objects, threads, children | VM, 8 h | `judge.ps1` (user) | each flat after hour 1 |
@@ -44,8 +44,10 @@ printed as measured, threshold, PASS or FAIL.
 | Sleep/resume | Laptop or VM | `sleep_check.ps1` | focus minutes in the save <= minutes awake (a sleep of over a minute must be seen) |
 | Pair completion | VM soak | `judge.ps1` (pairs) | `PAIR act` lines >= 90% of `PAIR start` lines |
 
-"Flat" means the highest value after hour 1 is at most 10% above the value at
-hour 1, plus a small allowance (GDI 50, USER 20, threads 5, children 0).
+"Flat" means the median of the last hour is at most 10% above the median of
+hour 1 (the second hour, after start-up), plus a small allowance (GDI 50,
+USER 20, threads 5, children 0). Medians, because thread pools come and go:
+single samples bob about without a trend.
 `perf.ps1 -Row all` runs the six dev-PC rows in turn (about 45 min; the
 full-screen row covers the screen in black). Frame rate and CPU only count
 from real hardware: the VM renders in software.

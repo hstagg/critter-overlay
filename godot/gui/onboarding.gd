@@ -276,19 +276,28 @@ func _gather_art() -> Control:
 	for half in 2:
 		var p := PanelContainer.new()
 		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		p.clip_contents = true
 		p.add_theme_stylebox_override("panel", K.box(Palette.species_tint("kitten" if half == 0 else "otter", dark), 0))
 		var v := K.vbox(0)
 		v.add_child(K.margins(UI.label("WORKING" if half == 0 else "AWAY", 12, c.outline if half == 0 else Color("#3E5670") if not dark else c.zz, 800), 20, 16, 0, 0))
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		v.add_child(spacer)
 		var crits := []
 		if half == 0:
 			for sp in built:
 				crits.append([sp, 0.62])
 		else:
 			crits = [["kitten", 0.8, true], [built[1 % built.size()], 0.66, true]]
-		v.add_child(K.margins(_row(crits, 2), 0, 0, 0, 10))
+		# The working row is wider than its half: a plain holder crops it,
+		# centred, as in step 2, instead of stretching the card past the
+		# window's edge (seen at 1280x800, where the welcome shrinks to fit).
+		var holder := Control.new()
+		holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(holder)
+		var r := _row(crits, 2)
+		holder.add_child(r)
+		holder.resized.connect(func():
+			var m := r.get_combined_minimum_size()
+			r.size = m
+			r.position = Vector2((holder.size.x - m.x) * 0.5, holder.size.y - m.y - 10))
 		p.add_child(v)
 		split.add_child(p)
 	a.add_child(split)
