@@ -21,6 +21,8 @@ extends Node2D
 ##   --custom-dir=PATH  keep homemade critters in PATH instead of user://custom
 ##   --custom-v2=PATH   carry v2.0 custom critters over from PATH (testing; a
 ##                      normal run reads v2.0's own folder)
+##   --import=PATH      open Settings › System with PATH in the custom critter
+##                      importer, as if picked (testing)
 ##   --kittens=N        a fixed number of roaming critters (no gathering)
 ##   --perimeter=N      and N more walking the screen's edges
 ##   --demo=NAME        one critter in the middle doing NAME on a loop: any
@@ -170,6 +172,7 @@ var when_ready := ""            # --when-ready
 var save_path := ""
 var tray_in := 0.0
 var open_on_start := ""
+var import_on_start := ""         # --import
 var native: RefCounted = null   # CritterNative (native/), when built
 var demo := ""
 var demo_wait := 0.5
@@ -259,6 +262,9 @@ func _ready() -> void:
 			save_path = v
 		elif arg.begins_with("--open="):
 			open_on_start = v
+		elif arg.begins_with("--import="):
+			import_on_start = v
+			open_on_start = "system"
 		elif arg.begins_with("--settings="):
 			settings_path = v
 		elif arg.begins_with("--set="):
@@ -446,6 +452,8 @@ func _ready() -> void:
 	if open_on_start != "":
 		# --open=PAGE, or PAGE:SPECIES (the Collection, scrolled to a critter)
 		open_settings.call_deferred(open_on_start.get_slice(":", 0), open_on_start.get_slice(":", 1) if ":" in open_on_start else "")
+	if import_on_start != "":
+		_start_import.call_deferred()
 	if tour_dir != "":
 		_tour.call_deferred()
 	if not late_sets.is_empty():
@@ -1351,6 +1359,13 @@ func _tour() -> void:
 func admin_on() -> bool:
 	# The admin build always shows the Admin page; running from source, --admin.
 	return admin != null and (OS.has_feature("admin") or admin_flag)
+
+
+func _start_import() -> void:
+	# --import=PATH: the picture into the importer, once System is built.
+	await get_tree().process_frame
+	if settings_win != null and settings_win.pages != null and settings_win.pages.get("importer") != null:
+		settings_win.pages.importer.open_file(import_on_start)
 
 
 func open_settings(page := "", sp := "") -> void:

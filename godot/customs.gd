@@ -27,6 +27,7 @@ const MAX_FRAMES := 16
 const EXTENSIONS := ["png", "jpg", "jpeg", "webp"]
 const SOUNDS := ["kitten", "rabbit", "duck", "hedgehog", "turtle", "squirrel", "otter", "panda"]
 const IDLES := ["sit_and_look", "nap", "wake_up", "look_at_cursor", "shake_off"]
+const PREVIEW := "custom:_preview"   # the importer's picture before it is kept; never arrives
 
 static var dir := "user://custom"
 static var all := {}             # "custom:<id>" -> its custom.json, plus "_dir"
@@ -75,7 +76,22 @@ static func is_custom(id: String) -> bool:
 
 
 static func ids(enabled_only := false) -> Array:
-	return all.keys().filter(func(id): return not enabled_only or bool(all[id].get("enabled", true)))
+	return all.keys().filter(func(id): return id != PREVIEW and (not enabled_only or bool(all[id].get("enabled", true))))
+
+
+static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
+	# The importer's live preview: drawn by still.gd like a kept one, but held
+	# in memory only.
+	var tex := ImageTexture.create_from_image(img)
+	all[PREVIEW] = {"name": "Preview", "faces": faces, "size": size, "frames": 0, "_dir": ""}
+	_frames[PREVIEW] = [tex]
+	Species.custom[PREVIEW] = _row(all[PREVIEW])
+
+
+static func clear_preview() -> void:
+	all.erase(PREVIEW)
+	_frames.erase(PREVIEW)
+	Species.custom.erase(PREVIEW)
 
 
 static func frames(id: String) -> Array:

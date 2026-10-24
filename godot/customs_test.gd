@@ -128,6 +128,19 @@ func _init() -> void:
 	Customs.load_all()
 	check(Customs.all.size() == 1, "a folder without custom.json is skipped")
 
+	# --- The importer's preview is drawn but never arrives or lists.
+	Customs.set_preview(cut, "left", 1.3)
+	check(Species.custom.has(Customs.PREVIEW) and Customs.frames(Customs.PREVIEW).size() == 1, "the preview can be drawn")
+	check(not Customs.PREVIEW in Customs.ids(), "but is not listed")
+	var prng := RandomNumberGenerator.new()
+	var leaked := false
+	for i in 200:
+		if Customs.pick(0.0, [0.1, 1.0, 3.0, 5.0], prng) == Customs.PREVIEW:
+			leaked = true
+	check(not leaked, "and never arrives")
+	Customs.clear_preview()
+	check(not Species.custom.has(Customs.PREVIEW), "cleared")
+
 	# --- The arrival pick.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
