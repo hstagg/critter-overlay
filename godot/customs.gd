@@ -375,19 +375,24 @@ static func carry_over(from_dir: String, v2_seen: Dictionary) -> int:
 
 
 static func _v2_pictures(folder: String, meta: Dictionary) -> Array:
-	# A still from v2.0 is one picture: its original if it was already cut
-	# out (static_png), else the second of its four walking frames, which is
-	# the cut-out with no lean or sway. An animated one (a GIF or a frame
-	# strip) keeps all its frames.
+	# A still from v2.0 is one picture: its original, cut out again if it had
+	# a background (static_jpg), since v2.0's 120 px walking frames are small
+	# and their bob crops the top; without the original, the second of those
+	# frames (no lean or sway). An animated one (a GIF or a frame strip)
+	# keeps all its frames.
 	var count := clampi(int(meta.get("frame_count", 1)), 1, MAX_FRAMES)
 	var frame := func(i): return Image.load_from_file(folder.path_join("frames/frame_%d.png" % i)) \
 		if FileAccess.file_exists(folder.path_join("frames/frame_%d.png" % i)) else null
 	if not bool(meta.get("procedural_animation", true)) and count > 1:
 		return range(count).map(frame).filter(func(i): return i != null)
-	if str(meta.get("import_method", "")) == "static_png" and FileAccess.file_exists(folder.path_join("source.png")):
+	var method := str(meta.get("import_method", ""))
+	if method in ["static_png", "static_jpg"] and FileAccess.file_exists(folder.path_join("source.png")):
 		var src := Image.load_from_file(folder.path_join("source.png"))
 		if src != null and not src.is_empty() and src.get_width() <= MAX_SOURCE_SIDE and src.get_height() <= MAX_SOURCE_SIDE:
 			src.convert(Image.FORMAT_RGBA8)
+			src = fit(src)
+			if not has_transparency(src):
+				src = remove_background(src)
 			return [src]
 	var one = frame.call(1 if count > 1 else 0)
 	if one == null:

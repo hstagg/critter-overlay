@@ -49,7 +49,7 @@ func clear_dir(path: String) -> void:
 	DirAccess.remove_absolute(path)
 
 
-func v2_critter(root: String, id: String, meta: Dictionary, frames: int, source := false) -> void:
+func v2_critter(root: String, id: String, meta: Dictionary, frames: int, source := false, source_bg := Color(0, 0, 0, 0)) -> void:
 	# A folder as v2.0's importer left it.
 	var folder := root.path_join(id)
 	DirAccess.make_dir_recursive_absolute(folder.path_join("frames"))
@@ -60,7 +60,7 @@ func v2_critter(root: String, id: String, meta: Dictionary, frames: int, source 
 		img.save_png(folder.path_join("frames/frame_%d.png" % i))
 	if source:
 		var src := Image.create(400, 300, false, Image.FORMAT_RGBA8)
-		src.fill(Color(0, 0, 0, 0))
+		src.fill(source_bg)
 		src.fill_rect(Rect2i(100, 50, 200, 200), Color(0.2, 0.6, 0.9))
 		src.save_png(folder.path_join("source.png"))
 	var f := FileAccess.open(folder.path_join("meta.json"), FileAccess.WRITE)
@@ -158,12 +158,14 @@ func _init() -> void:
 		"import_method": "animated_gif", "procedural_animation": false}, 4)
 	v2_critter(v2, "clean-0a0b0c", {"schema_version": 2, "name": "Clean", "frame_count": 4,
 		"import_method": "static_png", "procedural_animation": true}, 4, true)
+	v2_critter(v2, "photo-333333", {"schema_version": 2, "name": "Photo", "frame_count": 4, "import_method": "static_jpg",
+		"procedural_animation": true}, 4, true, Color(1, 1, 1))     # its original still has its white background
 	v2_critter(v2, "old-111111", {"name": "Old one"}, 1)          # schema 1: only a name
 	v2_critter(v2, "broken-222222", {"name": "Broken"}, 0)        # no picture at all
 	DirAccess.make_dir_recursive_absolute(v2.path_join("not-a-critter"))
 	var seen := {"custom:pip-a1b2c3": {"common": 3, "rare": 1}}
 	var came := Customs.carry_over(v2, seen)
-	check(came == 4, "four of five v2.0 critters come over (got %d)" % came)
+	check(came == 5, "five of six v2.0 critters come over (got %d)" % came)
 	var by_name := {}
 	for k in Customs.all:
 		by_name[Customs.all[k]["name"]] = k
@@ -185,6 +187,9 @@ func _init() -> void:
 	if by_name.has("Clean"):
 		var clean := Image.load_from_file(str(Customs.all[by_name["Clean"]]["_dir"]).path_join("image.png"))
 		check(clean != null and clean.get_width() == 200, "a cut-out PNG uses its original, trimmed (got %d px wide)" % (clean.get_width() if clean else -1))
+	if by_name.has("Photo"):
+		var ph := Image.load_from_file(str(Customs.all[by_name["Photo"]]["_dir"]).path_join("image.png"))
+		check(ph != null and ph.get_width() == 200 and ph.get_height() == 200, "a photo's original is cut out again, not the 120 px frame (got %s)" % (str(ph.get_size()) if ph else "none"))
 	check(Customs.carry_over(v2, seen) == 0, "each comes over once")
 	check(FileAccess.file_exists(v2.path_join("pip-a1b2c3/meta.json")), "v2.0's files are left alone")
 
