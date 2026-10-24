@@ -4,8 +4,8 @@ A beta that brings back v2.0's custom critters in v3: one picture becomes a
 critter that walks the desktop as one piece. It is Tier 1 of the custom
 critters plan (`docs/v3-custom-critters-plan.md` on branch
 `v3-custom-critters-plan`, sections 2 and 11.2), cut to what a tester who
-used v2.0's custom critters needs to give feedback. Status: proposed,
-2026-10-25. Nothing is built.
+used v2.0's custom critters needs to give feedback. Status: approved
+2026-10-25 with the three recommended decisions (below); being built.
 
 ## What the tester gets
 
@@ -114,6 +114,9 @@ Tier 1 (that figure included `.critter` import and more importer polish).
   accident.
 
 ## Decisions
+
+Decided by the developer on 2026-10-25: 1 as recommended, 2 as recommended
+(`3.0.90`, shown as "3.1 beta 1", sent as a file), 3 no clothes.
 
 1. **Storage** (CLAUDE.md asks for this to be discussed): custom critters in
    their own folder, `user://custom/`, with their sightings kept there, and

@@ -16,7 +16,11 @@ extends Node2D
 ## Flags (after `--`):
 ##   --seconds=N        quit after N seconds; with --report=PATH write timings
 ##   --report=PATH      timings as JSON; live positions stream on stdout
-##   --species=NAME     which critter to spawn (default kitten; see species.gd)
+##   --species=NAME     which critter to spawn (default kitten; see species.gd),
+##                      or custom:<id> for a homemade one (customs.gd)
+##   --custom-dir=PATH  keep homemade critters in PATH instead of user://custom
+##   --custom-v2=PATH   carry v2.0 custom critters over from PATH (testing; a
+##                      normal run reads v2.0's own folder)
 ##   --kittens=N        a fixed number of roaming critters (no gathering)
 ##   --perimeter=N      and N more walking the screen's edges
 ##   --demo=NAME        one critter in the middle doing NAME on a loop: any
@@ -63,6 +67,7 @@ extends Node2D
 
 const Critter := preload("res://critters/critter.gd")
 const Species := preload("res://species.gd")
+const Customs := preload("res://customs.gd")
 const Behaviours := preload("res://behaviours.gd")
 const Presence := preload("res://presence.gd")
 const Host := preload("res://host.gd")
@@ -138,6 +143,8 @@ var fixed_count := -1
 var fixed_perimeter := 0
 var species := Species.DEFAULT
 var species_fixed := false
+var custom_v2_dir := ""            # --custom-v2
+var customs_back := 0              # v2.0 custom critters carried over this launch
 var economy: Node
 var tray: Node
 var toasts: Node
@@ -205,8 +212,12 @@ func _ready() -> void:
 			seconds = float(v)
 		elif arg.begins_with("--report="):
 			report_path = v
+		elif arg.begins_with("--custom-dir="):
+			Customs.dir = v
+		elif arg.begins_with("--custom-v2="):
+			custom_v2_dir = v
 		elif arg.begins_with("--species="):
-			if Species.has(v):
+			if Species.has(v) or Customs.is_custom(v):   # a homemade id is checked once they load
 				species = v
 				species_fixed = true
 			else:
@@ -379,6 +390,16 @@ func _ready() -> void:
 			economy.import_v2_seen(seen)
 			economy.save()   # now, before the flag below can be saved without it
 			settings.set_value("system.v2_seen_done", true)
+	# Homemade critters, and v2.0's carried over once each (customs.gd).
+	Customs.load_all()
+	var from_v2 := custom_v2_dir if custom_v2_dir != "" else (Customs.v2_dir() if real_run else "")
+	if from_v2 != "":
+		customs_back = Customs.carry_over(from_v2, economy.v2_custom_seen)
+	print("CUSTOMS ", Customs.all.size(), " (", customs_back, " from v2.0)")
+	if species_fixed and Customs.is_custom(species) and not Customs.all.has(species):
+		printerr("Unknown homemade critter '%s'; known: %s" % [species, ", ".join(Customs.all.keys())])
+		species = Species.DEFAULT
+		species_fixed = false
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(_on_gift)
 	economy.welcome_back.connect(_on_welcome_back)
@@ -476,7 +497,7 @@ func _ready() -> void:
 		_welcome()
 		return
 	_first_critters()
-	_v2_custom_notice()
+	_customs_note()
 
 
 func _welcome() -> void:
@@ -487,7 +508,7 @@ func _welcome() -> void:
 	w.finished.connect(func(open_settings_too):
 		waiting_welcome = false
 		_first_critters()
-		_v2_custom_notice()
+		_customs_note()
 		if open_settings_too:
 			open_settings("home"))
 	w.open(self)
@@ -495,19 +516,16 @@ func _welcome() -> void:
 		_welcome_tour(w)
 
 
-func _v2_custom_notice() -> void:
-	# Once, after upgrading: v2.0's custom critters cannot come along yet.
-	# Their files stay where v2.0 kept them, and their sightings are saved.
-	if settings.value("system.v2_custom_noted", false) or seconds > 0.0 or demo != "":
+func _customs_note() -> void:
+	# After v2.0's custom critters have come over (customs.gd carry_over),
+	# once, since each comes over only once.
+	if customs_back == 0 or seconds > 0.0 or demo != "":
 		return
-	var customs = _v2_settings().get("custom_animals", [])
-	var n: int = customs.size() if typeof(customs) in [TYPE_ARRAY, TYPE_DICTIONARY] else 0
-	if n == 0:
-		return
-	settings.set_value("system.v2_custom_noted", true)
 	toasts.show_note(Icons.line("heart", 40, Color("#C0548A")), "From v2.0",
-		"Your custom critters are safe",
-		"%s you made in v2.0 can't come along yet. They are kept, and come back in a later update." % ("The critter" if n == 1 else "The %d critters" % n))
+		"Your custom critters are back",
+		"%s you made in v2.0 %s here again. Find %s in Settings › System." % [
+			"The critter" if customs_back == 1 else "The %d critters" % customs_back,
+			"is" if customs_back == 1 else "are", "it" if customs_back == 1 else "them"])
 
 
 func sync_props() -> void:
@@ -577,17 +595,28 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	var tier := keep_tier
 	var bonus := false
 	var rolled := false
+	var asked := sp
+	var custom := Customs.is_custom(sp)
+	if custom and tier == "":
+		tier = "common"   # a homemade critter never rolls
 	if tier == "" and economy != null and demo == "":
 		var r: Array = _roll_visitor(sp)
 		sp = r[0]
 		tier = r[1]
 		bonus = r[2]
 		rolled = true
+		custom = Customs.is_custom(sp)   # --species=custom:<id>
+		# A Common may be a homemade critter instead; a rarer roll never is.
+		if asked == "" and tier == "common" and not species_fixed and sp != "":
+			var c := Customs.pick(_species_weight(), Settings.VISITS, economy.rng)
+			if c != "":
+				sp = c
+				custom = true
 	elif sp == "":
 		sp = _pick_species()
 	if sp == "":
 		return null   # every species is switched off
-	if force_tier != "":
+	if force_tier != "" and not custom:
 		tier = force_tier
 	if version == "" and tier != "":
 		version = Species.version_for(sp, tier)
@@ -606,7 +635,9 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
 	if tier != "":
 		h.tier = tier
-	if rolled:
+	if rolled and custom:
+		Customs.record_visit(sp)   # its own count: no Collection key, no berries, no presents
+	elif rolled:
 		_announce(sp, h.tier, bonus and force_tier == "", str(h.critter.get("variant") if "variant" in h.critter else ""))
 		_maybe_bring(h)
 		if fixed_count <= 0 and fixed_perimeter <= 0:
@@ -812,11 +843,23 @@ func _pick_species(tier := "common") -> String:
 		economy.save()
 		if Species.has(called) and settings.sp(called, "enabled"):
 			return called
+	return economy.pick_species(tier, _species_weights())
+
+
+func _species_weights() -> Dictionary:
+	# How often each switched-on everyday species visits (Settings > Critters).
 	var weights := {}
 	for sp in Species.DATA:
 		if not Species.row(sp).get("special", false) and settings.sp(sp, "enabled"):
 			weights[sp] = Settings.VISITS[int(settings.sp(sp, "visits"))]
-	return economy.pick_species(tier, weights)
+	return weights
+
+
+func _species_weight() -> float:
+	var total := 0.0
+	for w in _species_weights().values():
+		total += float(w)
+	return total
 
 
 func _on_gone(h) -> void:
