@@ -410,7 +410,6 @@ static func _words(n: int) -> String:
 # ============================================================ CRITTERS
 
 func _critters(body: VBoxContainer) -> void:
-	var c := K.c
 	header(body, "Critters", "Choose who visits and how each one behaves.",
 		K.button("Reset all critters", "bq", "reset", true, func():
 			w.confirm("Reset all critters?", "Every critter's visits, speed, activity, trail and sound go back to how they started.", "Reset", func():
@@ -422,23 +421,30 @@ func _critters(body: VBoxContainer) -> void:
 		_slider_row("Opacity", "Lower it if they distract you.", "critters.opacity", 50, 100, 5, func(x): return "%d%%" % int(x), "50%", "100%", 240),
 	])))
 
-	# The picker strip.
-	var strip := K.hbox(14)
+	# The picker: the commons, then the specials and your own under a line.
+	# Both rows wrap, so more critters never widen the page.
+	var strip := K.vbox(12)
+	var commons := _tile_row()
 	for sp in _built(false):
-		strip.add_child(_tile(sp))
-	var specials := _built(true)
-	if not specials.is_empty():
-		var sep := Panel.new()
-		sep.custom_minimum_size = Vector2(2, 60)
-		sep.add_theme_stylebox_override("panel", K.box(c.line, 0))
-		strip.add_child(sep)
-		for sp in specials:
-			strip.add_child(_tile(sp))
-	strip.add_child(_your_own_tile())
+		commons.add_child(_tile(sp))
+	strip.add_child(commons)
+	strip.add_child(K.divider())
+	var specials := _tile_row()
+	for sp in _built(true):
+		specials.add_child(_tile(sp))
+	specials.add_child(_your_own_tile())
+	strip.add_child(specials)
 	var choose := K.vbox(14)
 	choose.add_child(K.card([K.margins(strip, 18, 16, 18, 12)]))
 	choose.add_child(_species_detail(w.selected_species))
 	body.add_child(K.section("Choose a critter", choose))
+
+
+static func _tile_row() -> HFlowContainer:
+	var f := HFlowContainer.new()
+	f.add_theme_constant_override("h_separation", 14)
+	f.add_theme_constant_override("v_separation", 10)
+	return f
 
 
 func _built(special: bool) -> Array:
@@ -974,6 +980,18 @@ func _shop(body: VBoxContainer) -> void:
 			dyes[shop_try] = shop_dye
 		else:
 			dyes.erase(shop_try)
+	# Who to dress: its own row above the dressing room, wrapping, so more
+	# species never run under the rail.
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 6)
+	chips.add_theme_constant_override("v_separation", 6)
+	for s in _built(false) + _built(true):
+		var spc: String = s
+		chips.add_child(K.chip(Collection.species_name(s), s == sp, func():
+			w.selected_species = spc
+			w.rebuild()))
+	body.add_child(chips)
+
 	var row := K.hbox(20)
 	var left := K.vbox(16)
 	if shop_try.begins_with("prop:"):
@@ -1010,14 +1028,6 @@ func _dressing_room(sp: String, worn: Array, trying: Array, dyes: Dictionary) ->
 	var view := CritterView.make(sp, 316, 296, 2.0, "sit", false, -1, trying, false, dyes)
 	view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(view)
-	var chips := K.hbox(6)
-	chips.position = Vector2(12, 12)
-	for s in _built(false) + _built(true):
-		var spc: String = s
-		chips.add_child(K.chip(Collection.species_name(s), s == sp, func():
-			w.selected_species = spc
-			w.rebuild()))
-	layer.add_child(chips)
 	v.add_child(stage)
 
 	var info := K.vbox(10)
@@ -1200,6 +1210,7 @@ func _rail(sp: String, worn: Array) -> Control:
 	col.add_child(seg)
 	var grid := GridContainer.new()
 	grid.columns = 3
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 12)
 	var ids := Wear.ITEMS.keys()
@@ -1227,6 +1238,12 @@ func _rail(sp: String, worn: Array) -> Control:
 	return col
 
 
+static func _trim(l: Label) -> Label:
+	# A tile's line: cut short with an ellipsis rather than run past the tile.
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	return l
+
+
 static var _prop_tex := {}
 
 
@@ -1245,7 +1262,8 @@ func _tile_prop(pid: String) -> Control:
 	var eco = w.main.economy
 	var picked := shop_try == "prop:" + pid
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(140, 150)
+	b.custom_minimum_size = Vector2(128, 150)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_ALL
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var n := K.box(c.surface, 16, c.outline if picked else c.line, 3 if picked else 2, c.lip, 2 if picked else 0)
@@ -1274,10 +1292,10 @@ func _tile_prop(pid: String) -> Control:
 	v.add_child(well)
 	var t := K.vbox(2)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	t.add_child(UI.label(Prop.prop_name(pid), 13, c.ink, 800))
+	t.add_child(_trim(UI.label(Prop.prop_name(pid), 13, c.ink, 800)))
 	var owned: bool = eco.owns(pid)
 	var line := "Out on your desk" if eco.props_out.has(pid) else ("Yours" if owned else "%s berries" % _thousands(Prop.PRICE))
-	t.add_child(UI.label(line, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700))
+	t.add_child(_trim(UI.label(line, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700)))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
 	b.pressed.connect(func():
@@ -1347,7 +1365,8 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	var picked := id == shop_try
 	var owned: bool = eco.owns(id)
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(140, 150)
+	b.custom_minimum_size = Vector2(128, 150)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_ALL
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.tooltip_text = "Try on the %s" % Wear.item_name(id).to_lower()
@@ -1371,17 +1390,17 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 	well.add_theme_stylebox_override("panel", ws)
 	well.custom_minimum_size.y = 84
 	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	well.add_child(CritterView.make(sp, 130, 84, 0.62, "sit", false, -1, [id], true))
+	well.add_child(CritterView.make(sp, 120, 84, 0.62, "sit", false, -1, [id], true))
 	v.add_child(well)
 	var t := K.vbox(2)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	t.add_child(UI.label(Wear.item_name(id), 13, c.ink, 800))
+	t.add_child(_trim(UI.label(Wear.item_name(id), 13, c.ink, 800)))
 	if Wear.only(id) != "":
-		t.add_child(UI.label("Only for %ss" % Collection.species_name(sp).to_lower(), 11, c.acc_ink, 800))
+		t.add_child(_trim(UI.label("Only for %ss" % Collection.species_name(sp).to_lower(), 11, c.acc_ink, 800)))
 	if Wear.PERKS.has(id):
-		t.add_child(UI.label(Wear.PERKS[id].text, 11, Palette.tier("legendary", w.dark).ink, 800))
+		t.add_child(_trim(UI.label(Wear.PERKS[id].text, 11, Palette.tier("legendary", w.dark).ink, 800)))
 	var price_text := "Wearing" if id in worn else ("Yours" if owned else "%s berries" % _thousands(Wear.price(id)))
-	t.add_child(UI.label(price_text, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700))
+	t.add_child(_trim(UI.label(price_text, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700)))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
 	b.pressed.connect(func():
@@ -1474,6 +1493,7 @@ func _system(body: VBoxContainer) -> void:
 	pr.add_child(pt)
 	var imp := K.button("Import a critter", "bs", "plus", true)
 	imp.disabled = true
+	imp.add_theme_color_override("font_disabled_color", c.ink2)   # the default grey vanishes on light
 	imp.modulate.a = 0.6
 	imp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	pr.add_child(imp)
