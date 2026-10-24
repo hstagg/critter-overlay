@@ -1,0 +1,11 @@
+{
+  "queue": "C:/path/to/Post Queue",
+  "slot": "18:00",
+  "every_days": 2,
+  "live": [],
+  "front": {},
+  "summary_key": "",
+  "graph_version": "v23.0",
+  "youtube": {"client_id": "", "client_secret": "", "port": 8765},
+  "tiktok": {"client_key": "", "client_secret": "", "port": 8765}
+}
