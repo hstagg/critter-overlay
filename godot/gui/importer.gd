@@ -17,6 +17,7 @@ const CritterView := preload("res://gui/critter_view.gd")
 const CUTS := [["As it is", -1], ["Gentle", 15], ["Normal", 30], ["Strong", 60]]   # flood-fill tolerance
 const SIZES := [["Small", 0.8], ["Normal", 1.0], ["Big", 1.3]]
 const PREVIEW_SIZE := Vector2i(220, 170)
+const PREVIEW_SCALE := 1.4
 
 var w: Window                      # settings_window.gd
 var editing := ""                  # "" | "new" | the id of a kept critter being edited
@@ -55,7 +56,7 @@ func _row(id: String, c: Dictionary) -> Control:
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override("panel", K.box(c.track, 12))
 	well.custom_minimum_size = Vector2(72, 64)
-	well.add_child(CritterView.make(id, 72, 64, 0.42, "sit", false, -1, [], true))
+	well.add_child(CritterView.make(id, 72, 64, 0.8, "sit", false, -1, [], true))
 	h.add_child(well)
 	var text := K.vbox(2)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -96,11 +97,11 @@ func _editor(c: Dictionary) -> Control:
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override("panel", K.box(c.track, 16))
 	well.custom_minimum_size = Vector2(PREVIEW_SIZE)
-	var view = CritterView.make(Customs.PREVIEW, PREVIEW_SIZE.x, PREVIEW_SIZE.y, 0.7, "walk")
+	var view = CritterView.make(Customs.PREVIEW, PREVIEW_SIZE.x, PREVIEW_SIZE.y, PREVIEW_SCALE, "walk")
 	if view.critter != null:
 		# Walks to and fro inside the well.
-		view.critter.world.left_x = PREVIEW_SIZE.x * 0.3 / 0.7
-		view.critter.world.right_x = PREVIEW_SIZE.x * 0.7 / 0.7
+		view.critter.world.left_x = PREVIEW_SIZE.x * 0.3 / PREVIEW_SCALE
+		view.critter.world.right_x = PREVIEW_SIZE.x * 0.7 / PREVIEW_SCALE
 	well.add_child(view)
 	h.add_child(well)
 
