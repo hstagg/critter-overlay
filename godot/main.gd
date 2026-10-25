@@ -354,6 +354,8 @@ func _ready() -> void:
 				native.set_hotkey(1, int(sk.mods), int(sk.vk)))
 		native.hide_from_taskbar(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, 0))
 		presence.native = native
+		if real_run:
+			_heal_startup()
 
 	randomize()
 	player = AudioStreamPlayer.new()
@@ -361,6 +363,7 @@ func _ready() -> void:
 	_apply_audio_device()
 	for sp in Species.DATA:
 		_load_sound(Species.row(sp)["sound"])
+	print("SOUNDS ", sounds.size(), " loaded")   # 0 meant a silent install (fixed 2026-10-26)
 
 	# The economy. A timed test run never touches the real save.
 	economy = Economy.new()
@@ -889,9 +892,12 @@ func kittens() -> Array:
 # --- Sound --------------------------------------------------------------------
 
 func _load_sound(species: String) -> void:
+	# Through the resource loader: an exported build has only the imported
+	# sound, not the .wav, so a file check found nothing and every installed
+	# copy was silent (developer's PC, 2026-10-26).
 	var path := "res://sounds/%s.wav" % species
-	if FileAccess.file_exists(path):
-		sounds[species] = AudioStreamWAV.load_from_file(path)
+	if ResourceLoader.exists(path):
+		sounds[species] = load(path)
 
 
 func play_sound(sound: String, sp := "") -> void:
@@ -909,8 +915,8 @@ func _apply_audio_device() -> void:
 
 
 func audio_line() -> String:
-	return "Audio %s at %d Hz | playing through %s | outputs: %s" % [AudioServer.get_driver_name(), int(AudioServer.get_mix_rate()),
-		AudioServer.output_device, ", ".join(AudioServer.get_output_device_list())]
+	return "Audio %s at %d Hz | %d sounds loaded | playing through %s | outputs: %s" % [AudioServer.get_driver_name(), int(AudioServer.get_mix_rate()),
+		sounds.size(), AudioServer.output_device, ", ".join(AudioServer.get_output_device_list())]
 
 
 func preview_sound(sp: String) -> void:
@@ -1583,6 +1589,20 @@ func status() -> Dictionary:
 
 func is_startup() -> bool:
 	return native != null and native.is_launch_at_startup()
+
+
+func _heal_startup() -> void:
+	# Start with Windows on, but the entry starts something else (a copy run
+	# from source, an old install, a folder since deleted): it starts this
+	# installed copy again. Only an exported build does this, so running from
+	# the editor never takes the entry over.
+	if not OS.has_feature("template") or not native.is_launch_at_startup():
+		return
+	var own := OS.get_executable_path().replace("\\", "/").to_lower()
+	var cmd: String = native.startup_command().replace("\\", "/").to_lower()
+	if not own in cmd:
+		print("STARTUP entry pointed elsewhere (", native.startup_command(), "); now this copy")
+		set_startup(true)
 
 
 func set_startup(on: bool) -> void:

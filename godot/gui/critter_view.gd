@@ -66,6 +66,53 @@ func _build(species: String, w: int, h: int, scale: float, mode: String, asleep:
 		critter.go_to_sleep()
 		for i in 240:
 			critter.tick(1.0 / 30.0)
+	fit(critter, shrink, floor, w, h)
+
+
+static func drawn_rect(c: Node2D) -> Rect2:
+	# What a critter draws this frame, in its viewport's pixels.
+	var items: Array = c._sprites.duplicate()
+	if c.get("pic") is Polygon2D:
+		items.append(c.pic)   # a homemade critter's picture
+	var r := Rect2()
+	var any := false
+	for s in items:
+		if not is_instance_valid(s) or not s.is_visible_in_tree():
+			continue
+		var local := Rect2()
+		if s is Sprite2D:
+			local = s.get_rect()
+		else:
+			var pts: PackedVector2Array = s.polygon
+			if pts.is_empty():
+				continue
+			local = Rect2(pts[0], Vector2.ZERO)
+			for q in pts:
+				local = local.expand(q)
+		var g: Rect2 = s.get_global_transform() * local
+		r = g if not any else r.merge(g)
+		any = true
+	return r
+
+
+static func fit(c: Node2D, holder: Node2D, floor_node: Node, w: float, h: float) -> void:
+	# Shrinks the holder until the whole critter (ears, tail, hat) sits inside
+	# w x h with a little room, feet on the floor and centred: a big panda or
+	# a tall-eared rabbit is drawn smaller rather than cut off.
+	for i in 3:
+		var r := drawn_rect(c)
+		if r.size.x <= 0.0:
+			return
+		var k := minf(1.0, minf((w - 6.0) / r.size.x, (h - 6.0) / r.size.y))
+		if k >= 0.999 and r.position.y >= 2.0 and absf(w * 0.5 - r.get_center().x) < 2.0:
+			return
+		# Scaling is about the viewport's corner, so the centre moves with it.
+		var off := w * 0.5 - r.get_center().x * k
+		var sc: float = holder.scale.x * k
+		holder.scale = Vector2(sc, sc)
+		floor_node.floor_y = (h - 4.0) / sc
+		c.position.x += off / sc
+		c.tick(0.0)
 
 
 func _ready() -> void:

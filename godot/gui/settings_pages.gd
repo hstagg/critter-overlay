@@ -883,6 +883,15 @@ static func _thousands(n: int) -> String:
 
 # ============================================================ SOUND
 
+static func _fit_pic(pic: TextureRect, box: Vector2) -> void:
+	# Drawn to fit its frame, keeping its shape: smaller, never cropped.
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.custom_minimum_size = box
+	pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+
 func _device_row() -> Control:
 	# Where the sounds go: Windows' default, or a named output.
 	var outs := Array(AudioServer.get_output_device_list())
@@ -1183,7 +1192,7 @@ func _treats(sp: String) -> Control:
 	top.add_child(t)
 	top.add_child(UI.label("%d berries each" % Wear.TREAT_PRICE, 13, c.ink2, 700))
 	v.add_child(top)
-	var note := UI.label("Leave a treat out and that critter comes next.", 13, c.ink2, 400)
+	var note := UI.label("Want a particular critter? Buy it a treat and it is the next one to visit you.", 13, c.ink2, 400)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.custom_minimum_size.x = 280
 	v.add_child(note)
@@ -1300,8 +1309,8 @@ func _tile_prop(pid: String) -> Control:
 	well.add_theme_stylebox_override("panel", ws)
 	well.custom_minimum_size.y = 84
 	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var pic := UI.icon(prop_texture(pid, 120))
-	pic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	var pic := UI.icon(prop_texture(pid, 160))
+	_fit_pic(pic, Vector2(0, 84))   # a tall cottage or tent shrinks to the tile, never cut off
 	well.add_child(pic)
 	v.add_child(well)
 	var t := K.vbox(2)
@@ -1336,8 +1345,8 @@ func _prop_panel(pid: String) -> Control:
 	ss.corner_radius_top_right = 18
 	stage.add_theme_stylebox_override("panel", ss)
 	stage.custom_minimum_size = Vector2(316, 240)
-	var pic := UI.icon(prop_texture(pid, 280))
-	pic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	var pic := UI.icon(prop_texture(pid, 320))
+	_fit_pic(pic, Vector2(0, 228))
 	stage.add_child(pic)
 	v.add_child(stage)
 	var info := K.vbox(10)

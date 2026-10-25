@@ -34,7 +34,13 @@ func _initialize() -> void:
 	check(a.visible and a.position == WinPool.AWAY, "put_out shows it off the screen first, so it draws before it is seen")
 	pool.move(a, Vector2i(120, 210))
 	check(a.position == WinPool.AWAY, "a move while held waits for the hold")
+	pool._process(0.016)
+	check(a.position == WinPool.AWAY, "not before it has drawn")
+	var frame := [0]
+	WinPool.drawn = func() -> int: return frame[0]
+	pool.reveal(a, Vector2i(120, 210))
 	for i in WinPool.HOLD_FRAMES:
+		frame[0] += 1
 		pool._process(0.016)
 	check(a.position == Vector2i(120, 210), "then it goes where it was last asked")
 	pool.move(a, Vector2i(130, 220))
