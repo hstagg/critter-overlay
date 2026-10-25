@@ -850,6 +850,7 @@ in the last column.
 | D19 | Which roll-farming loops to close before beta (B3) | Clear Seen Log re-paying, relaunch rolls, timer-mode roll count, spawn-key rolls. | Close **Clear Seen Log re-paying** now; watch the rest in beta. || **Decided (G1):** rolls come from focus time; spawn now costs berries. |
 | D20 | Berries while paused (by design today) | (a) Keep. (b) No berries while paused. | Keep, and ask testers (T8). || **Keep earning.** Berries and banked rolls continue while paused. |
 | D21 | History | Rewrite history to drop the once-committed personal README (`73e8af2`)? | Check what it contains first; rewrite only if it holds personal data. || **Done 2026-10-13.** `_README.md` stripped from every commit; branches and tags force-pushed; GitHub Support asked to purge cached views. |
+| D22 | A long full-screen film sets off "Tidy up after a long break" (no input for an hour), so everyone out, Rares included, is sent home | (a) Time while hidden for a full-screen app (Windows' busy flag, which never says which app) does not count towards the tidy-up. (b) Leave it. Also: should timer-mode arrivals stop while hidden? | **(a)**, with no new tracking; timer arrivals carry on hidden, as F4 decided. || **(a)**, 2026-10-25; timer mode unchanged. `presence.hidden_s`, checked by `presence_test.gd`. |
 
 ---
 

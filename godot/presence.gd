@@ -40,6 +40,8 @@ var away_after := 180.0        # seconds idle before the kittens settle down
 var idle_s := 0.0
 var away := false
 var source := "mouse"
+var hidden := false            # main.gd: the critters are hidden for a full-screen app
+var hidden_s := 0.0            # of idle_s, the part spent hidden (a film is not a break)
 
 var sim := PackedFloat32Array()   # [present_s, away_s], or empty
 var _sim_t := 0.0
@@ -114,6 +116,9 @@ func _process(delta: float) -> void:
 		if fresh:
 			idle_s = ps_idle
 			source = "windows"
+	# Input brings idle_s back to 0, and hidden_s with it. A second at most
+	# a frame, so a sleep during a film is not counted as film.
+	hidden_s = minf(hidden_s + (minf(delta, 1.0) if hidden else 0.0), idle_s)
 
 	if not away and idle_s >= away_after:
 		away = true
