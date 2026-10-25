@@ -3,7 +3,8 @@
 A small GDExtension for the Windows calls Godot cannot make: idle time from
 real devices only (faked input from jigglers is recognised through Raw Input,
 with no hooks), the global pause shortcut, no taskbar button for the hidden
-main window, single instance, and the launch-at-startup entry. The game runs
+main window, single instance, the launch-at-startup entry, and keeping
+critters on the desktop behind your apps (Stay on the desktop). The game runs
 without it, falling back to a PowerShell idle poller.
 
 Build (Windows, Visual Studio Build Tools 2022 with the C++ workload, Python
