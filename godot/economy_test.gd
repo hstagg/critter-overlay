@@ -187,14 +187,14 @@ func _init() -> void:
 	check(not e.buy_dye("bow", "sky"), "no dye for an item not owned")
 	e.buy("bow", 50)
 	var d0: int = e.berries
-	check(e.buy_dye("bow", "sky") and e.berries == d0 - 100, "a dye costs 100 for an owned item")
+	check(e.buy_dye("bow", "sky") and e.berries == d0 - Wear.DYE_PRICE, "a dye costs DYE_PRICE for an owned item")
 	check(not e.buy_dye("bow", "sky"), "a colour is bought once per item")
 	e.set_dye("kitten", "bow", "sky")
 	check(e.dyed["kitten"]["bow"] == "sky", "a bought colour can be worn")
 	e.set_dye("kitten", "bow", "rose")
 	check(e.dyed["kitten"]["bow"] == "sky", "an unbought colour cannot")
 	var t0: int = e.berries
-	check(e.buy_treat("rabbit") and e.buy_treat("rabbit") and e.berries == t0 - 120, "treats are repeatable, 60 each")
+	check(e.buy_treat("rabbit") and e.buy_treat("rabbit") and e.berries == t0 - 2 * Wear.TREAT_PRICE, "treats are repeatable, TREAT_PRICE each")
 	check(e.treats == ["rabbit", "rabbit"], "treats queue in order")
 
 	# --- Visitors bringing presents, and the lucky charm.
