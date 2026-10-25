@@ -396,7 +396,10 @@ func _ready() -> void:
 			economy.import_v2_seen(seen)
 			economy.save()   # now, before the flag below can be saved without it
 			settings.set_value("system.v2_seen_done", true)
-	# Homemade critters, and v2.0's carried over once each (customs.gd).
+	# Homemade critters, and v2.0's carried over once each (customs.gd). A
+	# timed or demo run keeps away from the player's own, unless given a folder.
+	if (seconds > 0.0 or demo != "") and Customs.dir == "user://custom":
+		Customs.dir = OS.get_temp_dir().path_join("critter_test_custom")
 	Customs.load_all()
 	var from_v2 := custom_v2_dir if custom_v2_dir != "" else (Customs.v2_dir() if real_run else "")
 	if from_v2 != "":

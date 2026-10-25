@@ -4,7 +4,7 @@ extends "res://critters/critter.gd"
 ## swings its bottom part like legs (v2.0's split at 58% of its height, here a
 ## mesh bent each frame); sitting breathes; napping settles it lower. A v2.0
 ## critter that came with its own animation plays its frames instead of the
-## lean and swing. Because it is still a critter, host.gd's window, dragging,
+## lean and swing, one loop per stretch walked, as v2.0 played them. Because it is still a critter, host.gd's window, dragging,
 ## throwing, dizzy spins and wall climbing work as for the cast.
 ##
 ## No head, ears, tail or blinks, so it does only the behaviours that need
@@ -20,13 +20,13 @@ const SPLIT := 0.58                  # where the "legs" start, down from the top
 const BOB := 7.0                     # SVG units the body rises mid-stride
 const LEAN := 5.0                    # degrees into the stride (v2.0)
 const SWING := 0.2                   # bottom edge's swing, as a share of the leg part (v2.0)
-const ANIM_FPS := 8.0                # a v2.0 animation's frame rate
+const ANIM_CYCLE_PX := 114.0         # px walked per loop of a v2.0 animation (v2.0: 0.055 rad a px)
 
 var tex: Array = []
 var pic: Polygon2D
 var pic_px := Vector2.ZERO           # the picture's size in rig pixels (SVG units x PART_SCALE)
 var faces_right := true
-var frame_t := 0.0
+var walked := 0.0                    # px walked, at zoom 1: a v2.0 animation follows the feet
 
 
 func _define() -> void:
@@ -99,7 +99,7 @@ func _bend(swing: float) -> void:
 
 
 func tick(delta: float) -> void:
-	frame_t += delta
+	walked += absf(vx) * delta / zoom
 	super(delta)
 
 
@@ -147,7 +147,10 @@ func _apply(p: Dictionary) -> void:
 	if not tex.is_empty() and pic.texture != null:
 		_bend(swing)
 	if animated:
-		pic.texture = tex[int(frame_t * ANIM_FPS) % tex.size()]
+		# As v2.0 played them: one loop per ANIM_CYCLE_PX walked, and still
+		# while it stands (frame 0), not a constant flicker.
+		var i := int(walked / ANIM_CYCLE_PX * tex.size()) % tex.size() if walking and moving > 0.1 else 0
+		pic.texture = tex[i]
 
 	var napping := pose == "loaf"
 	var breath := Vector2(1.0 + 0.018 * p.breath, 1.0 + p.breath_y * p.breath)
