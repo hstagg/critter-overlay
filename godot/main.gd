@@ -845,7 +845,9 @@ func _pace_frames() -> void:
 	# docs/v3-launch-plan.md Phase 5). Nothing on screen (paused, hidden for a
 	# full-screen app, or nobody out) needs only enough for the tray and the
 	# shortcuts; everyone asleep needs only the slow breathing (10 fps). Any of
-	# the app's own windows open: full speed, so they feel smooth.
+	# the app's own windows open: full speed, so they feel smooth. At 5 fps the
+	# deltas add up to real time only because project.godot runs 10 physics
+	# ticks a second, not 60 (see delta_test.gd).
 	var ui_open: bool = waiting_welcome or (settings_win != null and settings_win.visible) \
 		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
 	var cap := 0 if ui_open else 30
