@@ -35,6 +35,7 @@ func section() -> Control:
 	var rows := []
 	var imp := K.button("Import a critter", "bs", "plus", true, pick)
 	imp.disabled = editing != ""
+	imp.add_theme_color_override("font_disabled_color", c.ink2)   # the default grey vanishes on light
 	rows.append(K.row("Import a critter",
 		"A PNG, JPG or WebP. One animal on a plain background works best, or a picture that is already cut out.", imp))
 	if error != "":
@@ -113,6 +114,18 @@ func _editor(c: Dictionary) -> Control:
 	field.max_length = 40
 	field.add_theme_font_override("font", UI.font(700))
 	field.add_theme_font_size_override("font_size", 14)
+	var fs := K.box(c.surface, 12, c.sec_line, 2)
+	fs.content_margin_left = 12
+	fs.content_margin_right = 12
+	fs.content_margin_top = 8
+	fs.content_margin_bottom = 8
+	var ff := fs.duplicate()
+	ff.border_color = c.acc_ink
+	field.add_theme_stylebox_override("normal", fs)
+	field.add_theme_stylebox_override("focus", ff)
+	field.add_theme_color_override("font_color", c.ink)
+	field.add_theme_color_override("font_placeholder_color", c.ink2)
+	field.add_theme_color_override("caret_color", c.acc_ink)
 	field.text_changed.connect(func(t): name = t)
 	form.add_child(field)
 	if editing == "new":
