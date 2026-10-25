@@ -97,7 +97,7 @@ const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const Updater := preload("res://updater.gd")
 
-const VERSION := "3.0.1"
+const VERSION := "3.0.92"
 const HARD_MAX := 25            # never more critters than this, whatever the settings
 const STAY_MIN := 30.0 * 60.0   # a visit lasts 30 to 50 minutes of focus
 const STAY_MAX := 50.0 * 60.0
