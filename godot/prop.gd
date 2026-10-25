@@ -94,6 +94,7 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	_place()
 	WinPool.show_away(win)   # made off the screen, then shown once it has drawn
 	main.win_pool.reveal(win, at)
+	main.layer(win)   # on top, or on the desktop (Stay on the desktop)
 	# Only now does the window exist, so only now can its vsync be set.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	# Clicks pass through around the picture. On Windows the click-through

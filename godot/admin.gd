@@ -221,6 +221,8 @@ func run(action: String, chosen := "kitten") -> void:
 			toasts()
 		"windows":
 			window_churn()
+		"desktop":
+			desktop_check()
 		"present":
 			present()
 		"climb":
@@ -286,6 +288,28 @@ func undress(sp: String) -> void:
 
 func toasts() -> void:
 	main._run_toast_demo()
+
+
+func desktop_check() -> void:
+	# Stay on the desktop: switched on with critters out, then asks Windows
+	# whether they are below this Settings window (an ordinary app window).
+	if not main.desktop_ok():
+		now_playing = "Stay on the desktop: the Windows helper is missing or too old"
+		return
+	if main.hosts.is_empty():
+		for i in 3:
+			spawn(Species.DATA.keys().pick_random(), "common")
+	main.settings.set_value("world.on_desktop", true)
+	await get_tree().create_timer(1.5).timeout
+	var sw = main.settings_win
+	if sw == null or not sw.visible:
+		now_playing = "Stay on the desktop: on"
+		return
+	var hw := func(win: Window) -> int: return DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, win.get_window_id())
+	var mine: int = main.native.window_z(hw.call(sw))
+	var below: int = main.hosts.filter(func(h): return main.native.window_z(hw.call(h.win)) > mine).size()
+	now_playing = "Stay on the desktop: on; %d of %d critters behind this window. Turn it off in World or the tray." % [below, main.hosts.size()]
+	print("ADMIN ", now_playing)
 
 
 func window_churn(rounds := 10) -> void:

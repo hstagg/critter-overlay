@@ -8,9 +8,11 @@
 #include <shellapi.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace godot;
 
@@ -379,6 +381,115 @@ bool CritterNative::user_busy() const {
 #endif
 }
 
+#ifdef _WIN32
+namespace {
+
+BOOL CALLBACK find_icons_host(HWND hwnd, LPARAM out) {
+	if (FindWindowExW(hwnd, nullptr, L"SHELLDLL_DefView", nullptr) != nullptr) {
+		*(HWND *)out = hwnd;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+// The top-level window that holds the desktop's icons: Progman, or a WorkerW
+// when Windows has made one for the wallpaper. Show desktop (Win+D) raises it
+// over the apps, so windows kept directly above it stay in view then too.
+HWND desktop_host() {
+	static HWND host = nullptr;
+	static ULONGLONG found_at = 0;
+	ULONGLONG now = GetTickCount64();
+	if (host == nullptr || !IsWindow(host) || now - found_at > 5000) {
+		HWND h = nullptr;
+		EnumWindows(find_icons_host, (LPARAM)&h);
+		host = h != nullptr ? h : GetShellWindow();
+		found_at = now;
+	}
+	return host;
+}
+
+} // namespace
+#endif
+
+int CritterNative::pin_to_desktop(const PackedInt64Array &hwnds) {
+	// Directly above the desktop's icons and below every app window. Called
+	// often (main.gd), so it first checks whether they are there already:
+	// going up from the desktop, past windows nobody can see, ours should all
+	// come before the first visible window that is not ours.
+#ifdef _WIN32
+	HWND host = desktop_host();
+	if (host == nullptr) {
+		return -1;
+	}
+	std::vector<HWND> ours;
+	for (int64_t i = 0; i < hwnds.size(); i++) {
+		HWND w = (HWND)(intptr_t)hwnds[i];
+		if (IsWindow(w)) {
+			ours.push_back(w);
+		}
+	}
+	size_t in_place = 0;
+	for (HWND w = GetWindow(host, GW_HWNDPREV); w != nullptr; w = GetWindow(w, GW_HWNDPREV)) {
+		if (std::find(ours.begin(), ours.end(), w) != ours.end()) {
+			in_place++;
+		} else if (IsWindowVisible(w)) {
+			break;
+		}
+	}
+	if (in_place == ours.size()) {
+		return 0;
+	}
+	int moved = 0;
+	for (HWND w : ours) {
+		// Under whatever is directly above the desktop now, so directly above
+		// the desktop. Placed under a non-topmost window it stops being
+		// topmost too.
+		HWND over = GetWindow(host, GW_HWNDPREV);
+		if (over == w) {
+			continue;
+		}
+		SetWindowPos(w, over != nullptr ? over : HWND_TOP, 0, 0, 0, 0,
+				SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+		moved++;
+	}
+	return moved;
+#else
+	return -1;
+#endif
+}
+
+int CritterNative::float_on_top(const PackedInt64Array &hwnds) {
+	// Back on top of everything. Done here, not with Godot's always-on-top
+	// flag: changing that on a window already shown made it stop drawing
+	// (the VM, 2026-10-25).
+#ifdef _WIN32
+	int n = 0;
+	for (int64_t i = 0; i < hwnds.size(); i++) {
+		HWND w = (HWND)(intptr_t)hwnds[i];
+		if (IsWindow(w) && SetWindowPos(w, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER)) {
+			n++;
+		}
+	}
+	return n;
+#else
+	return 0;
+#endif
+}
+
+int CritterNative::window_z(int64_t hwnd_value) const {
+#ifdef _WIN32
+	HWND hwnd = (HWND)(intptr_t)hwnd_value;
+	int i = 0;
+	for (HWND w = GetTopWindow(nullptr); w != nullptr; w = GetWindow(w, GW_HWNDNEXT)) {
+		if (w == hwnd) {
+			return i;
+		}
+		i++;
+	}
+#endif
+	return -1;
+}
+
 void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("start", "hotkey_mods", "hotkey_vk"), &CritterNative::start);
 	ClassDB::bind_method(D_METHOD("stop"), &CritterNative::stop);
@@ -395,6 +506,9 @@ void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("startup_command"), &CritterNative::startup_command);
 	ClassDB::bind_method(D_METHOD("set_startup_command", "command"), &CritterNative::set_startup_command);
 	ClassDB::bind_method(D_METHOD("user_busy"), &CritterNative::user_busy);
+	ClassDB::bind_method(D_METHOD("pin_to_desktop", "hwnds"), &CritterNative::pin_to_desktop);
+	ClassDB::bind_method(D_METHOD("window_z", "hwnd"), &CritterNative::window_z);
+	ClassDB::bind_method(D_METHOD("float_on_top", "hwnds"), &CritterNative::float_on_top);
 	ClassDB::bind_method(D_METHOD("poll_hotkey_slot", "slot"), &CritterNative::poll_hotkey_slot);
 	ClassDB::bind_method(D_METHOD("set_hotkey", "slot", "mods", "vk"), &CritterNative::set_hotkey);
 	ClassDB::bind_method(D_METHOD("hotkey_state", "slot"), &CritterNative::hotkey_state);

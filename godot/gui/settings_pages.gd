@@ -765,6 +765,15 @@ func _arrow() -> Control:
 
 # ============================================================ WORLD
 
+func _desktop_row() -> Control:
+	# Stay on the desktop (main.gd): needs the native layer.
+	var title := "Stay on the desktop"
+	var desc := "Critters and showpieces live on your desktop, behind every window, and walk behind your apps instead of over them. Turn it off here or from the tray icon."
+	if w.main.desktop_ok():
+		return _toggle_row(title, desc, "world.on_desktop", null, true)
+	return K.row(title, desc + " Not available on this PC: it needs Critter Overlay's Windows helper, which did not load.", UI.label("Off", 14, K.c.ink2, 700))
+
+
 func _world(body: VBoxContainer) -> void:
 	var c := K.c
 	header(body, "World", "How the living world behaves, and how rare things get.")
@@ -772,6 +781,7 @@ func _world(body: VBoxContainer) -> void:
 		_toggle_row("Day and night pacing", "Livelier in the morning, sleepier late at night. Only their pace changes, never the colours.", "world.day_night"),
 		_slider_row("Behaviour frequency", "How often they stop to groom, stretch, play or nap.", "world.behaviour_freq", 0.3, 2.0, 0.1, func(x): return "%.1fx" % x, "Calm", "Lively"),
 		_toggle_row("Pair interactions", "Two critters close together may sniff, follow, play or groom.", "world.pairs"),
+		_desktop_row(),
 	])))
 
 	# Rarity, with the odds.

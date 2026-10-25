@@ -185,6 +185,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 	critter.setup(world, x0, face, start_mode)
 	_place()
 	main.win_pool.put_out(win, at, has_vsync)
+	main.layer(win)   # on top, or on the desktop (Stay on the desktop)
 
 
 func show_window(on: bool) -> void:
