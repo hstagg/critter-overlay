@@ -34,6 +34,8 @@ critters.
   Double-click it for Settings.
 - **Berries** come from focus time. Spend them in the Shop on clothes, dyes,
   treats and showpieces (beds for napping critters), or on **Spawn now**.
+  New players get a head start: gifts after their first 20 minutes, first
+  hour, and on a second and third day.
 - **Homemade critters**: make your own from any picture in Settings › System ›
   Custom critters › Import a critter. It walks as one piece, like v2.0's.
 - **Showpieces** (a basket bed, a tent, a cottage) stand on your desktop: drag

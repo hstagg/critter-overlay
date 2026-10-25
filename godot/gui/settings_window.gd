@@ -88,14 +88,6 @@ func go(which: String) -> void:
 	rebuild(false)
 
 
-func _shop_gift() -> void:
-	# The first time the Shop opens (3.1): a welcome gift, once (Economy.SHOP_GIFT).
-	var n: int = main.economy.give_shop_gift()
-	if n > 0 and main.toasts != null:
-		main.toasts.show_note(Icons.berry(40), "A gift", "Something for the Shop",
-			"%s berries to start your wardrobe. Have fun." % _thousands(n))
-
-
 static func _thousands(n: int) -> String:
 	var t := str(n)
 	var out := ""
@@ -106,8 +98,6 @@ static func _thousands(n: int) -> String:
 
 
 func rebuild(keep_scroll := true) -> void:
-	if page == "shop" and main != null and not main.economy.shop_gift_given:
-		_shop_gift.call_deferred()
 	var scroll_y := _scroll.scroll_vertical if keep_scroll and _scroll != null else 0
 	for ch in get_children():
 		ch.queue_free()

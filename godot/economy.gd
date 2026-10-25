@@ -34,6 +34,7 @@ extends Node
 signal berries_changed(total: int)
 signal gift_opened(index: int, berries: int, item: String)
 signal welcome_back(berries: int)
+signal early_gift(index: int, berries: int)
 signal sighting(species: String, tier: String, first: bool)
 signal rare_hour_changed(on: bool)
 signal row_completed(species: String, berries: int)
@@ -68,12 +69,15 @@ const SAVE_VERSION := 2            # 2: Uncommon folded into Common (four tiers)
 const ROLL_EVERY_MIN := 5.5        # focus time banks one rarity roll per this many minutes
 const ROLL_BANK_MAX := 6.0         # the most rolls that wait in the bank
 const SPAWN_PRICE := 30            # berries for Spawn now (always rolls)
-# The Shop's welcome gift, once, the first time a player opens it in 3.1
-# (D26, re-set with the prices in D28). 3,500 buys a handful of small things
-# and two of the large ones (8 x 50 + 2 x 1,500 = 3,400), or a dozen mediums,
+# The early gifts (D32): a new player's first berries for the Shop, paid for
+# focus rather than for opening it, so the Shop is worth a look within the
+# first session. [what counts, how much of it, berries]: "min" is focus
+# minutes since the ladder began, "days" is days with EARLY_DAY_MIN of focus
+# (any days, not in a row). 3,500 in all, as the one-off Shop gift they
+# replace (D26, D28): 1,500 buys a large item or a handful of small ones,
 # while showpieces (8,000) and perks (20,000) stay worth working towards.
-# About 30 focus hours.
-const SHOP_GIFT := 3500
+const EARLY_GIFTS := [["min", 20.0, 1500], ["min", 60.0, 500], ["days", 2.0, 750], ["days", 3.0, 750]]
+const EARLY_DAY_MIN := 20.0
 const INFINITE_FLAG := "user://infinite_berries"   # the developer's own PC: berries never run out
 const INFINITE := 999999
 const MAX_TICK_S := 1.0            # the most one frame counts: a sleep or a stall is not focus
@@ -123,7 +127,10 @@ var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
 var first_bonus_day := ""          # local date the first-visitor bonus was used
 var rolls_banked := 1.0            # rarity rolls earned by focus time, not yet used
-var shop_gift_given := false     # SHOP_GIFT has been given
+var early_paid := []               # EARLY_GIFTS indices paid
+var early_min := 0.0               # focus minutes since the ladder began, until it is done
+var early_days := 0                # days with EARLY_DAY_MIN of focus
+var early_day := ""                # the last day counted
 var infinite := false             # INFINITE_FLAG exists: spending never lowers the count
 var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
 
@@ -181,6 +188,14 @@ func tick(delta: float, present: bool) -> void:
 	while next_gift < GIFTS.size() and session_min >= GIFTS[next_gift][0]:
 		_open_gift(next_gift)
 		next_gift += 1
+	if not early_done():
+		early_min += mins
+		if day_focus_min >= EARLY_DAY_MIN and early_day != day:
+			early_day = day
+			early_days += 1
+		for i in EARLY_GIFTS.size():
+			if not i in early_paid and _early_due(i):
+				pay_early(i)
 
 
 func _roll_day() -> void:
@@ -496,14 +511,46 @@ func _top_up() -> void:
 		berries = maxi(berries, INFINITE)
 
 
-func give_shop_gift() -> int:
-	# The first time the Shop opens: SHOP_GIFT berries, once. Returns how many.
-	if shop_gift_given:
-		return 0
-	shop_gift_given = true
-	_earn(SHOP_GIFT)
+func early_done() -> bool:
+	return early_paid.size() >= EARLY_GIFTS.size()
+
+
+func _early_due(i: int) -> bool:
+	var g: Array = EARLY_GIFTS[i]
+	return (early_min if g[0] == "min" else float(early_days)) >= g[1]
+
+
+func pay_early(i: int) -> void:
+	# Each once, saved at once so a crash cannot pay it again.
+	if i in early_paid:
+		return
+	early_paid.append(i)
+	_earn(EARLY_GIFTS[i][2])
 	save()
-	return SHOP_GIFT
+	early_gift.emit(i, EARLY_GIFTS[i][2])
+
+
+func early_next() -> Array:
+	# The next early gift that focus today can reach, for the tray: [minutes
+	# to go, 0..1 progress], or [] if there is none.
+	var best := []
+	var today := _today()
+	var today_min := day_focus_min if day == today else 0.0   # day moves on at the next tick
+	for i in EARLY_GIFTS.size():
+		if i in early_paid:
+			continue
+		var g: Array = EARLY_GIFTS[i]
+		var left := -1.0
+		var span := 1.0
+		if g[0] == "min":
+			left = g[1] - early_min
+			span = g[1]
+		elif early_day != today and early_days + 1 >= int(g[1]):
+			left = EARLY_DAY_MIN - today_min   # today would be the day that counts
+			span = EARLY_DAY_MIN
+		if left >= 0.0 and (best.is_empty() or left < best[0]):
+			best = [left, clampf(1.0 - left / span, 0.0, 1.0)]
+	return best
 
 
 func _earn(n: int) -> void:
@@ -617,7 +664,8 @@ func to_dict() -> Dictionary:
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
-		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen, "shop_gift_given": shop_gift_given,
+		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen,
+		"early_paid": early_paid, "early_min": early_min, "early_days": early_days, "early_day": early_day,
 		"rolls_banked": rolls_banked, "saved_at": int(now())}
 
 
@@ -663,7 +711,13 @@ func from_dict(d: Dictionary) -> void:
 	props_out = _typed(d, "props_out", {})
 	bond = _typed(d, "bond", {})
 	v2_custom_seen = _typed(d, "v2_custom_seen", {})
-	shop_gift_given = bool(d.get("shop_gift_given", false))
+	early_paid = _typed(d, "early_paid", []).map(func(x): return int(x))
+	early_min = maxf(0.0, _num(d, "early_min", 0.0))
+	early_days = maxi(0, int(_num(d, "early_days", 0.0)))
+	early_day = str(d.get("early_day", ""))
+	if bool(d.get("shop_gift_given", false)) and not d.has("early_paid"):
+		# 3.1.0's one-off Shop gift was the whole ladder's worth: none again.
+		early_paid = range(EARLY_GIFTS.size())
 	rolls_banked = clampf(_num(d, "rolls_banked", 1.0), 0.0, ROLL_BANK_MAX)
 	_frac = 0.0
 	# A long gap since the last save is a long break.

@@ -224,6 +224,8 @@ func run(action: String, chosen := "kitten") -> void:
 			window_churn()
 		"desktop":
 			desktop_check()
+		"early_gift":
+			early_gift()
 		"present":
 			present()
 		"climb":
@@ -295,6 +297,26 @@ func undress(sp: String) -> void:
 
 func toasts() -> void:
 	main._run_toast_demo()
+
+
+func early_gift() -> void:
+	# The next early gift now (Economy.EARLY_GIFTS, D32): its note, and the
+	# berries in the tray and the Shop. Once all four are paid, the ladder
+	# starts again, as for a new player.
+	var e = main.economy
+	if e.early_done():
+		e.early_paid = []
+		e.early_min = 0.0
+		e.early_days = 0
+		e.early_day = ""
+		e.save()
+		now_playing = "Early gifts: back to the start, as for a new player"
+		return
+	for i in e.EARLY_GIFTS.size():
+		if not i in e.early_paid:
+			e.pay_early(i)
+			now_playing = "Early gifts: %d of %d paid" % [e.early_paid.size(), e.EARLY_GIFTS.size()]
+			return
 
 
 func desktop_check() -> void:

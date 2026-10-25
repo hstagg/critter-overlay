@@ -339,15 +339,63 @@ func _init() -> void:
 	check(m.session_min > 59.0, "working across midnight keeps the session (got %.1f)" % m.session_min)
 	m.free()
 
-	# --- The Shop's welcome gift: once, and it survives a save and load.
-	var gift_a = fresh(path + ".gift")
-	var gift_b0: int = gift_a.berries
-	check(gift_a.give_shop_gift() == Economy.SHOP_GIFT and gift_a.berries == gift_b0 + Economy.SHOP_GIFT, "the Shop gift pays SHOP_GIFT")
-	check(gift_a.give_shop_gift() == 0 and gift_a.berries == gift_b0 + Economy.SHOP_GIFT, "only once")
-	gift_a.save()
+	# --- The early gifts (D32): paid for focus, each once, in any order.
+	clock = 1_790_000_000.0 + 9 * 3600.0
+	var lad = fresh(path + ".early")
+	var paid := []
+	lad.early_gift.connect(func(i, b): paid.append([i, b]))
+	check(lad.early_next() == [20.0, 0.0], "a new player's next gift: 20 minutes away (got %s)" % [lad.early_next()])
+	work(lad, 19.0)
+	check(paid.is_empty(), "nothing before 20 focus minutes")
+	var b19: int = lad.berries
+	work(lad, 1.5)
+	check(paid == [[0, 1500]] and lad.berries >= b19 + 1500, "1,500 at 20 focus minutes (got %s)" % [paid])
+	work(lad, 10.0)
+	check(paid.size() == 1, "the first-hour gift waits for 60 minutes")
+	# A second day, before the first hour is reached: its gift comes first.
+	clock += 24 * 3600.0
+	away(lad, 60.0 * 14)
+	work(lad, 19.0)
+	check(paid.size() == 1, "a second day counts at 20 minutes, not before")
+	work(lad, 1.5)
+	check(paid.size() == 2 and paid[1] == [2, 750], "750 on a second day of focus, before the first hour (got %s)" % [paid])
+	work(lad, 10.0)
+	check(paid.size() == 3 and paid[2] == [1, 500], "500 once the first hour is reached (got %s)" % [paid])
+	work(lad, 120.0)
+	check(paid.size() == 3, "more focus the same day pays no more")
+	# Saved mid-ladder: nothing paid twice, the count carries on.
+	lad.save()
+	var lad2 = fresh(path + ".early")
+	var paid2 := []
+	lad2.early_gift.connect(func(i, b): paid2.append([i, b]))
+	lad2.load_save()
+	check(lad2.early_paid.size() == 3 and lad2.early_days == 2, "the ladder survives a save and load")
+	# A third day, two days later (not in a row is fine).
+	clock += 2 * 24 * 3600.0
+	away(lad2, 60.0 * 14)
+	check(not lad2.early_next().is_empty() and is_equal_approx(lad2.early_next()[0], 20.0), "the tray counts down to the third day's gift")
+	work(lad2, 21.0)
+	check(paid2 == [[3, 750]] and lad2.early_done(), "750 on a third day, and the ladder is done (got %s)" % [paid2])
+	clock += 24 * 3600.0
+	away(lad2, 60.0 * 14)
+	work(lad2, 30.0)
+	check(paid2.size() == 1 and lad2.early_next().is_empty(), "no more early gifts after the fourth")
+	var total := 0
+	for rung in Economy.EARLY_GIFTS:
+		total += rung[2]
+	check(total == 3500, "3,500 in all, as the Shop gift it replaces")
+	lad.free()
+	lad2.free()
+	# A 3.1.0 save that had the Shop gift gets no ladder; one that did not, does.
+	var had = fresh(path + ".had")
+	had.from_dict({"version": Economy.SAVE_VERSION, "berries": 3600, "shop_gift_given": true})
+	check(had.early_done(), "a save that had 3.1.0's Shop gift gets no early gifts")
+	var fresh31 = fresh(path + ".new31")
+	fresh31.from_dict({"version": Economy.SAVE_VERSION, "berries": 120})
+	check(not fresh31.early_done() and fresh31.early_paid.is_empty(), "a 3.0 save starts the ladder")
+	had.free()
+	fresh31.free()
 	var gift_b = fresh(path + ".gift")
-	gift_b.load_save()
-	check(gift_b.shop_gift_given and gift_b.give_shop_gift() == 0, "and not again after a restart")
 	# --- Infinite berries (the developer's PC): spending never lowers them.
 	gift_b.infinite = true
 	gift_b._top_up()
@@ -356,7 +404,6 @@ func _init() -> void:
 	gift_b.infinite = false
 	var gift_left: int = gift_b.berries
 	check(gift_b.pay_spawn() and gift_b.berries == gift_left - Economy.SPAWN_PRICE, "off again, spending counts")
-	gift_a.free()
 	gift_b.free()
 
 	print("ECONOMY TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
