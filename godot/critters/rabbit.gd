@@ -55,7 +55,7 @@ var hop_k := 1.0               # this hop's size: smaller when slowing down
 
 func _define() -> void:
 	species = "rabbit"
-	critter_scale = 0.45
+	critter_scale = 0.49   # sizes in order: panda > otter > kitten ~ rabbit > duckling > hedgehog (2026-10-26)
 	base_pt = BASE
 	ground_y = BASE.y
 	head_pivot = HEAD_PIVOT
@@ -75,7 +75,7 @@ func _define() -> void:
 	}
 	sit_parts = ["body", "foot-l", "foot-r", "paws"]
 	speed_range = Vector2(43.0, 81.0)   # v2.0: 62 px/s, +/- 30%
-	head_height = 50.0
+	head_height = 54.4
 	back_hip = HIND_HIP
 	scratch_hides = "foot-r"
 

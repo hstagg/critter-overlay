@@ -40,10 +40,13 @@ var away_after := 180.0        # seconds idle before the kittens settle down
 var idle_s := 0.0
 var away := false
 var source := "mouse"
+var hidden := false            # main.gd: the critters are hidden for a full-screen app
+var hidden_s := 0.0            # of idle_s, the part spent hidden (a film is not a break)
 
 var sim := PackedFloat32Array()   # [present_s, away_s], or empty
 var _sim_t := 0.0
 
+var _last_ms := 0
 var _last_mouse := Vector2i(-99999, -99999)
 var _mouse_idle := 0.0
 
@@ -102,7 +105,16 @@ func _process(delta: float) -> void:
 		idle_s = 0.0 if _sim_t < sim[0] else away_after + (_sim_t - sim[0])
 		source = "sim"
 	elif native != null and native.real_input_age_ms() >= 0:
-		idle_s = native.real_input_age_ms() / 1000.0
+		# Input from a device, or, failing that, any input Windows saw
+		# (GetLastInputInfo). A precision touchpad, a pen or a touch screen
+		# reaches Raw Input with no device handle, like faked input, so the
+		# device-only age left their users "away" while they worked (F13).
+		# Counting all input lets a mouse jiggler count too: decided
+		# 2026-10-26, a companion that naps on a working touchpad user is
+		# worse than one a jiggler keeps awake.
+		var real_ms: int = native.real_input_age_ms()
+		var any_ms: int = native.idle_ms()
+		idle_s = (mini(real_ms, any_ms) if any_ms >= 0 else real_ms) / 1000.0
 		source = "native"
 	else:
 		idle_s = _mouse_idle
@@ -114,6 +126,14 @@ func _process(delta: float) -> void:
 		if fresh:
 			idle_s = ps_idle
 			source = "windows"
+	# Input brings idle_s back to 0, and hidden_s with it. Counted by the
+	# clock, as idle_s is: at the 5 fps kept while hidden, delta adds up to
+	# well under real time (about 0.65x on the test VM). A second at most a
+	# frame, so a sleep during a film is not counted as film.
+	var now := Time.get_ticks_msec()
+	var step := delta if not sim.is_empty() else (now - _last_ms) / 1000.0
+	_last_ms = now
+	hidden_s = minf(hidden_s + (minf(step, 1.0) if hidden else 0.0), idle_s)
 
 	if not away and idle_s >= away_after:
 		away = true

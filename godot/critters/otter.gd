@@ -46,7 +46,7 @@ var slide_left := 0.0
 
 func _define() -> void:
 	species = "otter"
-	critter_scale = 0.44
+	critter_scale = 0.66   # sizes in order: panda > otter > kitten ~ rabbit > duckling > hedgehog (2026-10-26)
 	base_pt = BASE
 	ground_y = BASE.y
 	head_pivot = HEAD_PIVOT
@@ -66,7 +66,7 @@ func _define() -> void:
 	}
 	sit_parts = ["foot-l", "foot-r", "body", "paws"]
 	speed_range = Vector2(44.0, 66.0)   # v2.0: 55 px/s, +/- 20%
-	head_height = 48.0
+	head_height = 72.0
 	back_hip = BACK_HIP
 	wear_crown = Vector2(124, 78)
 	wear_neck = Vector2(124, 174)

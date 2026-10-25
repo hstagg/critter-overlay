@@ -255,8 +255,8 @@ func _push(t: Toast) -> void:
 		_dismiss(toasts[0])
 	_restack()
 	t.y_now = t.y
-	_place(t, 1.0)
-	pool.put_out(t.win, t.win.position)   # without vsync: one vsync'd window only
+	pool.put_out(t.win, WinPool.AWAY)   # without vsync: one vsync'd window only
+	_place(t, 1.0)   # where it goes once drawn (win_pool.gd: no white flash)
 
 
 func _restack() -> void:
@@ -274,7 +274,7 @@ func _place(t: Toast, slide: float) -> void:
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
 	var w := t.win.size.x
 	var x := usable.end.x - EDGE - w + int((1.0 - slide) * (w + EDGE))
-	t.win.position = Vector2i(x, int(round(t.y_now)))
+	pool.move(t.win, Vector2i(x, int(round(t.y_now))))
 
 
 func _dismiss(t: Toast) -> void:

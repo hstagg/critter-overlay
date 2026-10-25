@@ -424,6 +424,21 @@ static func test_picture(with_background: bool) -> Image:
 				img.set_pixel(x, y, outline if edge else fur)
 	return img
 
+func set_infinite(on: bool) -> void:
+	# The developer's own PC (Economy.INFINITE_FLAG): berries never run out.
+	# A file in this PC's app data, never part of a build's defaults.
+	if on:
+		var f := FileAccess.open(main.economy.INFINITE_FLAG, FileAccess.WRITE)
+		if f != null:
+			f.store_string("berries never run out on this PC (Admin page)
+")
+	else:
+		DirAccess.remove_absolute(main.economy.INFINITE_FLAG)
+	main.economy.infinite = on
+	main.economy._top_up()
+	main.economy.berries_changed.emit(main.economy.berries)
+	main.economy.save()
+
 
 func give_berries(n: int) -> void:
 	main.economy.berries += n

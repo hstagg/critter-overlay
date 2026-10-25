@@ -26,6 +26,10 @@ window/size/no_focus=true
 window/per_pixel_transparency/allowed=true
 window/vsync/vsync_mode=1
 
+[physics]
+
+common/physics_ticks_per_second=10
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

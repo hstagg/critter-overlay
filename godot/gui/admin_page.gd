@@ -79,7 +79,7 @@ func checks() -> Array:
 		["Moving about", "climb", "Climbing the side walls", "The critter chosen above goes up the right wall, then another down the left: head upright, body along the wall. Check every species.", "climb"],
 		["Moving about", "throw", "Throwing", "Grab and fling: a good throw crosses the screen; a hard flick throws them out; dizzy after a spin; bumps.", "throw"],
 		["Moving about", "nap", "Napping when you step away", "Everyone settles down, then wakes when you come back.", "nap"],
-		["Moving about", "tidy", "Tidy up after a long break", "Step away longer than the setting (default an hour) and come back.", ""],
+		["Moving about", "tidy", "Tidy up after a long break", "Step away longer than the setting (default an hour) and come back. Time behind a full-screen film does not count towards it.", ""],
 		["Moving about", "rare_hour", "Rare Hour", "Starts it now: the note, and more Rares while it lasts.", "rare_hour"],
 		["Moving about", "busy", "Eight at once", "Eight random critters: smooth? Anything clipping?", "eight"],
 		["The app", "welcome", "First-run welcome", "The welcome screens as a new player sees them.", "welcome"],
@@ -263,10 +263,16 @@ func _events_card() -> Control:
 			["Everyone nap", func(): A().everyone_nap()], ["Everyone wake", func(): A().everyone_wake()],
 			["Throw one", func(): A().throw()], ["A present", func(): A().present()],
 			["Climb up", func(): A().climb(sp)], ["Climb down", func(): A().climb(sp, true)],
-			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries]]:
+			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries],
+			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
 	return _panel(v)
+
+
+func _infinite() -> void:
+	A().set_infinite(not w.main.economy.infinite)
+	w.rebuild()
 
 
 func _berries() -> void:

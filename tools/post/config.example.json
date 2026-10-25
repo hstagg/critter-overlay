@@ -6,6 +6,17 @@
   "front": {},
   "summary_key": "",
   "graph_version": "v23.0",
-  "youtube": {"client_id": "", "client_secret": "", "port": 8765},
-  "tiktok": {"client_key": "", "client_secret": "", "port": 8765}
+  "tiktok": {
+    "client_key": "",
+    "client_secret": "",
+    "port": 8765
+  },
+  "google": {
+    "client_file": "C:/path/to/google-client.json",
+    "port": 8765
+  },
+  "gmail": {
+    "account": "",
+    "send": false
+  }
 }
