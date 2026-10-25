@@ -46,6 +46,7 @@ var hidden_s := 0.0            # of idle_s, the part spent hidden (a film is not
 var sim := PackedFloat32Array()   # [present_s, away_s], or empty
 var _sim_t := 0.0
 
+var _last_ms := 0
 var _last_mouse := Vector2i(-99999, -99999)
 var _mouse_idle := 0.0
 
@@ -116,9 +117,14 @@ func _process(delta: float) -> void:
 		if fresh:
 			idle_s = ps_idle
 			source = "windows"
-	# Input brings idle_s back to 0, and hidden_s with it. A second at most
-	# a frame, so a sleep during a film is not counted as film.
-	hidden_s = minf(hidden_s + (minf(delta, 1.0) if hidden else 0.0), idle_s)
+	# Input brings idle_s back to 0, and hidden_s with it. Counted by the
+	# clock, as idle_s is: at the 5 fps kept while hidden, delta adds up to
+	# well under real time (about 0.65x on the test VM). A second at most a
+	# frame, so a sleep during a film is not counted as film.
+	var now := Time.get_ticks_msec()
+	var step := delta if not sim.is_empty() else (now - _last_ms) / 1000.0
+	_last_ms = now
+	hidden_s = minf(hidden_s + (minf(step, 1.0) if hidden else 0.0), idle_s)
 
 	if not away and idle_s >= away_after:
 		away = true

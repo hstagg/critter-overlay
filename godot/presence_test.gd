@@ -53,5 +53,18 @@ func _initialize() -> void:
 	check(p.hidden_s == 0.0, "hidden while in use counts nothing (it never exceeds the idle time)")
 	p.free()
 
+	# Without the sim, idle time is Windows' clock, so hidden time is too:
+	# Godot's delta runs slow at the 5 fps kept while hidden.
+	var q: Node = Presence.new()
+	q._last_mouse = DisplayServer.mouse_get_position()
+	q._mouse_idle = 1000.0   # long idle, by the mouse fallback
+	q.hidden = true
+	q._process(0.01)
+	q.hidden_s = 0.0
+	OS.delay_msec(300)
+	q._process(0.01)
+	check(q.hidden_s > 0.25 and q.hidden_s < 1.0, "outside the sim it counts real time, not delta (%.2f s)" % q.hidden_s)
+	q.free()
+
 	print("presence_test: %d checks, %d failed" % [checks, fails])
 	quit(1 if fails > 0 else 0)
