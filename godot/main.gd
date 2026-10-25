@@ -101,6 +101,8 @@ var area := Rect2()            # where critters live: the primary screen less th
 var screen_rect := Rect2i()
 var ui_scale := 1.0           # the primary screen's display scale (ui.gd scale())
 var screen_check := 2.0       # seconds to the next look for a display change
+var on_desktop := false        # Stay on the desktop: critters and showpieces behind every app
+var pin_check := 0.0           # seconds to the next _pin()
 var vsync_taken := false       # host.gd: only the first window waits for vsync
 var t := 0.0
 
@@ -426,6 +428,7 @@ func _ready() -> void:
 	tray.spawn_pressed.connect(spawn_now)
 	tray.pause_pressed.connect(toggle_pause)
 	tray.collection_pressed.connect(func(): open_settings("collection"))
+	tray.desktop_pressed.connect(toggle_on_desktop)
 	tray.settings_pressed.connect(func(): open_settings("home"))
 	tray.quit_pressed.connect(quit_app)
 	if open_on_start != "":
@@ -1002,6 +1005,11 @@ func _process(delta: float) -> void:
 		_film()
 	delta = minf(delta, Economy.MAX_TICK_S)   # after a sleep or a stall, not hours at once
 	t += delta
+	if on_desktop:
+		pin_check -= delta
+		if pin_check <= 0.0:
+			pin_check = 0.25
+			_pin()
 
 	if demo != "":
 		_run_demo(delta)
@@ -1513,6 +1521,56 @@ func toggle_pause() -> void:
 	_set_paused(not paused)
 
 
+# --- Stay on the desktop ----------------------------------------------------------
+# Off: critters and showpieces are always on top, as since v1. On: they live on
+# the desktop, behind every app window, walking behind apps rather than over
+# them (D31). Godot can only put a window on top or not, so the native layer
+# keeps them directly above the desktop's icons (pin_to_desktop). They stay
+# clickable wherever they can be seen, Show desktop included; the switch is in
+# the tray and Settings › World, so it can always be turned off again.
+
+func desktop_ok() -> bool:
+	# Needs the native layer, and one new enough to have the call.
+	return native != null and native.has_method("pin_to_desktop")
+
+
+func toggle_on_desktop() -> void:
+	settings.set_value("world.on_desktop", not bool(settings.value("world.on_desktop")))   # _on_setting applies it
+
+
+func layer(win: Window) -> void:
+	# A critter's or showpiece's window, just put out: on top, or on the desktop.
+	win.always_on_top = not on_desktop
+	if on_desktop:
+		_pin(win)   # now, while it is still held off the screen
+
+
+func _desktop_windows() -> Array:
+	var out := []
+	for h in hosts:
+		if is_instance_valid(h) and h.win != null and is_instance_valid(h.win) and h.win.visible:
+			out.append(h.win)
+	for pid in props:
+		if is_instance_valid(props[pid]) and props[pid].win != null and is_instance_valid(props[pid].win):
+			out.append(props[pid].win)
+	return out
+
+
+func _pin(extra: Window = null) -> void:
+	# A few times a second: Windows lifts a window when an app opens or Show
+	# desktop shuffles them, and this puts it back (a cheap check when nothing moved).
+	if native == null:
+		return
+	var ids := PackedInt64Array()
+	var wins := _desktop_windows()
+	if extra != null and not extra in wins:
+		wins.append(extra)
+	for w in wins:
+		ids.append(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, w.get_window_id()))
+	if not ids.is_empty():
+		native.pin_to_desktop(ids)
+
+
 func quit_app() -> void:
 	# A downloaded update goes in quietly on the way out, unless it would
 	# need an admin prompt (an install for all users).
@@ -1792,6 +1850,14 @@ func _on_setting(key: String) -> void:
 			updater.download()
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
+	if under.call("world.on_desktop"):
+		on_desktop = bool(settings.value("world.on_desktop")) and desktop_ok()
+		for w in _desktop_windows():
+			w.always_on_top = not on_desktop
+		if on_desktop:
+			_pin()
+		if tray != null:
+			_update_tray()
 	if under.call("world"):
 		_time_of_day()
 		economy.odds = settings.odds()
@@ -1872,7 +1938,8 @@ func _update_tray() -> void:
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
 		"found_total": counts[1], "berries": economy.berries, "spawn_price": Economy.SPAWN_PRICE,
-		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key")))})
+		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key"))),
+		"desktop_ok": desktop_ok(), "on_desktop": on_desktop})
 
 
 func note_pop() -> void:

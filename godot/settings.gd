@@ -50,6 +50,7 @@ const DEFAULTS := {
 		"notes": "rare",           # off | rare | epic | legendary
 		"rare_hour": true,
 		"rare_hour_start": 15,     # an hour; Rare Hour lasts an hour at 2x (economy.gd)
+		"on_desktop": false,       # Stay on the desktop: behind every app window (native layer; main.gd)
 	},
 	"sound": {"pops": true, "volume": 50, "device": "Default"},   # device: an output by name, or Windows' default
 	"system": {

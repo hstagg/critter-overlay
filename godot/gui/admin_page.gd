@@ -76,6 +76,7 @@ func checks() -> Array:
 		["Rarity", "collection", "The Collection page", "Common, Rare and Epic per critter; a secret slot per colour for the visitors.", "open:collection"],
 		["Rarity", "present", "A visitor with a present", "The look and the note (not really given here).", "present"],
 		["Rarity", "odds", "The odds feel right", "95% Common, 4% Rare, 0.9% Epic, 0.1% Legendary, rarer the longer you stay. Judge over a day of normal use.", ""],
+		["Moving about", "desktop", "Stay on the desktop", "Switches it on with critters out and asks Windows whether they are behind this window (the line above says how many). Then open an app over them: they walk behind it. Show desktop (Win+D) brings them into view; the tray turns it off.", "desktop"],
 		["Moving about", "climb", "Climbing the side walls", "The critter chosen above goes up the right wall, then another down the left: head upright, body along the wall. Check every species.", "climb"],
 		["Moving about", "throw", "Throwing", "Grab and fling: a good throw crosses the screen; a hard flick throws them out; dizzy after a spin; bumps.", "throw"],
 		["Moving about", "nap", "Napping when you step away", "Everyone settles down, then wakes when you come back.", "nap"],

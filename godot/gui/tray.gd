@@ -13,6 +13,7 @@ signal spawn_pressed
 signal pause_pressed
 signal collection_pressed
 signal settings_pressed
+signal desktop_pressed
 signal quit_pressed
 
 const UI := preload("res://gui/ui.gd")
@@ -218,6 +219,11 @@ func _build() -> void:
 		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed, price))
 		items.add_child(_item("pause", "Pause critters", c, pause_pressed, hint))
 	items.add_child(_item("star", "Collection", c, collection_pressed, count))
+	if info.get("desktop_ok", false):
+		# Always here, so critters kept behind your windows can be brought back.
+		var on: bool = info.get("on_desktop", false)
+		items.add_child(_item("monitor", "Stay on the desktop", c, desktop_pressed,
+			_chip("On" if on else "Off", c.ink if on else c.ink2, c.raised, c.sec_line)))
 	items.add_child(_item("sliders", "Settings", c, settings_pressed))
 	col.add_child(items)
 

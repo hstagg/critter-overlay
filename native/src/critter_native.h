@@ -18,6 +18,12 @@
 //   user_busy()             true while a full-screen app, game or
 //                           presentation has the screen (Windows' own
 //                           "do not disturb" test, SHQueryUserNotificationState)
+//   pin_to_desktop(hwnds)   Stay on the desktop: these windows go directly
+//                           above the desktop's icons, below every app
+//                           window; how many had to move (0 when all were
+//                           there already)
+//   window_z(hwnd)          its place in Windows' stacking order, 0 at the
+//                           top, -1 if no such window (the Admin audit)
 //
 // A background thread owns a message-only window that receives the hotkey
 // and Raw Input. No hooks: nothing runs on, or sits in, anyone's input.
@@ -25,6 +31,7 @@
 #pragma once
 
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 
 namespace godot {
@@ -54,6 +61,8 @@ public:
 	String startup_command() const;
 	bool set_startup_command(const String &command);
 	bool user_busy() const;
+	int pin_to_desktop(const PackedInt64Array &hwnds);
+	int window_z(int64_t hwnd) const;
 
 	~CritterNative();
 };
