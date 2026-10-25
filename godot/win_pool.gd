@@ -63,11 +63,25 @@ func put_out(win: Window, at: Vector2i, vsync := false) -> void:
 	# mode is set here because the window only exists once it has been shown:
 	# set before that, it reaches whichever window happens to be current.
 	if not win.visible:
-		win.position = AWAY
-		win.show()
+		show_away(win)
 	reveal(win, at)
 	draw(win, true)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED, win.get_window_id())
+
+
+static func show_away(win: Window) -> void:
+	# Shows a window for the first time without a white box. Godot makes the
+	# Windows window on a screen whatever position it is given (one off every
+	# screen lands in the primary screen's top-left corner), and Windows shows
+	# it there, blank and so white, until the game moves it away: the box at
+	# each arrival and toast (VM recording, 2026-10-25). So it is made one
+	# pixel across, sent off the screen at once, and only then given its size.
+	var want := win.size
+	win.size = Vector2i.ONE
+	win.position = AWAY
+	win.show()
+	win.position = AWAY   # Godot placed it on a screen; this moves the real window
+	win.size = want
 
 
 static func _drawn() -> int:

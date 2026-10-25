@@ -95,7 +95,8 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	win.add_child(zz)
 	win.window_input.connect(_on_input)
 	_place()
-	win.show()
+	WinPool.show_away(win)   # made off the screen, then shown once it has drawn
+	main.win_pool.reveal(win, at)
 	# Only now does the window exist, so only now can its vsync be set.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
 	_apply_hidden()
@@ -125,7 +126,7 @@ func _place() -> void:
 	var y := r.position.y + y_fraction * (r.size.y - size.y) + (4.0 if y_fraction >= 0.999 else 0.0)
 	at = Vector2i(int(x), int(y))
 	if not parked:
-		win.position = at
+		main.win_pool.move(win, at)
 
 
 func show_window(on: bool) -> void:
@@ -133,7 +134,7 @@ func show_window(on: bool) -> void:
 	# critters' windows are (win_pool.gd says why).
 	parked = not on
 	if on:
-		win.position = at
+		main.win_pool.reveal(win, at)   # back once it has drawn again, not with an old picture
 	else:
 		WinPool.park(win)
 	WinPool.draw(win, on)
