@@ -195,7 +195,7 @@ func show_window(on: bool) -> void:
 	# parked and Settings is open.
 	parked = not on
 	if on:
-		win.position = at
+		main.win_pool.reveal(win, at)   # drawn first, off the screen: no flash
 	else:
 		WinPool.park(win)
 	win.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
@@ -268,8 +268,8 @@ func _place() -> void:
 	track.position = Vector2(-critter.position.x, foot_drop)
 	var centre := feet - Vector2(0, foot_drop).rotated(rot)
 	at = Vector2i((centre - Vector2(size, size) * 0.5).round())
-	if not parked and at != win.position:
-		win.position = at   # only when it moved: each move is a call into Windows
+	if not parked:
+		main.win_pool.move(win, at)
 
 
 func feet_on_screen() -> Vector2:

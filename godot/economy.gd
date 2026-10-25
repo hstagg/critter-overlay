@@ -68,6 +68,14 @@ const SAVE_VERSION := 2            # 2: Uncommon folded into Common (four tiers)
 const ROLL_EVERY_MIN := 5.5        # focus time banks one rarity roll per this many minutes
 const ROLL_BANK_MAX := 6.0         # the most rolls that wait in the bank
 const SPAWN_PRICE := 30            # berries for Spawn now (always rolls)
+# The Shop's welcome gift, once, the first time a player opens it in 3.1
+# (2026-10-26). 5,000 buys a handful of small things and two of the large ones
+# (6 x 150 + 2 x 2,000 = 4,900), or a spread of mediums at 500, while the perks
+# (12,000) and showpieces (6,000) are still worth working towards. About 45
+# focus hours at ~110 an hour.
+const SHOP_GIFT := 5000
+const INFINITE_FLAG := "user://infinite_berries"   # the developer's own PC: berries never run out
+const INFINITE := 999999
 const MAX_TICK_S := 1.0            # the most one frame counts: a sleep or a stall is not focus
 const FIRST_BONUS_ODDS := {"rare": 0.78, "epic": 0.20, "legendary": 0.02}
 # Collection (economy design, section 8): first finds pay, more for rarer;
@@ -115,6 +123,8 @@ var sightings := []                # rare and up: {"t": unix, "species", "tier"}
 var away_since := 0.0
 var first_bonus_day := ""          # local date the first-visitor bonus was used
 var rolls_banked := 1.0            # rarity rolls earned by focus time, not yet used
+var shop_gift_given := false     # SHOP_GIFT has been given
+var infinite := false             # INFINITE_FLAG exists: spending never lowers the count
 var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
 
 var rng := RandomNumberGenerator.new()
@@ -250,6 +260,7 @@ func pay_spawn() -> bool:
 	if berries < SPAWN_PRICE:
 		return false
 	berries -= SPAWN_PRICE
+	_top_up()
 	berries_changed.emit(berries)
 	save()
 	return true
@@ -480,6 +491,21 @@ func start_over() -> void:
 
 # --- Berries, gifts, the shop ------------------------------------------------------
 
+func _top_up() -> void:
+	if infinite:
+		berries = maxi(berries, INFINITE)
+
+
+func give_shop_gift() -> int:
+	# The first time the Shop opens: SHOP_GIFT berries, once. Returns how many.
+	if shop_gift_given:
+		return 0
+	shop_gift_given = true
+	_earn(SHOP_GIFT)
+	save()
+	return SHOP_GIFT
+
+
 func _earn(n: int) -> void:
 	berries += n
 	lifetime_berries += n
@@ -541,6 +567,7 @@ func buy_dye(item: String, dye: String) -> bool:
 	if not dyes_owned.has(item):
 		dyes_owned[item] = []
 	dyes_owned[item].append(dye)
+	_top_up()
 	berries_changed.emit(berries)
 	save()
 	return true
@@ -565,6 +592,7 @@ func buy_treat(species: String) -> bool:
 	berries -= Wear.TREAT_PRICE
 	treats.append(species)
 	add_bond(species, 2)
+	_top_up()
 	berries_changed.emit(berries)
 	save()
 	return true
@@ -575,6 +603,7 @@ func buy(item: String, price: int) -> bool:
 		return false
 	berries -= price
 	owned.append(item)
+	_top_up()
 	berries_changed.emit(berries)
 	save()
 	return true
@@ -588,7 +617,7 @@ func to_dict() -> Dictionary:
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
-		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen,
+		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen, "shop_gift_given": shop_gift_given,
 		"rolls_banked": rolls_banked, "saved_at": int(now())}
 
 
@@ -605,6 +634,8 @@ func load_save() -> void:
 	var d = SaveFile.read(save_path)
 	if d != null:
 		from_dict(d)
+	infinite = FileAccess.file_exists(INFINITE_FLAG)
+	_top_up()
 
 
 func from_dict(d: Dictionary) -> void:
@@ -632,6 +663,7 @@ func from_dict(d: Dictionary) -> void:
 	props_out = _typed(d, "props_out", {})
 	bond = _typed(d, "bond", {})
 	v2_custom_seen = _typed(d, "v2_custom_seen", {})
+	shop_gift_given = bool(d.get("shop_gift_given", false))
 	rolls_banked = clampf(_num(d, "rolls_banked", 1.0), 0.0, ROLL_BANK_MAX)
 	_frac = 0.0
 	# A long gap since the last save is a long break.

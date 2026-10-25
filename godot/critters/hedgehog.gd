@@ -65,7 +65,7 @@ var balled := false
 
 func _define() -> void:
 	species = "hedgehog"
-	critter_scale = 0.42
+	critter_scale = 0.32   # sizes in order: panda > otter > kitten ~ rabbit > duckling > hedgehog (2026-10-26)
 	base_pt = BASE
 	ground_y = BASE.y
 	head_pivot = HEAD_PIVOT
@@ -84,7 +84,7 @@ func _define() -> void:
 	sit_parts = ["foot-l", "foot-r", "body", "paw-l", "paw-r"]
 	scratch_hides = "paw-r"
 	speed_range = Vector2(30.0, 46.0)   # v2.0: 38 px/s, +/- 20%
-	head_height = 41.0
+	head_height = 31.2
 	back_hip = BACK_HIP
 
 

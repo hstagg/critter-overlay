@@ -105,7 +105,16 @@ func _process(delta: float) -> void:
 		idle_s = 0.0 if _sim_t < sim[0] else away_after + (_sim_t - sim[0])
 		source = "sim"
 	elif native != null and native.real_input_age_ms() >= 0:
-		idle_s = native.real_input_age_ms() / 1000.0
+		# Input from a device, or, failing that, any input Windows saw
+		# (GetLastInputInfo). A precision touchpad, a pen or a touch screen
+		# reaches Raw Input with no device handle, like faked input, so the
+		# device-only age left their users "away" while they worked (F13).
+		# Counting all input lets a mouse jiggler count too: decided
+		# 2026-10-26, a companion that naps on a working touchpad user is
+		# worse than one a jiggler keeps awake.
+		var real_ms: int = native.real_input_age_ms()
+		var any_ms: int = native.idle_ms()
+		idle_s = (mini(real_ms, any_ms) if any_ms >= 0 else real_ms) / 1000.0
 		source = "native"
 	else:
 		idle_s = _mouse_idle

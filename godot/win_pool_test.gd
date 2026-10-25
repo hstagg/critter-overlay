@@ -31,7 +31,14 @@ func _initialize() -> void:
 	a.add_child(thing)
 	a.window_input.connect(func(_e): pass)
 	pool.put_out(a, Vector2i(100, 200))
-	check(a.visible and a.position == Vector2i(100, 200), "put_out shows it where asked")
+	check(a.visible and a.position == WinPool.AWAY, "put_out shows it off the screen first, so it draws before it is seen")
+	pool.move(a, Vector2i(120, 210))
+	check(a.position == WinPool.AWAY, "a move while held waits for the hold")
+	for i in WinPool.HOLD_FRAMES:
+		pool._process(0.016)
+	check(a.position == Vector2i(120, 210), "then it goes where it was last asked")
+	pool.move(a, Vector2i(130, 220))
+	check(a.position == Vector2i(130, 220), "once drawn, moves are immediate")
 
 	pool.give_back(a)
 	check(pool.spare == [a], "a shown window given back is kept")

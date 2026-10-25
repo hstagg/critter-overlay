@@ -682,7 +682,9 @@ func _focus(body: VBoxContainer) -> void:
 	steps.add_child(_step("When you come back", "They wake with a stretch and carry on. Your luck keeps building.", [[a, 0.72], [b, 0.66]], Palette.species_tint("turtle", w.dark)))
 	body.add_child(K.card([K.margins(steps, 20, 20, 20, 20)]))
 
-	var mode_row := K.row("How critters arrive", "Gathering follows your focus. The timer brings a group every few minutes, whatever you are doing.",
+	# Each choice says what it does, so the two read differently.
+	var mode_desc := ("Gather while I work: critters join you one at a time, only while you keep working (one more every %s). Step away and nobody new comes." % mins_text(every)) if not timer 		else ("On a timer: a group of one kind of critter arrives every %s, whether you are working or not, as in v2.0. Any that come while you are away arrive asleep." % mins_text(int(S().value("focus.timer_every_min"))))
+	var mode_row := K.row("How critters arrive", mode_desc,
 		K.seg(["Gather while I work", "On a timer"], 1 if timer else 0, func(i): set_value("focus.mode", "timer" if i == 1 else "gather", true)))
 	var start: int = S().value("focus.start_with")
 	var start_row := K.row("Start with", "How many come out when you sit down.", K.stepper("%d critter%s" % [start, "" if start == 1 else "s"],
@@ -881,6 +883,16 @@ static func _thousands(n: int) -> String:
 
 # ============================================================ SOUND
 
+func _device_row() -> Control:
+	# Where the sounds go: Windows' default, or a named output.
+	var outs := Array(AudioServer.get_output_device_list())
+	var names := outs.map(func(d): return "Windows' default" if d == "Default" else d)
+	var at := maxi(0, outs.find(S().value("sound.device")))
+	var pick := K.dropdown(names, at, func(i): set_value("sound.device", outs[i]))
+	pick.custom_minimum_size.x = 260
+	return K.row("Play through", "If you hear nothing, pick your speakers or headphones by name, then press a play button below.", pick)
+
+
 func _sound(body: VBoxContainer) -> void:
 	var c := K.c
 	header(body, "Sound", "Little squeaks, peeps and bloops when you pop a critter.")
@@ -897,6 +909,7 @@ func _sound(body: VBoxContainer) -> void:
 	body.add_child(K.section("Master", K.card([
 		_toggle_row("Pop sounds", "Each critter makes its own little noise when you click to pop it.", "sound.pops"),
 		K.row("Volume", "", vol),
+		_device_row(),
 	])))
 	var grid := GridContainer.new()
 	grid.columns = 2

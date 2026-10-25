@@ -66,5 +66,33 @@ func _initialize() -> void:
 	check(q.hidden_s > 0.25 and q.hidden_s < 1.0, "outside the sim it counts real time, not delta (%.2f s)" % q.hidden_s)
 	q.free()
 
+	# The native layer: input with no device handle (a precision touchpad, a
+	# pen) still counts, through Windows' own last-input time (F13).
+	var r: Node = Presence.new()
+	r.away_after = 180.0
+	var fake := FakeNative.new()
+	r.native = fake
+	fake.real = 600000   # no device input for 10 minutes
+	fake.any = 2000      # but the touchpad was used 2 s ago
+	r._process(0.1)
+	check(is_equal_approx(r.idle_s, 2.0) and not r.away, "touchpad input keeps you here (idle %.1f s)" % r.idle_s)
+	fake.any = 600000
+	r._process(0.1)
+	check(r.away, "and with no input at all you are away")
+	fake.real = 1000
+	r._process(0.1)
+	check(not r.away and is_equal_approx(r.idle_s, 1.0), "a real mouse brings you back")
+	r.free()
+
 	print("presence_test: %d checks, %d failed" % [checks, fails])
 	quit(1 if fails > 0 else 0)
+
+
+class FakeNative extends RefCounted:
+	## The two idle clocks the native layer gives, set by the test.
+	var real := 0
+	var any := 0
+	func real_input_age_ms() -> int:
+		return real
+	func idle_ms() -> int:
+		return any
