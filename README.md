@@ -18,8 +18,9 @@ Windows 10 or 11.
 
 **Coming from v2.0?** Install straight over it: no need to uninstall first.
 If v2.0 is running, the installer closes it. Your settings and the critters
-you'd seen in v2.0 come with you. Custom critters made in v2.0 are kept safe
-on your PC, but don't appear in v3 yet; they'll come back in a later update.
+you'd seen in v2.0 come with you, and so do the custom critters you made in
+v2.0: they arrive switched off, so turn them on in Settings › System › Custom
+critters.
 
 ## Using it
 
@@ -33,6 +34,13 @@ on your PC, but don't appear in v3 yet; they'll come back in a later update.
   Double-click it for Settings.
 - **Berries** come from focus time. Spend them in the Shop on clothes, dyes,
   treats and showpieces (beds for napping critters), or on **Spawn now**.
+- **Homemade critters**: make your own from any picture in Settings › System ›
+  Custom critters › Import a critter. It walks as one piece, like v2.0's.
+- **Showpieces** (a basket bed, a tent, a cottage) stand on your desktop: drag
+  one anywhere, or right-click it to put it away.
+- **Stay on the desktop** (Settings › World, or the tray icon): critters and
+  showpieces live on your desktop behind your windows, instead of on top.
+  Show desktop (Win+D) brings them into view.
 - **The Collection** records every critter you meet: Common, Rare and Epic,
   plus the Legendary visitors, which stay secret until you meet them.
 - **Rare Hour**: once a day, for an hour you pick, rarer critters turn up more
