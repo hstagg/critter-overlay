@@ -309,6 +309,7 @@ func desktop_check() -> void:
 	var mine: int = main.native.window_z(hw.call(sw))
 	var below: int = main.hosts.filter(func(h): return main.native.window_z(hw.call(h.win)) > mine).size()
 	now_playing = "Stay on the desktop: on; %d of %d critters behind this window. Turn it off in World or the tray." % [below, main.hosts.size()]
+	print("ADMIN ", now_playing)
 
 
 func window_churn(rounds := 10) -> void:
