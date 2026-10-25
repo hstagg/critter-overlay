@@ -95,10 +95,14 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	win.show()
 	# Only now does the window exist, so only now can its vsync be set.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
-	# Clicks pass through except on the lower part, where it is solid.
-	DisplayServer.window_set_mouse_passthrough(PackedVector2Array([
-		Vector2(size.x * 0.1, size.y * 0.3), Vector2(size.x * 0.9, size.y * 0.3),
-		Vector2(size.x * 0.9, size.y), Vector2(size.x * 0.1, size.y)]), win.get_window_id())
+	# Clicks pass through around the picture. On Windows the click-through
+	# region also clips what the window draws, so it is the whole drawn
+	# picture and its "z z": the lower part only, as before, cut the tent's
+	# peak and the cottage's roof off (developer's PC, 2026-10-26).
+	var solid := Rect2(img.get_used_rect()).merge(Rect2(zz.position, Vector2(50, 30) * zoom)).grow(2.0)
+	solid = solid.intersection(Rect2(Vector2.ZERO, size))
+	DisplayServer.window_set_mouse_passthrough(PackedVector2Array([solid.position,
+		Vector2(solid.end.x, solid.position.y), solid.end, Vector2(solid.position.x, solid.end.y)]), win.get_window_id())
 
 
 func _place() -> void:

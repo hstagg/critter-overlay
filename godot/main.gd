@@ -255,7 +255,7 @@ func _ready() -> void:
 			var kv := arg.substr(6)
 			late_sets.append([kv.get_slice(":", 0), JSON.parse_string(kv.substr(kv.find(":") + 1))])
 		elif arg.begins_with("--shop-try="):
-			shop_try_flag = v
+			shop_try_flag = v   # ITEM[:DYE], or prop:ID for a showpiece
 		elif arg.begins_with("--settings-tour="):
 			tour_dir = v
 		elif arg.begins_with("--tier="):
@@ -1308,8 +1308,9 @@ func _tour() -> void:
 	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if admin_on() else [])
 	for n in tour_pages:
 		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
-			settings_win.pages.shop_try = shop_try_flag.get_slice(":", 0)
-			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag else ""
+			var prop := shop_try_flag.begins_with("prop:")
+			settings_win.pages.shop_try = shop_try_flag if prop else shop_try_flag.get_slice(":", 0)
+			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag and not prop else ""
 		open_settings(n[0])
 		await get_tree().create_timer(1.2).timeout
 		var y := 0

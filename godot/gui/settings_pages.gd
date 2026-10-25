@@ -1310,8 +1310,8 @@ func _tile_prop(pid: String) -> Control:
 	well.custom_minimum_size.y = 84
 	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var pic := UI.icon(prop_texture(pid, 160))
-	_fit_pic(pic, Vector2(0, 84))   # a tall cottage or tent shrinks to the tile, never cut off
-	well.add_child(pic)
+	_fit_pic(pic, Vector2(0, 72))   # a tall cottage or tent shrinks to the tile, never cut off
+	well.add_child(K.margins(pic, 8, 8, 8, 4))   # with room above the peak and the chimney
 	v.add_child(well)
 	var t := K.vbox(2)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1346,8 +1346,8 @@ func _prop_panel(pid: String) -> Control:
 	stage.add_theme_stylebox_override("panel", ss)
 	stage.custom_minimum_size = Vector2(316, 240)
 	var pic := UI.icon(prop_texture(pid, 320))
-	_fit_pic(pic, Vector2(0, 228))
-	stage.add_child(pic)
+	_fit_pic(pic, Vector2(0, 208))
+	stage.add_child(K.margins(pic, 16, 16, 16, 8))
 	v.add_child(stage)
 	var info := K.vbox(10)
 	info.add_child(UI.label("SHOWPIECE", 12, c.acc_ink, 800))
