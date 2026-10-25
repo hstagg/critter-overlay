@@ -45,7 +45,7 @@ func _build(species: String, w: int, h: int, scale: float, mode: String, asleep:
 	_vp.size = Vector2i(w, h)
 	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(_vp)
-	if not Species.has(species):
+	if not Species.has(species) and not Species.custom.has(species):
 		return
 	var shrink := Node2D.new()
 	shrink.scale = Vector2(scale, scale)
@@ -55,6 +55,7 @@ func _build(species: String, w: int, h: int, scale: float, mode: String, asleep:
 	_vp.add_child(floor)
 	critter = Species.row(species)["script"].new()
 	critter.idles = Species.row(species)["idles"]
+	critter.species = species   # a homemade critter needs its id; the cast set their own
 	if variant != "" and critter.has_method("set_variant"):
 		critter.set_variant(variant)
 	shrink.add_child(critter)
