@@ -14,6 +14,7 @@ const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
+const Importer := preload("res://gui/importer.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"   # the update pages (updater.gd); moves with the repo
 const HOME := "https://critteroverlay.itch.io/critter-overlay"   # the public page: Help
@@ -22,6 +23,7 @@ const TIER_NAMES := ["Common", "Rare", "Epic", "Legendary"]
 var w: Window                      # settings_window.gd
 var shortcut_note := ""
 var admin_page: RefCounted
+var importer: RefCounted           # importer.gd, kept so a half-made critter survives a rebuild
 
 
 func _init(win: Window) -> void:
@@ -379,7 +381,7 @@ func _update_rows() -> Array:
 			var b := K.button("Check now", "bs", "update", true, func(): w.main.check_updates_now())
 			b.disabled = u.state == "checking"
 			btns.add_child(b)
-	var r := K.row("Version %s" % w.main.VERSION, desc, btns)
+	var r := K.row("Version %s" % w.main.updater.version_name(w.main.VERSION), desc, btns)
 	if u.state == "downloading":
 		var text: VBoxContainer = r.get_child(0).get_child(0)   # K.row: margins > hbox > words
 		w.live["u_desc"] = text.get_child(1)
@@ -1500,33 +1502,11 @@ func _system(body: VBoxContainer) -> void:
 		K.row("Copy diagnostics", "Your version, screens, settings and recent log, to paste into a bug report. Nothing is sent anywhere.", copy),
 	])))
 
-	# Custom critters: a placeholder until they arrive.
-	var ph := PanelContainer.new()
-	var pst := K.box(c.ph_bg, 20, c.dash, 2)
-	pst.set_content_margin_all(18)
-	ph.add_theme_stylebox_override("panel", pst)
-	var pr := K.hbox(16)
-	var bx := PanelContainer.new()
-	bx.custom_minimum_size = Vector2(52, 52)
-	bx.add_theme_stylebox_override("panel", K.box(c.surface, 16, c.dash, 2))
-	bx.add_child(UI.icon(Icons.line("box", 26, c.ph_ink)))
-	pr.add_child(bx)
-	var pt := K.vbox(3)
-	pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var ptt := K.hbox(8)
-	ptt.add_child(UI.label("Custom critters", 15, c.ink, 800))
-	ptt.add_child(K.soon_pill())
-	pt.add_child(ptt)
-	pt.add_child(UI.label("Bring your own art and share critters with friends. This arrives in a later update.", 13, c.ink2, 400))
-	pr.add_child(pt)
-	var imp := K.button("Import a critter", "bs", "plus", true)
-	imp.disabled = true
-	imp.add_theme_color_override("font_disabled_color", c.ink2)   # the default grey vanishes on light
-	imp.modulate.a = 0.6
-	imp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	pr.add_child(imp)
-	ph.add_child(pr)
-	body.add_child(K.section("Custom critters", ph))
+	# Custom critters: the homemade ones and the importer (importer.gd).
+	if importer == null:
+		importer = Importer.new()
+	importer.w = w
+	body.add_child(importer.section())
 
 	body.add_child(K.section("Updates", K.card(_update_rows())))
 
@@ -1553,7 +1533,7 @@ func _system(body: VBoxContainer) -> void:
 	about.add_child(av)
 	var at := K.vbox(2)
 	at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	at.add_child(UI.label("Critter Overlay %s" % w.main.VERSION, 20, c.ink, 600, true))
+	at.add_child(UI.label("Critter Overlay %s" % w.main.updater.version_name(w.main.VERSION), 20, c.ink, 600, true))
 	at.add_child(UI.label("Small companions for long days.", 13, c.ink2, 400))
 	about.add_child(at)
 	for l in [["Help", func(): OS.shell_open(HOME)],

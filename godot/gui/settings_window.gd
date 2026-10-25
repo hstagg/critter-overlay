@@ -169,7 +169,7 @@ func _sidebar() -> Control:
 	head.add_child(avatar)
 	var names := K.vbox(2)
 	names.add_child(UI.label("Critter Overlay", 18, c.ink, 600, true))
-	names.add_child(UI.label("Version %s%s" % [main.VERSION, " · admin" if main.admin_on() else ""], 12, c.ink3, 600))
+	names.add_child(UI.label("Version %s%s" % [main.updater.version_name(main.VERSION), " · admin" if main.admin_on() else ""], 12, c.ink3, 600))
 	head.add_child(names)
 	_draggable(head)
 	v.add_child(K.margins(head, 6, 2, 0, 0))

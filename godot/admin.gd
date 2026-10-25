@@ -9,6 +9,7 @@ extends Node
 ## Shop's outfit comes back with "Undress".
 
 const Species := preload("res://species.gd")
+const Customs := preload("res://customs.gd")
 const Behaviours := preload("res://behaviours.gd")
 const Pairs := preload("res://pairs.gd")
 const Wear := preload("res://wear.gd")
@@ -59,7 +60,7 @@ func spawn(sp: String, tier: String, version := "", variant := "", n := 1, mode 
 		var h = main._spawn("roam", mode, at, sp, tier, version, variant)
 		if h == null:
 			break
-		if count_finds:
+		if count_finds and not Customs.is_custom(sp):
 			main._announce(sp, h.tier, false, str(h.critter.get("variant")) if variant != "" or Species.is_special(sp) else "")
 		out.append(h)
 	return out
@@ -247,6 +248,12 @@ func run(action: String, chosen := "kitten") -> void:
 			main.area = Rect2(main.area.position, main.area.size * 0.5)
 		"welcome":
 			welcome()
+		"homemade":
+			homemade()
+		"import_test":
+			import_test()
+		"carry_test":
+			carry_test()
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -352,6 +359,70 @@ func welcome() -> void:
 	main.add_child(w)
 	w.open(main)
 
+
+# --- Homemade critters (customs.gd) ----------------------------------------------------
+
+func homemade() -> void:
+	# Each switched-on homemade critter walks in, and the first sits too; a
+	# test one is made first if there are none.
+	if Customs.ids(true).is_empty():
+		Customs.add("Test critter", [test_picture(false)], {"faces": "left"})
+	for id in Customs.ids(true):
+		spawn(id, "common")
+	spawn(Customs.ids(true)[0], "common", "", "", 1, "sit")
+
+
+func import_test() -> void:
+	# The importer with a made-up photo: a critter on a plain grey background.
+	var path := "user://admin_test_picture.png"
+	test_picture(true).save_png(path)
+	main.open_settings("system")
+	await get_tree().process_frame
+	var pages = main.settings_win.pages if main.settings_win != null else null
+	if pages != null and pages.get("importer") != null:
+		pages.importer.open_file(ProjectSettings.globalize_path(path))
+
+
+func carry_test() -> void:
+	# A made-up v2.0 folder (a still and a four-frame animation), carried over
+	# as on an upgrade. Run twice: nothing more comes the second time.
+	var root := "user://admin_v2_test"
+	for spec in [["test-still-000001", 1, true, "Test still"], ["test-anim-000002", 4, false, "Test animation"]]:
+		var folder: String = root.path_join(spec[0])
+		DirAccess.make_dir_recursive_absolute(folder.path_join("frames"))
+		for i in spec[1]:
+			var img := test_picture(false)
+			img.resize(120, 120 - i * 6)
+			var can := Image.create(120, 120, false, Image.FORMAT_RGBA8)
+			can.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(0, i * 6))
+			can.save_png(folder.path_join("frames/frame_%d.png" % i))
+		var f := FileAccess.open(folder.path_join("meta.json"), FileAccess.WRITE)
+		f.store_string(JSON.stringify({"schema_version": 2, "name": spec[3], "frame_count": spec[1],
+			"import_method": "static_png" if spec[2] else "animated_gif", "procedural_animation": spec[2]}))
+		f.close()
+	var n := Customs.carry_over(root, {})
+	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in System and the Collection." % n)
+	main.open_settings("system")
+
+
+static func test_picture(with_background: bool) -> Image:
+	# A round critter with ears and eyes, on grey or on nothing.
+	var w := 300
+	var img := Image.create(w, w, false, Image.FORMAT_RGBA8)
+	img.fill(Color("#DCD8D0") if with_background else Color(0, 0, 0, 0))
+	var outline := Color("#4A3466")
+	var fur := Color("#F2B27A")
+	for y in w:
+		for x in w:
+			var body := Vector2((x - 150) / 100.0, (y - 175) / 105.0).length_squared() <= 1.0
+			var ear := (absf(x - 95.0) + (y - 40.0) * 0.45 < 30.0 or absf(x - 205.0) + (y - 40.0) * 0.45 < 30.0) and y > 40 and y < 110
+			var eye := Vector2(x - 115, y - 150).length() < 14.0 or Vector2(x - 185, y - 150).length() < 14.0
+			if eye:
+				img.set_pixel(x, y, outline)
+			elif body or ear:
+				var edge := Vector2((x - 150) / 106.0, (y - 175) / 111.0).length_squared() > 0.9 and body and not ear
+				img.set_pixel(x, y, outline if edge else fur)
+	return img
 
 func set_infinite(on: bool) -> void:
 	# The developer's own PC (Economy.INFINITE_FLAG): berries never run out.
