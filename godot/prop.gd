@@ -2,11 +2,13 @@ extends Node
 ## A showpiece on the desktop (economy design, the showpiece tier: "a
 ## critter's bed or house"): a basket, a tent or a cottage standing on the
 ## taskbar. It has its own small transparent window like a critter's; drag it
-## to move it along the bottom of the screen. When you step away, napping
+## anywhere on the screen (smoothly: the window follows the pointer every frame
+## while held), or right-click it to put it away, send it behind your windows
+## or make it invisible (Shop > Showpieces shows it again). When you step away, napping
 ## critters walk over and curl up in it; the cottage takes them inside and
 ## shows a little "zz" instead.
 
-signal moved(id: String, x_fraction: float)
+signal moved(id: String, place: Dictionary)
 
 const WinPool := preload("res://win_pool.gd")
 
@@ -30,19 +32,40 @@ var sprite: Sprite2D
 var zz: Label
 var scale_px := 0.5
 var size := Vector2.ZERO
-var x_fraction := 0.5
+var x_fraction := 0.5             # across the work area, 0 left .. 1 right
+var y_fraction := 1.0             # down it, 1 standing on the taskbar
+var back := false                 # behind other windows instead of always on top
+var hidden := false               # still there (critters still nap in it), not drawn or clickable
+var _dragging := false
+var _grab := Vector2i.ZERO        # where in the window the pointer took hold
+var _menu: PopupMenu
 var sleepers := []                # hosts asleep here, by spot
-var _drag_from := -1.0
 
 
 static func prop_name(pid: String) -> String:
 	return PROPS[pid][0] if PROPS.has(pid) else pid
 
 
-func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
+static func place_of(saved) -> Dictionary:
+	# A saved place: {x, y, back, hidden}; before 3.1 it was only x (on the taskbar).
+	if typeof(saved) == TYPE_DICTIONARY:
+		return {"x": float(saved.get("x", 0.5)), "y": float(saved.get("y", 1.0)),
+			"back": bool(saved.get("back", false)), "hidden": bool(saved.get("hidden", false))}
+	return {"x": float(saved) if typeof(saved) in [TYPE_FLOAT, TYPE_INT] else 0.5, "y": 1.0, "back": false, "hidden": false}
+
+
+func place() -> Dictionary:
+	return {"x": x_fraction, "y": y_fraction, "back": back, "hidden": hidden}
+
+
+func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	main = main_ref
 	id = pid
-	x_fraction = frac
+	var p := place_of(saved)
+	x_fraction = p.x
+	y_fraction = p.y
+	back = p.back
+	hidden = p.hidden
 	scale_px = PROPS[pid][1] * zoom
 	size = Vector2(ART, ART_H) * scale_px
 	sleepers.resize(PROPS[pid][2].size())
@@ -50,7 +73,7 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 	win.borderless = true
 	win.transparent = true
 	win.transparent_bg = true
-	win.always_on_top = true
+	win.always_on_top = not back
 	win.unfocusable = true
 	win.visible = false
 	win.size = Vector2i(size.ceil())
@@ -75,16 +98,32 @@ func setup(main_ref: Node, pid: String, frac: float, zoom: float) -> void:
 	win.show()
 	# Only now does the window exist, so only now can its vsync be set.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
-	# Clicks pass through except on the lower part, where it is solid.
-	DisplayServer.window_set_mouse_passthrough(PackedVector2Array([
+	_apply_hidden()
+
+
+func _apply_hidden() -> void:
+	# Clicks pass through except on the lower part, where it is solid; an
+	# invisible one lets every click through (one corner pixel stays, as an
+	# empty region would make the whole window solid).
+	sprite.visible = not hidden
+	zz.modulate.a = 0.0 if hidden else 1.0
+	var solid := PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]) if hidden else PackedVector2Array([
 		Vector2(size.x * 0.1, size.y * 0.3), Vector2(size.x * 0.9, size.y * 0.3),
-		Vector2(size.x * 0.9, size.y), Vector2(size.x * 0.1, size.y)]), win.get_window_id())
+		Vector2(size.x * 0.9, size.y), Vector2(size.x * 0.1, size.y)])
+	DisplayServer.window_set_mouse_passthrough(solid, win.get_window_id())
+
+
+func set_hidden(on: bool) -> void:
+	hidden = on
+	_apply_hidden()
+	moved.emit(id, place())
 
 
 func _place() -> void:
 	var r: Rect2 = main.area
 	var x := r.position.x + x_fraction * (r.size.x - size.x)
-	at = Vector2i(int(x), int(r.end.y - size.y + 4))
+	var y := r.position.y + y_fraction * (r.size.y - size.y) + (4.0 if y_fraction >= 0.999 else 0.0)
+	at = Vector2i(int(x), int(y))
 	if not parked:
 		win.position = at
 
@@ -101,18 +140,58 @@ func show_window(on: bool) -> void:
 
 
 func _on_input(e: InputEvent) -> void:
-	# Drag along the bottom of the screen.
-	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
-		if e.pressed:
-			_drag_from = DisplayServer.mouse_get_position().x - at.x
-		elif _drag_from >= 0.0:
-			_drag_from = -1.0
-			moved.emit(id, x_fraction)
-	elif e is InputEventMouseMotion and _drag_from >= 0.0:
-		var r: Rect2 = main.area
-		var x := DisplayServer.mouse_get_position().x - _drag_from
-		x_fraction = clampf((x - r.position.x) / maxf(r.size.x - size.x, 1.0), 0.0, 1.0)
-		_place()
+	# Left: pick it up (_process moves it). Right: the menu.
+	if not (e is InputEventMouseButton and e.pressed):
+		return
+	if e.button_index == MOUSE_BUTTON_LEFT:
+		_dragging = true
+		_grab = DisplayServer.mouse_get_position() - at
+		main.prop_dragging = true   # full frame rate while held (main._pace_frames)
+	elif e.button_index == MOUSE_BUTTON_RIGHT:
+		_open_menu()
+
+
+func _process(_delta: float) -> void:
+	# While held, the window follows the pointer every frame, anywhere in the
+	# work area; let go (wherever the pointer is) and the place is saved.
+	if not _dragging:
+		return
+	if not (DisplayServer.mouse_get_button_state() & MOUSE_BUTTON_MASK_LEFT):
+		_dragging = false
+		main.prop_dragging = false
+		moved.emit(id, place())
+		return
+	var r: Rect2 = main.area
+	var to := Vector2(DisplayServer.mouse_get_position() - _grab)
+	x_fraction = clampf((to.x - r.position.x) / maxf(r.size.x - size.x, 1.0), 0.0, 1.0)
+	y_fraction = clampf((to.y - r.position.y) / maxf(r.size.y - size.y, 1.0), 0.0, 1.0)
+	if y_fraction > 0.985:
+		y_fraction = 1.0   # close to the taskbar: stand on it
+	_place()
+
+
+func _open_menu() -> void:
+	if _menu == null:
+		_menu = PopupMenu.new()
+		_menu.id_pressed.connect(_on_menu)
+		win.add_child(_menu)
+	_menu.clear()
+	_menu.add_item("Put away", 0)
+	_menu.add_item("Bring to front" if back else "Send to back", 1)
+	_menu.add_item("Make invisible", 2)
+	_menu.popup(Rect2i(DisplayServer.mouse_get_position(), Vector2i.ZERO))
+
+
+func _on_menu(choice: int) -> void:
+	match choice:
+		0:
+			main.put_out.call_deferred(id, false)   # back to storage (Shop > Showpieces)
+		1:
+			back = not back
+			win.always_on_top = not back
+			moved.emit(id, place())
+		2:
+			set_hidden(true)
 
 
 func free_spot() -> int:
