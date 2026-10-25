@@ -5,6 +5,7 @@ extends SceneTree
 
 const Customs := preload("res://customs.gd")
 const Species := preload("res://species.gd")
+const Updater := preload("res://updater.gd")
 
 var fails := 0
 var checks := 0
@@ -230,6 +231,11 @@ func _init() -> void:
 		check(c.act == "shake_off", "it shakes off")
 		c.wear(["bow"])
 		c.queue_free()
+
+	# --- The beta's version as shown, and as the updater compares it.
+	check(Updater.version_name("3.0.90") == "3.1 beta 1" and Updater.version_name("3.0.91") == "3.1 beta 2", "3.0.90 shows as 3.1 beta 1")
+	check(Updater.version_name("3.0.1") == "3.0.1", "a normal version shows as it is")
+	check(not Updater.newer("3.0.1", "3.0.90") and Updater.newer("3.1.0", "3.0.90"), "a beta copy skips 3.0.x patches and takes 3.1.0")
 
 	Customs.remove(id)
 	check(not Customs.all.has(id) and not Species.custom.has(id), "remove takes it out")

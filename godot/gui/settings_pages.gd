@@ -380,7 +380,7 @@ func _update_rows() -> Array:
 			var b := K.button("Check now", "bs", "update", true, func(): w.main.check_updates_now())
 			b.disabled = u.state == "checking"
 			btns.add_child(b)
-	var r := K.row("Version %s" % w.main.VERSION, desc, btns)
+	var r := K.row("Version %s" % w.main.updater.version_name(w.main.VERSION), desc, btns)
 	if u.state == "downloading":
 		var text: VBoxContainer = r.get_child(0).get_child(0)   # K.row: margins > hbox > words
 		w.live["u_desc"] = text.get_child(1)
@@ -1505,7 +1505,7 @@ func _system(body: VBoxContainer) -> void:
 	about.add_child(av)
 	var at := K.vbox(2)
 	at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	at.add_child(UI.label("Critter Overlay %s" % w.main.VERSION, 20, c.ink, 600, true))
+	at.add_child(UI.label("Critter Overlay %s" % w.main.updater.version_name(w.main.VERSION), 20, c.ink, 600, true))
 	at.add_child(UI.label("Small companions for long days.", 13, c.ink2, 400))
 	about.add_child(at)
 	for l in [["Help", func(): OS.shell_open(REPO + "#readme")],

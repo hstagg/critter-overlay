@@ -1884,7 +1884,7 @@ func _update_tray() -> void:
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
 	var counts := collection_counts()
-	tray.update({"version": VERSION, "mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
+	tray.update({"version": updater.version_name(VERSION), "mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
 		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
