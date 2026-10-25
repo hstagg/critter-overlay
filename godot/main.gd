@@ -147,6 +147,7 @@ var species := Species.DEFAULT
 var species_fixed := false
 var custom_v2_dir := ""            # --custom-v2
 var customs_back := 0              # v2.0 custom critters carried over this launch
+var prop_dragging := false         # a showpiece is being dragged: full frame rate (prop.gd)
 var economy: Node
 var tray: Node
 var toasts: Node
@@ -556,16 +557,16 @@ func sync_props() -> void:
 			continue
 		var p = Prop.new()
 		add_child(p)
-		p.setup(self, pid, float(economy.props_out[pid]), Critter.zoom)
-		p.moved.connect(func(id, f):
-			economy.props_out[id] = f
+		p.setup(self, pid, economy.props_out[pid], Critter.zoom)
+		p.moved.connect(func(id, place):
+			economy.props_out[id] = place
 			economy.save())
 		props[pid] = p
 
 
 func put_out(pid: String, out: bool) -> void:
 	if out:
-		economy.props_out[pid] = economy.props_out.get(pid, randf_range(0.15, 0.85))
+		economy.props_out[pid] = economy.props_out.get(pid, {"x": randf_range(0.15, 0.85), "y": 1.0})
 	else:
 		economy.props_out.erase(pid)
 	economy.save()
@@ -907,7 +908,7 @@ func _pace_frames() -> void:
 	# the app's own windows open: full speed, so they feel smooth. At 5 fps the
 	# deltas add up to real time only because project.godot runs 10 physics
 	# ticks a second, not 60 (see delta_test.gd).
-	var ui_open: bool = waiting_welcome or (settings_win != null and settings_win.visible) \
+	var ui_open: bool = waiting_welcome or prop_dragging or (settings_win != null and settings_win.visible) \
 		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
 	var cap := 0 if ui_open else 30
 	if not ui_open and (paused or busy_hidden or hosts.is_empty()):

@@ -1370,6 +1370,11 @@ func _prop_panel(pid: String) -> Control:
 		btn = K.button("Put it away" if out else "Put it out", "bs" if out else "bp", "", false, func():
 			w.main.put_out(pid, not out)
 			w.rebuild())
+		if out and Prop.place_of(eco.props_out[pid]).hidden and w.main.props.has(pid):
+			# Made invisible from its right-click menu: it can't be clicked, so it comes back here.
+			info.add_child(K.button("Show it again", "bp", "", false, func():
+				w.main.props[pid].set_hidden(false)
+				w.rebuild()))
 	elif eco.berries >= Prop.PRICE:
 		btn = K.button("Buy for %s" % _thousands(Prop.PRICE), "bp", "", false, func():
 			w.confirm("Buy the %s?" % Prop.prop_name(pid).to_lower(), "%s berries. It goes straight onto your desktop." % _thousands(Prop.PRICE), "Buy it", func():

@@ -8,12 +8,14 @@ extends RefCounted
 ## that species has been met, and are drawn only for critters whose design
 ## is final (design decision, 2026-10-06).
 ##
-## Prices are by hours of focus, a wide spread (game design rules): at about
-## 110 berries a focus hour (tools/economy_sim.py), small 150 is an hour or two,
-## medium 500 an afternoon, large 2,000 about a week for a medium player
-## (20 focus h), a showpiece 6,000 two to three weeks, a perk 12,000 five or so.
+## Prices are by hours of focus, a wide spread (game design rules, D28): at
+## about 115 berries a steady focus hour (tools/economy_sim.py; fewer in a
+## first session), small 50 is about half an hour, medium 250 a couple of
+## hours, large 1,500 a working day or two, a showpiece 8,000 about 70 hours
+## and a perk 20,000 about 175: something to buy straight away, and goals
+## that take weeks.
 
-const PRICES := {"small": 150, "medium": 500, "large": 2000, "showpiece": 6000, "perk": 12000}
+const PRICES := {"small": 50, "medium": 250, "large": 1500, "showpiece": 8000, "perk": 20000}   # D28 (2026-10-26)
 
 # Perk items (design decision, 2026-10-06): the critter wearing one gets something
 # extra. A behaviour joins its idles; luck multiplies the luck that species'
@@ -39,8 +41,8 @@ const DYES := {
 	"sunshine": ["Sunshine", "#FFCF5C"], "lilac": ["Lilac", "#B59AF0"], "cocoa": ["Cocoa", "#B98A5A"],
 	"midnight": ["Midnight", "#3B3346"],
 }
-const DYE_PRICE := 100
-const TREAT_PRICE := 60
+const DYE_PRICE := 50
+const TREAT_PRICE := 40
 const SLOTS := ["neck", "face", "head"]   # drawn in this order, head on top
 
 # id: [name, slot, tier, (only this species)], written by design/wear/build.py.
