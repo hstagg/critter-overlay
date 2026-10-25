@@ -70,6 +70,16 @@ func _ready() -> void:
 
 # --- Pure parts (tested in updater_test.gd) ---------------------------------------
 
+static func version_name(v: String) -> String:
+	# The version as shown: a patch of 90 or more is a beta of the next minor
+	# (3.0.90 is "3.1 beta 1"), so the updater still compares three numbers
+	# and a beta copy is never offered a 3.0.x patch (sticker critters beta).
+	var p := v.split(".")
+	if p.size() == 3 and int(p[2]) >= 90:
+		return "%d.%d beta %d" % [int(p[0]), int(p[1]) + 1, int(p[2]) - 89]
+	return v
+
+
 static func newer(a: String, b: String) -> bool:
 	var x := a.split(".")
 	var y := b.split(".")

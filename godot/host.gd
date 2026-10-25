@@ -169,6 +169,7 @@ func setup(main_ref: Node, species_id: String, zoom: float, how: String, start_m
 
 	critter = Species.row(species)["script"].new()
 	critter.idles = Species.row(species)["idles"]
+	critter.species = species   # the cast set their own in _define(); a homemade critter needs its id
 	critter.version = version
 	if variant != "" and critter.has_method("set_variant"):
 		critter.set_variant(variant)

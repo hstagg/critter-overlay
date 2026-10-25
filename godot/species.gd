@@ -19,6 +19,11 @@ extends RefCounted
 
 const DEFAULT := "kitten"
 
+# Homemade critters ("custom:<id>", customs.gd fills this): rows of the same
+# shape, answered by row(), but never in DATA, so nothing that lists the cast
+# (Settings, the Collection's rows, the Shop, the Admin page) sees them.
+static var custom := {}
+
 const DATA := {
 	"kitten": {
 		"gait": "a pounce-pause",
@@ -160,4 +165,6 @@ static func has(id: String) -> bool:
 
 
 static func row(id: String) -> Dictionary:
-	return DATA[id] if DATA.has(id) else DATA[DEFAULT]
+	if DATA.has(id):
+		return DATA[id]
+	return custom[id] if custom.has(id) else DATA[DEFAULT]
