@@ -15,7 +15,8 @@ const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 
-const REPO := "https://github.com/hstagg/critter-overlay"
+const REPO := "https://github.com/hstagg/critter-overlay"   # the update pages (updater.gd); moves with the repo
+const HOME := "https://critteroverlay.itch.io/critter-overlay"   # the public page: Help
 const TIER_NAMES := ["Common", "Rare", "Epic", "Legendary"]
 
 var w: Window                      # settings_window.gd
@@ -1528,7 +1529,7 @@ func _system(body: VBoxContainer) -> void:
 	at.add_child(UI.label("Critter Overlay %s" % w.main.VERSION, 20, c.ink, 600, true))
 	at.add_child(UI.label("Small companions for long days.", 13, c.ink2, 400))
 	about.add_child(at)
-	for l in [["Help", func(): OS.shell_open(REPO + "#readme")],
+	for l in [["Help", func(): OS.shell_open(HOME)],
 			["Credits and licences", func(): w.notice("Credits and licences", _credits())],
 			["Privacy", func(): w.notice("Privacy", PRIVACY)]]:
 		var lb := LinkButton.new()

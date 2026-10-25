@@ -83,7 +83,7 @@ Step "[3/4] Icon and version"
     --set-file-version "$Version.0" --set-product-version "$Version.0" `
     --set-version-string "ProductName" "Critter Overlay" `
     --set-version-string "FileDescription" "Critter Overlay" `
-    --set-version-string "CompanyName" "hstagg"
+    --set-version-string "CompanyName" "Critter Overlay" --set-version-string "LegalCopyright" "Copyright (c) 2026 Critter Overlay"
 if ($LASTEXITCODE -ne 0) { throw "rcedit failed" }
 
 Step "[4/4] Installer"

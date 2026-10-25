@@ -844,7 +844,7 @@ happening.
 
 ---
 
-## Decisions for Harrison
+## Decisions for the developer
 
 Answer these up front. Each has the options and a recommendation; write the answer
 in the last column.
