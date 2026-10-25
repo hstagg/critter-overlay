@@ -124,6 +124,8 @@ func _pick(sa: String, sb: String) -> Array:
 	var weights := []
 	var swaps := []
 	var total := 0.0
+	if sa.begins_with("custom:") or sb.begins_with("custom:"):
+		return []   # a homemade critter has no head or paws to sniff and groom with
 	for n in PAIRS:
 		var d: Array = PAIRS[n]
 		var fits_ab: bool = (d[3].is_empty() or sa in d[3]) and (d[4].is_empty() or sb in d[4])

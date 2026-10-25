@@ -7,6 +7,7 @@ const Palette := preload("res://gui/palette.gd")
 const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const Species := preload("res://species.gd")
+const Customs := preload("res://customs.gd")
 
 const TIERS := ["common", "rare", "epic", "legendary"]
 const COLUMNS := 3
@@ -137,6 +138,19 @@ func _build() -> void:
 			sg.add_child(_card(sp, c))
 		col.add_child(sg)
 
+	# Homemade critters (customs.gd): a shelf of their own, outside the tiers,
+	# the counts above and the diary.
+	var homemade := Customs.ids()
+	if not homemade.is_empty() and filter != "missing":
+		col.add_child(UI.label("Homemade", 19, c.ink, 600, true))
+		var hg := GridContainer.new()
+		hg.columns = COLUMNS
+		hg.add_theme_constant_override("h_separation", 14)
+		hg.add_theme_constant_override("v_separation", 14)
+		for id in homemade:
+			hg.add_child(_homemade_card(id, c))
+		col.add_child(hg)
+
 	var dh := HBoxContainer.new()
 	dh.add_theme_constant_override("separation", 10)
 	dh.add_child(UI.label("Sightings diary", 19, c.ink, 600, true))
@@ -145,6 +159,61 @@ func _build() -> void:
 	dh.add_child(hint)
 	col.add_child(dh)
 	col.add_child(_diary(c))
+
+
+func _homemade_card(id: String, c: Dictionary) -> Control:
+	# The picture idling in its well, its name and how often it has visited.
+	var d: Dictionary = Customs.all[id]
+	var card := PanelContainer.new()
+	card.custom_minimum_size.x = CARD_W
+	card.add_theme_stylebox_override("panel", UI.box(c.surface, 18, c.line, 2))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	card.add_child(col)
+	var well := PanelContainer.new()
+	var ws := UI.box(c.track, 0)
+	ws.corner_radius_top_left = 16
+	ws.corner_radius_top_right = 16
+	well.add_theme_stylebox_override("panel", ws)
+	well.custom_minimum_size = Vector2(CARD_W - 4, WELL_H)
+	var view := SubViewportContainer.new()
+	view.stretch = true
+	view.custom_minimum_size = Vector2(CARD_W - 4, WELL_H)
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.transparent_bg = true
+	vp.size = Vector2i(CARD_W - 4, WELL_H)
+	view.add_child(vp)
+	var floor := Floor.new()
+	floor.floor_y = WELL_H - 8
+	vp.add_child(floor)
+	var critter = Species.row(id)["script"].new()
+	critter.idles = Species.row(id)["idles"]
+	critter.species = id
+	vp.add_child(critter)
+	critter.setup(floor, (CARD_W - 4) * 0.5, -1, "sit")
+	critter.mode_left = INF
+	_previews.append(critter)
+	well.add_child(view)
+	col.add_child(well)
+	var body := MarginContainer.new()
+	for side in ["left", "right"]:
+		body.add_theme_constant_override("margin_" + side, 12)
+	body.add_theme_constant_override("margin_top", 8)
+	body.add_theme_constant_override("margin_bottom", 12)
+	var bc := VBoxContainer.new()
+	bc.add_theme_constant_override("separation", 6)
+	body.add_child(bc)
+	var nr := HBoxContainer.new()
+	var nm := UI.label(str(d.get("name", "Homemade critter")), 18, c.ink, 600, true)
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nm.clip_text = true
+	nr.add_child(nm)
+	nr.add_child(UI.label("Seen %d" % int(d.get("seen", {}).get("count", 0)), 12, c.ink2, 700))
+	bc.add_child(nr)
+	bc.add_child(UI.label("From v2.0" if str(d.get("from", "")).begins_with("v2:") else "Homemade", 12, c.ink3, 700))
+	col.add_child(body)
+	return card
 
 
 func _filter_bar(c: Dictionary) -> Control:
