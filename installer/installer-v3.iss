@@ -21,7 +21,7 @@
 ; either (CloseRunning), which nothing else would.
 
 #define MyAppName "Critter Overlay"
-#define MyAppPublisher "hstagg"
+#define MyAppPublisher "Critter Overlay"
 #define MyAppExeName "CritterOverlay.exe"
 #define MyAppDescription "Small companions for long days."
 
@@ -38,9 +38,10 @@ AppId={{A7D3B2E4-9C1F-4E8A-B5D6-3F7A2C8E4B9D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL=https://github.com/hstagg/critter-overlay
-AppSupportURL=https://github.com/hstagg/critter-overlay/issues
-AppUpdatesURL=https://github.com/hstagg/critter-overlay/releases
+AppCopyright=Copyright (c) 2026 {#MyAppPublisher}
+AppPublisherURL=https://critteroverlay.itch.io/critter-overlay
+AppSupportURL=https://critteroverlay.itch.io/critter-overlay
+AppUpdatesURL=https://critteroverlay.itch.io/critter-overlay
 AppComments={#MyAppDescription}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
