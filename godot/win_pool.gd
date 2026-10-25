@@ -21,6 +21,13 @@ var close_request := Callable()   # main.gd: Windows asked a window to close
 var spare: Array[Window] = []
 var made := 0                  # windows made, for the Admin page
 var reused := 0                # and handed out again
+const HOLD_FRAMES := 2         # frames a window draws off the screen before it is shown
+
+# Windows waiting off the screen until they have drawn: [where to go, frames
+# left]. One just shown, or unparked with its drawing off, still holds its
+# last picture (or nothing, which Windows shows as a white box) for a frame
+# or two (the toast and arrival flash). Static, so park() can let one go.
+static var held := {}
 
 
 func take() -> Window:
@@ -30,6 +37,7 @@ func take() -> Window:
 		var w: Window = spare.pop_back()
 		w.process_mode = Node.PROCESS_MODE_INHERIT
 		reused += 1
+		held[w] = [AWAY, HOLD_FRAMES]   # placed by move() until put out and drawn
 		return w
 	var win := Window.new()
 	win.borderless = true
@@ -43,6 +51,7 @@ func take() -> Window:
 	if close_request.is_valid():
 		win.close_requested.connect(close_request)
 	made += 1
+	held[win] = [AWAY, HOLD_FRAMES]
 	return win
 
 
@@ -50,11 +59,39 @@ func put_out(win: Window, at: Vector2i, vsync := false) -> void:
 	# Onto the screen at `at`, shown without taking the keyboard. The vsync
 	# mode is set here because the window only exists once it has been shown:
 	# set before that, it reaches whichever window happens to be current.
-	win.position = at
 	if not win.visible:
+		win.position = AWAY
 		win.show()
+	reveal(win, at)
 	draw(win, true)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED, win.get_window_id())
+
+
+func reveal(win: Window, at: Vector2i) -> void:
+	# To `at` once it has drawn HOLD_FRAMES frames off the screen.
+	win.position = AWAY
+	held[win] = [at, HOLD_FRAMES]
+
+
+func move(win: Window, at: Vector2i) -> void:
+	# Where a window goes: now, or when its hold ends.
+	if held.has(win):
+		held[win][0] = at
+	elif win.position != at:
+		win.position = at   # only when it moved: each move is a call into Windows
+
+
+func _process(_delta: float) -> void:
+	for win in held.keys():
+		if not is_instance_valid(win) or win.is_queued_for_deletion():
+			held.erase(win)
+			continue
+		if not win.visible:
+			continue   # not put out yet
+		held[win][1] -= 1
+		if held[win][1] <= 0:
+			win.position = held[win][0]
+			held.erase(win)
 
 
 func give_back(win: Window) -> void:
@@ -62,6 +99,7 @@ func give_back(win: Window) -> void:
 	# Windows window behind it yet, so freeing it costs nothing.
 	if not is_instance_valid(win) or win.is_queued_for_deletion() or win in spare:
 		return
+	held.erase(win)
 	for c in win.get_children():
 		c.queue_free()   # not removed now: a toast's own button may be what closed it
 	for c in win.window_input.get_connections():
@@ -80,6 +118,7 @@ func give_back(win: Window) -> void:
 
 static func park(win: Window) -> void:
 	# Out of sight without hiding it (hiding would destroy it).
+	held.erase(win)
 	win.position = AWAY
 
 

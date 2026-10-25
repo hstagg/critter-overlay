@@ -45,7 +45,7 @@ var beak_in: Node2D
 
 func _define() -> void:
 	species = "duckling"
-	critter_scale = 0.44
+	critter_scale = 0.45   # sizes in order: panda > otter > kitten ~ rabbit > duckling > hedgehog (2026-10-26)
 	base_pt = BASE
 	ground_y = BASE.y
 	head_pivot = HEAD_PIVOT
@@ -65,7 +65,7 @@ func _define() -> void:
 	sit_parts = ["body", "foot-l", "foot-r"]
 	ear_parts = []
 	speed_range = Vector2(35.0, 58.0)   # v2.0: 46 px/s, +/- 25%
-	head_height = 55.0
+	head_height = 56.2
 	back_hip = Vector2(182, 244)
 
 

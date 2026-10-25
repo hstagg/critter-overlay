@@ -339,6 +339,26 @@ func _init() -> void:
 	check(m.session_min > 59.0, "working across midnight keeps the session (got %.1f)" % m.session_min)
 	m.free()
 
+	# --- The Shop's welcome gift: once, and it survives a save and load.
+	var gift_a = fresh(path + ".gift")
+	var gift_b0: int = gift_a.berries
+	check(gift_a.give_shop_gift() == Economy.SHOP_GIFT and gift_a.berries == gift_b0 + Economy.SHOP_GIFT, "the Shop gift pays SHOP_GIFT")
+	check(gift_a.give_shop_gift() == 0 and gift_a.berries == gift_b0 + Economy.SHOP_GIFT, "only once")
+	gift_a.save()
+	var gift_b = fresh(path + ".gift")
+	gift_b.load_save()
+	check(gift_b.shop_gift_given and gift_b.give_shop_gift() == 0, "and not again after a restart")
+	# --- Infinite berries (the developer's PC): spending never lowers them.
+	gift_b.infinite = true
+	gift_b._top_up()
+	check(gift_b.berries == Economy.INFINITE, "infinite tops up")
+	check(gift_b.pay_spawn() and gift_b.berries == Economy.INFINITE, "and a spend leaves it full")
+	gift_b.infinite = false
+	var gift_left: int = gift_b.berries
+	check(gift_b.pay_spawn() and gift_b.berries == gift_left - Economy.SPAWN_PRICE, "off again, spending counts")
+	gift_a.free()
+	gift_b.free()
+
 	print("ECONOMY TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	for x in [e, e2, e3, r]:
 		x.free()

@@ -36,6 +36,7 @@ var _side: Control
 var _drag_from := Vector2i(-1, -1)
 var _refresh_in := 0.0
 var _taskbar_done := false
+var _shop_stale := false           # berries changed while the Shop is showing: build it again
 
 
 func _init() -> void:
@@ -58,6 +59,8 @@ func open(main_ref: Node, which := "", species := "") -> void:
 	focus_species = species if which == "collection" else ""
 	if pages == null:
 		pages = Pages.new(self)
+	if not main.economy.berries_changed.is_connected(_on_berries):
+		main.economy.berries_changed.connect(_on_berries)
 	rebuild()
 	if not visible:
 		# Drawn at the display scale, or smaller if the screen is too small.
@@ -85,7 +88,26 @@ func go(which: String) -> void:
 	rebuild(false)
 
 
+func _shop_gift() -> void:
+	# The first time the Shop opens (3.1): a welcome gift, once (Economy.SHOP_GIFT).
+	var n: int = main.economy.give_shop_gift()
+	if n > 0 and main.toasts != null:
+		main.toasts.show_note(Icons.berry(40), "A gift", "Something for the Shop",
+			"%s berries to start your wardrobe. Have fun." % _thousands(n))
+
+
+static func _thousands(n: int) -> String:
+	var t := str(n)
+	var out := ""
+	while t.length() > 3:
+		out = "," + t.right(3) + out
+		t = t.left(t.length() - 3)
+	return t + out
+
+
 func rebuild(keep_scroll := true) -> void:
+	if page == "shop" and main != null and not main.economy.shop_gift_given:
+		_shop_gift.call_deferred()
 	var scroll_y := _scroll.scroll_vertical if keep_scroll and _scroll != null else 0
 	for ch in get_children():
 		ch.queue_free()
@@ -234,6 +256,7 @@ func _nav_button(key: String, label: String, icon: String) -> Button:
 	b.pressed.connect(func(): go(key))
 	if key == "shop":
 		var bc := UI.chip("%d" % main.economy.berries, c.ink, c.surface, c.line)
+		live["berries"] = bc.get_child(0)
 		bc.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
 		bc.position.x -= 10
 		b.add_child(bc)
@@ -294,9 +317,24 @@ func _draggable(node: Control) -> void:
 
 # --- Live values ---------------------------------------------------------------------
 
+func _on_berries(total: int) -> void:
+	# Every change shows at once: the sidebar count, and the Shop, whose
+	# prices and buttons depend on what you have, is built again.
+	if not visible:
+		return
+	if live.has("berries") and is_instance_valid(live.berries):
+		live.berries.text = "%d" % total
+	if page == "shop":
+		_shop_stale = true
+
+
 func _process(delta: float) -> void:
 	if not visible:
 		return
+	if _shop_stale:
+		_shop_stale = false   # once a frame at most, however many changes came
+		if page == "shop":
+			rebuild()
 	if live.has("admin_now") and is_instance_valid(live.admin_now):
 		var now: String = main.admin.now_playing
 		live.admin_now.text = "Now: " + now if now != "" else ""

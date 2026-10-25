@@ -35,7 +35,7 @@ const WALK_LEGS := [
 
 func _define() -> void:
 	species = "panda"
-	critter_scale = 0.46
+	critter_scale = 0.66   # sizes in order: panda > otter > kitten ~ rabbit > duckling > hedgehog (2026-10-26)
 	base_pt = BASE
 	ground_y = BASE.y
 	head_pivot = HEAD_PIVOT
@@ -52,8 +52,8 @@ func _define() -> void:
 		"loaf": Rect2(40, 150, 236, 122),
 	}
 	sit_parts = ["body", "foot-l", "foot-r"]
-	speed_range = Vector2(27.0, 41.0)   # v2.0: 34 px/s, +/- 20%
-	head_height = 52.0
+	speed_range = Vector2(20.0, 30.0)   # an unhurried amble: slower than v2.0's 34 px/s (2026-10-26)
+	head_height = 74.6
 	back_hip = BACK_HIP
 
 
@@ -95,3 +95,15 @@ func _apply_extras(_p: Dictionary) -> void:
 	head.scale = Vector2.ONE * (1.0 if pose == "sit" else HEAD_SMALL)
 	if pose != "sit" and mouth_open != null:
 		mouth_open.visible = false
+
+
+# From the side the panda read as too long: while walking it is drawn a little
+# shorter and taller (2026-10-26), eased in and out so a change of pose does
+# not jump.
+var _round := 0.0
+
+
+func _apply(p: Dictionary) -> void:
+	super(p)
+	_round = lerpf(_round, 1.0 if pose == "walk" else 0.0, 0.2)
+	scale = scale * Vector2(1.0 - 0.1 * _round, 1.0 + 0.05 * _round)

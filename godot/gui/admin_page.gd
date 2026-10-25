@@ -258,10 +258,16 @@ func _events_card() -> Control:
 			["Everyone nap", func(): A().everyone_nap()], ["Everyone wake", func(): A().everyone_wake()],
 			["Throw one", func(): A().throw()], ["A present", func(): A().present()],
 			["Climb up", func(): A().climb(sp)], ["Climb down", func(): A().climb(sp, true)],
-			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries]]:
+			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries],
+			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
 	return _panel(v)
+
+
+func _infinite() -> void:
+	A().set_infinite(not w.main.economy.infinite)
+	w.rebuild()
 
 
 func _berries() -> void:

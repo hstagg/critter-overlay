@@ -51,7 +51,7 @@ const DEFAULTS := {
 		"rare_hour": true,
 		"rare_hour_start": 15,     # an hour; Rare Hour lasts an hour at 2x (economy.gd)
 	},
-	"sound": {"pops": true, "volume": 50},
+	"sound": {"pops": true, "volume": 50, "device": "Default"},   # device: an output by name, or Windows' default
 	"system": {
 		"pause_key": {"mods": 6, "vk": 0x50},   # Ctrl+Shift+P (MOD_CONTROL | MOD_SHIFT)
 		"spawn_key": {"mods": 0, "vk": 0},      # not set

@@ -358,6 +358,7 @@ func _ready() -> void:
 	randomize()
 	player = AudioStreamPlayer.new()
 	add_child(player)
+	_apply_audio_device()
 	for sp in Species.DATA:
 		_load_sound(Species.row(sp)["sound"])
 
@@ -381,6 +382,7 @@ func _ready() -> void:
 			settings.set_value("system.v2_seen_done", true)
 	economy.sighting.connect(func(sp, tier, first): print("SIGHTING ", sp, " ", tier, " first" if first else ""))
 	economy.gift_opened.connect(_on_gift)
+	economy.berries_changed.connect(func(_total): _update_tray())   # every change shows at once
 	economy.welcome_back.connect(_on_welcome_back)
 	economy.row_completed.connect(_on_row_completed)
 	economy.bond_grew.connect(_on_bond_grew)
@@ -897,6 +899,18 @@ func play_sound(sound: String, sp := "") -> void:
 	if not settings.value("sound.pops") or (sp != "" and not settings.sp(sp, "sound")):
 		return
 	_play(sound)
+
+
+func _apply_audio_device() -> void:
+	# Settings > Sound > Play through: a named output, or Windows' default
+	# (also when the named one has been unplugged).
+	var want: String = settings.value("sound.device")
+	AudioServer.output_device = want if want in AudioServer.get_output_device_list() else "Default"
+
+
+func audio_line() -> String:
+	return "Audio %s at %d Hz | playing through %s | outputs: %s" % [AudioServer.get_driver_name(), int(AudioServer.get_mix_rate()),
+		AudioServer.output_device, ", ".join(AudioServer.get_output_device_list())]
 
 
 func preview_sound(sp: String) -> void:
@@ -1772,6 +1786,8 @@ func _on_setting(key: String) -> void:
 			next_group = minf(next_group, wall_s + _timer_every()) if key != "focus.mode" else wall_s + _timer_every()
 		if key == "focus.solo_every_min":
 			next_solo = minf(next_solo, (wall_s if settings.value("focus.mode") == "timer" else focus_s) + _solo_every())
+		if key == "sound.device":
+			_apply_audio_device()
 		if key == "focus.pause_fullscreen":
 			_check_busy()
 	if under.call("critters.size") and not zoom_flag:
@@ -1903,7 +1919,7 @@ func diagnostics() -> String:
 	# Settings > System > Copy diagnostics: what a bug report needs, for the
 	# player to paste into a message. Nothing is sent anywhere.
 	var counts := collection_counts()
-	var out := PackedStringArray([start_line(),
+	var out := PackedStringArray([start_line(), audio_line(),
 		"Now %s, running %d min | %d critters out | %s | presence from %s | windows made %d, used again %d" % [Time.get_datetime_string_from_system(),
 			int(t / 60.0), hosts.size(), "paused" if paused else ("hidden for a full-screen app" if busy_hidden else "running"), presence.source,
 			win_pool.made + toasts.pool.made, win_pool.reused + toasts.pool.reused],
