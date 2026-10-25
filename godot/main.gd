@@ -1386,6 +1386,7 @@ func _check_busy() -> void:
 	# Focus > Pause in full-screen apps: hide while a game, film or
 	# presentation has the screen.
 	var busy: bool = settings.value("focus.pause_fullscreen") and native != null and native.user_busy()
+	presence.hidden = busy   # time behind it does not count towards the tidy-up
 	if busy != busy_hidden:
 		busy_hidden = busy
 		_show_critters()
@@ -1444,7 +1445,7 @@ func _arrivals(delta: float) -> void:
 					h.leave()
 	# Focus > Tidy up after a long break.
 	var tidy: float = float(settings.value("focus.tidy_after_min")) * 60.0
-	if not present and tidy > 0.0 and not tidied and presence.idle_s >= tidy:
+	if not present and tidy > 0.0 and not tidied and presence.idle_s - presence.hidden_s >= tidy:
 		tidied = true
 		for h in hosts:
 			if h.state == "live" and not h.leaving:
