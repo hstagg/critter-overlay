@@ -8,6 +8,7 @@ const Icons := preload("res://gui/icons.gd")
 const UI := preload("res://gui/ui.gd")
 const Species := preload("res://species.gd")
 const Customs := preload("res://customs.gd")
+const CritterView := preload("res://gui/critter_view.gd")
 
 const TIERS := ["common", "rare", "epic", "legendary"]
 const COLUMNS := 3
@@ -190,9 +191,13 @@ func _homemade_card(id: String, c: Dictionary) -> Control:
 	var critter = Species.row(id)["script"].new()
 	critter.idles = Species.row(id)["idles"]
 	critter.species = id
-	vp.add_child(critter)
+	var holder := Node2D.new()   # scaled down if the picture would not fit the well
+	vp.add_child(holder)
+	holder.add_child(critter)
 	critter.setup(floor, (CARD_W - 4) * 0.5, -1, "sit")
 	critter.mode_left = INF
+	critter.tick(1.0 / 30.0)
+	CritterView.fit(critter, holder, floor, CARD_W - 4, WELL_H - 2)
 	_previews.append(critter)
 	well.add_child(view)
 	col.add_child(well)
@@ -364,9 +369,13 @@ func _card(sp: String, c: Dictionary) -> Control:
 	critter.idles = Species.row(sp)["idles"]
 	if met_variant(sp) != "":
 		critter.set_variant(met_variant(sp))   # a colour met, never one still secret
-	vp.add_child(critter)
+	var holder := Node2D.new()   # scaled down if the critter would not fit the well
+	vp.add_child(holder)
+	holder.add_child(critter)
 	critter.setup(floor, (CARD_W - 4) * 0.5, -1, "sit")
 	critter.mode_left = INF
+	critter.tick(1.0 / 30.0)
+	CritterView.fit(critter, holder, floor, CARD_W - 4, WELL_H - 2)
 	if seen == 0:
 		critter.modulate = Color(0, 0, 0, 0.18) if not _dark else Color(0, 0, 0, 0.35)   # a shadow: no colour shows through
 	_previews.append(critter)

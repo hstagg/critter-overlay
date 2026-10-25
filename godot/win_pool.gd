@@ -21,13 +21,16 @@ var close_request := Callable()   # main.gd: Windows asked a window to close
 var spare: Array[Window] = []
 var made := 0                  # windows made, for the Admin page
 var reused := 0                # and handed out again
-const HOLD_FRAMES := 2         # frames a window draws off the screen before it is shown
+const HOLD_FRAMES := 3         # frames drawn off the screen before a window is shown
 
-# Windows waiting off the screen until they have drawn: [where to go, frames
-# left]. One just shown, or unparked with its drawing off, still holds its
+# Windows waiting off the screen until they have drawn: [where to go, the
+# frame count (Engine.get_frames_drawn) to wait for]. Counted in frames drawn,
+# not process ticks: at a capped frame rate a tick can pass with nothing
+# presented, and an arrival still showed a white box for a moment. One just shown, or unparked with its drawing off, still holds its
 # last picture (or nothing, which Windows shows as a white box) for a frame
 # or two (the toast and arrival flash). Static, so park() can let one go.
 static var held := {}
+static var test_frames := -1   # the tests count their own frames (a lambda in a static crashed at exit)
 
 
 func take() -> Window:
@@ -37,7 +40,7 @@ func take() -> Window:
 		var w: Window = spare.pop_back()
 		w.process_mode = Node.PROCESS_MODE_INHERIT
 		reused += 1
-		held[w] = [AWAY, HOLD_FRAMES]   # placed by move() until put out and drawn
+		held[w] = [AWAY, _drawn() + HOLD_FRAMES]   # placed by move() until put out and drawn
 		return w
 	var win := Window.new()
 	win.borderless = true
@@ -51,7 +54,7 @@ func take() -> Window:
 	if close_request.is_valid():
 		win.close_requested.connect(close_request)
 	made += 1
-	held[win] = [AWAY, HOLD_FRAMES]
+	held[win] = [AWAY, _drawn() + HOLD_FRAMES]
 	return win
 
 
@@ -67,10 +70,14 @@ func put_out(win: Window, at: Vector2i, vsync := false) -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED, win.get_window_id())
 
 
+static func _drawn() -> int:
+	return test_frames if test_frames >= 0 else Engine.get_frames_drawn()
+
+
 func reveal(win: Window, at: Vector2i) -> void:
 	# To `at` once it has drawn HOLD_FRAMES frames off the screen.
 	win.position = AWAY
-	held[win] = [at, HOLD_FRAMES]
+	held[win] = [at, _drawn() + HOLD_FRAMES]
 
 
 func move(win: Window, at: Vector2i) -> void:
@@ -87,9 +94,9 @@ func _process(_delta: float) -> void:
 			held.erase(win)
 			continue
 		if not win.visible:
-			continue   # not put out yet
-		held[win][1] -= 1
-		if held[win][1] <= 0:
+			held[win][1] = _drawn() + HOLD_FRAMES   # not put out yet: the wait starts when it is
+			continue
+		if _drawn() >= held[win][1]:
 			win.position = held[win][0]
 			held.erase(win)
 
