@@ -420,6 +420,7 @@ func _ready() -> void:
 	economy.gift_opened.connect(_on_gift)
 	economy.berries_changed.connect(func(_total): _update_tray())   # every change shows at once
 	economy.welcome_back.connect(_on_welcome_back)
+	economy.early_gift.connect(_on_early_gift)
 	economy.row_completed.connect(_on_row_completed)
 	economy.bond_grew.connect(_on_bond_grew)
 	for sp in Species.DATA:
@@ -727,6 +728,16 @@ func _on_gift(index: int, berries: int, item: String) -> void:
 	var mins: int = Economy.GIFTS[index][0]
 	var sub := "%d berries" % berries + (", and a %s." % Wear.item_name(item).to_lower() if item != "" else ".")
 	toasts.show_note(Icons.berry(40), "A gift", "%d minutes of focus" % mins, sub)
+
+
+func _on_early_gift(index: int, berries: int) -> void:
+	# A new player's first berries for the Shop (Economy.EARLY_GIFTS, D32).
+	print("EARLY GIFT ", index, " +", berries)
+	if _quiet() or toasts == null:
+		return
+	var lines := ["Your first 20 minutes", "Your first hour", "A second day with your critters", "A third day with your critters"]
+	toasts.show_note(Icons.berry(40), "A gift", lines[index] if index < lines.size() else "A gift",
+		"%s berries to spend in the Shop." % SettingsWindow._thousands(berries))
 
 
 func _on_welcome_back(berries: int) -> void:
@@ -1998,12 +2009,17 @@ func _update_tray() -> void:
 		return
 	var mode := "paused" if paused else ("napping" if presence.away else "running")
 	var gift_min := -1.0
+	var gift_progress: float = economy.gift_progress()
 	if economy.next_gift < Economy.GIFTS.size():
 		gift_min = maxf(0.0, Economy.GIFTS[economy.next_gift][0] - economy.session_min)
+	var early: Array = economy.early_next()
+	if not early.is_empty() and (gift_min < 0.0 or early[0] < gift_min):
+		gift_min = early[0]   # an early gift comes first (D32)
+		gift_progress = early[1]
 	var counts := collection_counts()
 	tray.update({"version": updater.version_name(VERSION), "mode": mode, "out": hosts.size(), "focus_min": economy.session_min,
 		"rare_hour_until": economy.rare_hour_ends() if economy.in_rare_hour() else "",
-		"gift_min": gift_min, "gift_progress": economy.gift_progress(),
+		"gift_min": gift_min, "gift_progress": gift_progress,
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
 		"found_total": counts[1], "berries": economy.berries, "spawn_price": Economy.SPAWN_PRICE,
 		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key"))),

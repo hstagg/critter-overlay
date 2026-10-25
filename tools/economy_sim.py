@@ -15,6 +15,9 @@ Overrides for trying changes before making them:
     python tools/economy_sim.py --set legendary=0.002 --set roll_every=6
     python tools/economy_sim.py --set variants=flat     # every colour equally likely
 
+It plays a brand-new player, so the early gifts (EARLY_GIFTS, D32) are
+paid as they come; "first afford" says how soon each price is in reach.
+
 What it leaves out: Spawn now and treats (both cost berries), the lucky
 charm (bought late, it shortens only the tail), timer mode, and presents
 brought by visitors.
@@ -68,6 +71,8 @@ def load_game() -> dict:
         "daily_taper": _num(eco, "DAILY_TAPER"),
         "first_session": _num(eco, "FIRST_SESSION_BERRIES"),
         "gifts": [[float(a), float(b)] for a, b, _ in re.findall(r"\[(\d+), (\d+), ([\d.]+)\]", _const(eco, "GIFTS"))],
+        "early": [(k, float(n), float(b)) for k, n, b in re.findall(r'\["(min|days)", ([\d.]+), (\d+)\]', _const(eco, "EARLY_GIFTS"))],
+        "early_day_min": _num(eco, "EARLY_DAY_MIN"),
         "welcome": _num(eco, "WELCOME_BERRIES"),
         "welcome_min": _num(eco, "WELCOME_MIN_S") / 60.0,
         "session_end_min": _num(eco, "SESSION_END_S") / 60.0,
@@ -114,6 +119,8 @@ def simulate(g: dict, hours: float, days: int, weeks: int, rng: random.Random) -
     afford_at: dict[str, float] = {}
     goals = {**{k: v for k, v in g["prices"].items()}, "dye": g["dye"], "treat": g["treat"], "spawn": g["spawn_price"]}
     weights = [g["visits"].get(sp, 1.0) for sp in g["species"]]
+    early_paid: set[int] = set()
+    early_days = 0
 
     def roll(luck: float, rare_hour: bool, first: bool) -> tuple[str, str]:
         if first:
@@ -198,6 +205,12 @@ def simulate(g: dict, hours: float, days: int, weeks: int, rng: random.Random) -
                 day_min += 1.0
                 session += 1.0 if day_min < g["daily_full_min"] else g["daily_taper"]
                 bank = min(g["roll_max"], bank + 1.0 / g["roll_every"])
+                if focus_today + 1.0 == g["early_day_min"]:
+                    early_days += 1   # a day with enough focus (D32)
+                for i, (kind, n, b) in enumerate(g["early"]):
+                    if i not in early_paid and ((focus_total + 1.0) if kind == "min" else early_days) >= n:
+                        early_paid.add(i)
+                        berries += b
                 while next_gift < len(g["gifts"]) and session >= g["gifts"][next_gift][0]:
                     berries += g["gifts"][next_gift][1]
                     next_gift += 1
@@ -272,6 +285,8 @@ def main() -> None:
         fh = statistics.mean(r["focus_h_week"] for r in runs)
         goals = {**g["prices"], "dye": g["dye"], "treat": g["treat"], "spawn": g["spawn_price"]}
         print(f"  steady berries per focus h:  {rate:.0f}")
+        first = {k: statistics.median(r["afford_h"].get(k, 1e9) for r in runs) * 60.0 for k in ("small", "medium", "large", "showpiece")}
+        print("  first afford (focus min):    " + ", ".join(f"{k} {v:.0f}" for k, v in first.items()))
         print("  steady cost (focus h, weeks): " + ", ".join(
             f"{k} {v / rate:.1f}h/{v / rate / fh:.1f}w" for k, v in sorted(goals.items(), key=lambda kv: kv[1])))
 

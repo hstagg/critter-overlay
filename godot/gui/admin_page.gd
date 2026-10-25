@@ -85,6 +85,7 @@ func checks() -> Array:
 		["Moving about", "busy", "Eight at once", "Eight random critters: smooth? Anything clipping?", "eight"],
 		["The app", "welcome", "First-run welcome", "The welcome screens as a new player sees them.", "welcome"],
 		["The app", "settings", "Settings, every page", "Change things and watch the critters follow.", "open:home"],
+		["The app", "early", "Early gifts", "A new player's first berries: 1,500 at 20 focus minutes, 500 at the first hour, 750 on a second and a third day of focus. Run pays the next one now (the note, the berries in the tray and the Shop); after the fourth it starts again. The tray's Gift in line counts down to the next one.", "early_gift"],
 		["The app", "shop", "The Shop", "Dress up, dyes, treats, showpieces, perk clothes.", "open:shop"],
 		["The app", "shortcuts", "Shortcuts", "Change the pause keys and set a spawn key in System; try them from another app.", "open:system"],
 		["The app", "startup", "Start with Windows", "Restart the laptop: does it come back on its own?", ""],
