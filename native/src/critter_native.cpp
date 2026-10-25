@@ -458,6 +458,24 @@ int CritterNative::pin_to_desktop(const PackedInt64Array &hwnds) {
 #endif
 }
 
+int CritterNative::float_on_top(const PackedInt64Array &hwnds) {
+	// Back on top of everything. Done here, not with Godot's always-on-top
+	// flag: changing that on a window already shown made it stop drawing
+	// (the VM, 2026-10-25).
+#ifdef _WIN32
+	int n = 0;
+	for (int64_t i = 0; i < hwnds.size(); i++) {
+		HWND w = (HWND)(intptr_t)hwnds[i];
+		if (IsWindow(w) && SetWindowPos(w, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER)) {
+			n++;
+		}
+	}
+	return n;
+#else
+	return 0;
+#endif
+}
+
 int CritterNative::window_z(int64_t hwnd_value) const {
 #ifdef _WIN32
 	HWND hwnd = (HWND)(intptr_t)hwnd_value;
@@ -490,6 +508,7 @@ void CritterNative::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("user_busy"), &CritterNative::user_busy);
 	ClassDB::bind_method(D_METHOD("pin_to_desktop", "hwnds"), &CritterNative::pin_to_desktop);
 	ClassDB::bind_method(D_METHOD("window_z", "hwnd"), &CritterNative::window_z);
+	ClassDB::bind_method(D_METHOD("float_on_top", "hwnds"), &CritterNative::float_on_top);
 	ClassDB::bind_method(D_METHOD("poll_hotkey_slot", "slot"), &CritterNative::poll_hotkey_slot);
 	ClassDB::bind_method(D_METHOD("set_hotkey", "slot", "mods", "vk"), &CritterNative::set_hotkey);
 	ClassDB::bind_method(D_METHOD("hotkey_state", "slot"), &CritterNative::hotkey_state);

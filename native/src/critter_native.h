@@ -22,6 +22,8 @@
 //                           above the desktop's icons, below every app
 //                           window; how many had to move (0 when all were
 //                           there already)
+//   float_on_top(hwnds)     back on top of everything (Stay on the desktop
+//                           turned off)
 //   window_z(hwnd)          its place in Windows' stacking order, 0 at the
 //                           top, -1 if no such window (the Admin audit)
 //
@@ -62,6 +64,7 @@ public:
 	bool set_startup_command(const String &command);
 	bool user_busy() const;
 	int pin_to_desktop(const PackedInt64Array &hwnds);
+	int float_on_top(const PackedInt64Array &hwnds);
 	int window_z(int64_t hwnd) const;
 
 	~CritterNative();

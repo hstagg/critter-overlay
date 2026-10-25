@@ -1531,7 +1531,7 @@ func toggle_pause() -> void:
 
 func desktop_ok() -> bool:
 	# Needs the native layer, and one new enough to have the call.
-	return native != null and native.has_method("pin_to_desktop")
+	return native != null and native.has_method("pin_to_desktop") and native.has_method("float_on_top")
 
 
 func toggle_on_desktop() -> void:
@@ -1539,8 +1539,10 @@ func toggle_on_desktop() -> void:
 
 
 func layer(win: Window) -> void:
-	# A critter's or showpiece's window, just put out: on top, or on the desktop.
-	win.always_on_top = not on_desktop
+	# A critter's or showpiece's window, just put out: on top (as made), or
+	# on the desktop. Only ever through the native layer: changing Godot's
+	# always-on-top flag on a window already shown made it stop drawing (the
+	# VM, 2026-10-25; it is also how Send to back lost a showpiece).
 	if on_desktop:
 		_pin(win)   # now, while it is still held off the screen
 
@@ -1561,14 +1563,18 @@ func _pin(extra: Window = null) -> void:
 	# desktop shuffles them, and this puts it back (a cheap check when nothing moved).
 	if native == null:
 		return
-	var ids := PackedInt64Array()
 	var wins := _desktop_windows()
 	if extra != null and not extra in wins:
 		wins.append(extra)
+	if not wins.is_empty():
+		native.pin_to_desktop(_handles(wins))
+
+
+func _handles(wins: Array) -> PackedInt64Array:
+	var ids := PackedInt64Array()
 	for w in wins:
 		ids.append(DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, w.get_window_id()))
-	if not ids.is_empty():
-		native.pin_to_desktop(ids)
+	return ids
 
 
 func quit_app() -> void:
@@ -1851,11 +1857,12 @@ func _on_setting(key: String) -> void:
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
 	if under.call("world.on_desktop"):
+		var was := on_desktop
 		on_desktop = bool(settings.value("world.on_desktop")) and desktop_ok()
-		for w in _desktop_windows():
-			w.always_on_top = not on_desktop
 		if on_desktop:
 			_pin()
+		elif was:
+			native.float_on_top(_handles(_desktop_windows()))
 		if tray != null:
 			_update_tray()
 	if under.call("world"):

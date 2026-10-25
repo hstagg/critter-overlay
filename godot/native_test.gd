@@ -73,6 +73,7 @@ func _init() -> void:
 	check(n.window_z(0) == -1, "window_z: no place for a bad handle")
 	check(n.pin_to_desktop(PackedInt64Array()) == 0, "pin_to_desktop: nothing to move with no windows")
 	check(n.pin_to_desktop(PackedInt64Array([0])) == 0, "pin_to_desktop: a bad handle is skipped")
+	check(n.float_on_top(PackedInt64Array([0])) == 0, "float_on_top: a bad handle is skipped")
 	n.stop()
 	check(n.real_input_age_ms() == -1, "stop() ends the thread")
 	print("NATIVE TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
