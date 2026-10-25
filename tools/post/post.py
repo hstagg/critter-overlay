@@ -22,7 +22,11 @@ Usage:
   python tools/post/post.py list          the schedule
   python tools/post/post.py check         every queued clip against the limits
   python tools/post/post.py publish [--live] [--now]
-  python tools/post/post.py auth youtube|tiktok|instagram
+  python tools/post/post.py auth google|tiktok|instagram
+
+One Google sign-in covers YouTube uploads and Gmail (tools/gmail/), from one
+Google Cloud project: its Desktop OAuth client's JSON is named in the config
+as "google": {"client_file": ...}; "auth youtube" is the same as "auth google".
 
 The config (default ~/critter-post/config.json, or --config) names the queue
 folder and the API apps; tokens live beside it in tokens.json. Neither belongs
@@ -49,6 +53,9 @@ import webbrowser
 from pathlib import Path
 
 PLATFORMS = ("tiktok", "instagram", "youtube")
+GOOGLE = ("google", "youtube", "gmail")     # one sign-in, one token, kept as "google"
+GOOGLE_SCOPES = ("https://www.googleapis.com/auth/youtube.upload",
+                 "https://www.googleapis.com/auth/gmail.modify")
 DEFAULT_CONFIG = Path.home() / "critter-post" / "config.json"
 FIELDS = ("when", "title", "clip", "platforms", "hashtags", "posted")
 APPROVE, BIN = "- [x] approve", "- [x] bin"
@@ -335,19 +342,33 @@ def save_token(cfg, plat, tok):
     tokens_path(cfg).write_text(json.dumps(all_tokens, indent=1))
 
 
+def google_app(cfg):
+    """(client id, secret) from the downloaded client JSON, or the config's youtube entry."""
+    path = cfg.get("google", {}).get("client_file")
+    if path:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+        d = d.get("installed") or d.get("web") or d
+        return d["client_id"], d["client_secret"]
+    app = cfg.get("youtube", {})
+    return app["client_id"], app["client_secret"]
+
+
 def fresh_token(cfg, plat):
     """An access token, refreshed when it is near its expiry."""
+    plat = "google" if plat in GOOGLE else plat
     tok = load_tokens(cfg).get(plat)
     if not tok:
         raise RuntimeError(f"no {plat} token; run: post.py auth {plat}")
     if time.time() < tok["saved"] + tok.get("expires_in", 3600) - 300:
         return tok["access_token"]
     app = cfg.get(plat, {})
-    if plat == "youtube":
+    if plat == "google":
+        cid, secret = google_app(cfg)
         _, new = call("POST", "https://oauth2.googleapis.com/token", form=True, data={
-            "client_id": app["client_id"], "client_secret": app["client_secret"],
+            "client_id": cid, "client_secret": secret,
             "refresh_token": tok["refresh_token"], "grant_type": "refresh_token"})
         new.setdefault("refresh_token", tok["refresh_token"])
+        new["account"] = tok.get("account", "")
     elif plat == "tiktok":
         _, new = call("POST", "https://open.tiktokapis.com/v2/oauth/token/", form=True, data={
             "client_key": app["client_key"], "client_secret": app["client_secret"],
@@ -440,20 +461,22 @@ def loopback_code(auth_url, port):
 
 
 def auth(cfg, args):
+    if args.platform in GOOGLE:
+        args.platform = "google"
     app = cfg.get(args.platform, {})
-    port = app.get("port", 8765)
+    port = app.get("port", cfg.get("youtube", {}).get("port", 8765))
     redirect = f"http://127.0.0.1:{port}/"
     state = secrets.token_urlsafe(16)
     verifier = secrets.token_urlsafe(48)
-    if args.platform == "youtube":
+    if args.platform == "google":
+        cid, secret = google_app(cfg)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
         got = loopback_code("https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
-            "client_id": app["client_id"], "redirect_uri": redirect, "response_type": "code",
-            "scope": "https://www.googleapis.com/auth/youtube.upload", "access_type": "offline",
-            "prompt": "consent", "state": state, "code_challenge": challenge,
+            "client_id": cid, "redirect_uri": redirect, "response_type": "code",
+            "scope": " ".join(GOOGLE_SCOPES), "access_type": "offline",
+            "prompt": "consent select_account", "state": state, "code_challenge": challenge,
             "code_challenge_method": "S256"}), port)
-        url, data = "https://oauth2.googleapis.com/token", {
-            "client_id": app["client_id"], "client_secret": app["client_secret"]}
+        url, data = "https://oauth2.googleapis.com/token", {"client_id": cid, "client_secret": secret}
     elif args.platform == "tiktok":
         # TikTok's desktop flow wants the challenge as hex, not base64
         challenge = hashlib.sha256(verifier.encode()).hexdigest()
@@ -477,6 +500,20 @@ def auth(cfg, args):
     _, tok = call("POST", url, form=True, data={**data, "code": got["code"], "redirect_uri": redirect,
                                                 "grant_type": "authorization_code",
                                                 "code_verifier": verifier})
+    if args.platform == "google":
+        # Which account this is, so Gmail can refuse any other (tools/gmail/).
+        granted = tok.get("scope", "").split()
+        try:
+            _, me = call("GET", "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+                         headers={"Authorization": f"Bearer {tok['access_token']}"})
+            tok["account"] = me.get("emailAddress", "")
+        except RuntimeError:
+            tok["account"] = ""
+        print(f"signed in as {tok['account'] or 'an account Gmail could not read'}; "
+              f"allowed: {', '.join(s.rsplit('/', 1)[-1] for s in granted) or 'nothing'}")
+        want = cfg.get("gmail", {}).get("account", "")
+        if want and tok["account"].lower() != want.lower():
+            sys.exit(f"that is not {want}; nothing saved. Run auth again and pick {want}.")
     save_token(cfg, args.platform, tok)
     print(f"saved {args.platform} token to {tokens_path(cfg)}")
 
@@ -500,7 +537,7 @@ def main(argv=None):
     pub.add_argument("--live", action="store_true", help="really send, to platforms in the config's live list")
     pub.add_argument("--now", action="store_true", help="treat every approved post as due (testing)")
     a = sub.add_parser("auth")
-    a.add_argument("platform", choices=PLATFORMS)
+    a.add_argument("platform", choices=PLATFORMS + ("google", "gmail"))
     args = ap.parse_args(argv)
 
     cfg_path = Path(args.config)
