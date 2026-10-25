@@ -3,8 +3,8 @@ extends Node
 ## critter's bed or house"): a basket, a tent or a cottage standing on the
 ## taskbar. It has its own small transparent window like a critter's; drag it
 ## anywhere on the screen (smoothly: the window follows the pointer every frame
-## while held), or right-click it to put it away, send it behind your windows
-## or make it invisible (Shop > Showpieces shows it again). When you step away, napping
+## while held), or right-click it to put it away (Shop > Showpieces puts it
+## out again). When you step away, napping
 ## critters walk over and curl up in it; the cottage takes them inside and
 ## shows a little "zz" instead.
 
@@ -34,8 +34,6 @@ var scale_px := 0.5
 var size := Vector2.ZERO
 var x_fraction := 0.5             # across the work area, 0 left .. 1 right
 var y_fraction := 1.0             # down it, 1 standing on the taskbar
-var back := false                 # behind other windows instead of always on top
-var hidden := false               # still there (critters still nap in it), not drawn or clickable
 var _dragging := false
 var _grab := Vector2i.ZERO        # where in the window the pointer took hold
 var _menu: PopupMenu
@@ -47,15 +45,16 @@ static func prop_name(pid: String) -> String:
 
 
 static func place_of(saved) -> Dictionary:
-	# A saved place: {x, y, back, hidden}; before 3.1 it was only x (on the taskbar).
+	# A saved place: {x, y}; before 3.1 it was only x (on the taskbar). The
+	# 3.1 betas also saved "back" and "hidden" (Send to back, Make invisible),
+	# which are gone: a showpiece left behind or invisible comes back as usual.
 	if typeof(saved) == TYPE_DICTIONARY:
-		return {"x": float(saved.get("x", 0.5)), "y": float(saved.get("y", 1.0)),
-			"back": bool(saved.get("back", false)), "hidden": bool(saved.get("hidden", false))}
-	return {"x": float(saved) if typeof(saved) in [TYPE_FLOAT, TYPE_INT] else 0.5, "y": 1.0, "back": false, "hidden": false}
+		return {"x": float(saved.get("x", 0.5)), "y": float(saved.get("y", 1.0))}
+	return {"x": float(saved) if typeof(saved) in [TYPE_FLOAT, TYPE_INT] else 0.5, "y": 1.0}
 
 
 func place() -> Dictionary:
-	return {"x": x_fraction, "y": y_fraction, "back": back, "hidden": hidden}
+	return {"x": x_fraction, "y": y_fraction}
 
 
 func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
@@ -64,8 +63,6 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	var p := place_of(saved)
 	x_fraction = p.x
 	y_fraction = p.y
-	back = p.back
-	hidden = p.hidden
 	scale_px = PROPS[pid][1] * zoom
 	size = Vector2(ART, ART_H) * scale_px
 	sleepers.resize(PROPS[pid][2].size())
@@ -73,7 +70,7 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	win.borderless = true
 	win.transparent = true
 	win.transparent_bg = true
-	win.always_on_top = not back
+	win.always_on_top = true
 	win.unfocusable = true
 	win.visible = false
 	win.size = Vector2i(size.ceil())
@@ -99,25 +96,14 @@ func setup(main_ref: Node, pid: String, saved, zoom: float) -> void:
 	main.win_pool.reveal(win, at)
 	# Only now does the window exist, so only now can its vsync be set.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED, win.get_window_id())
-	_apply_hidden()
-
-
-func _apply_hidden() -> void:
-	# Clicks pass through except on the lower part, where it is solid; an
-	# invisible one lets every click through (one corner pixel stays, as an
-	# empty region would make the whole window solid).
-	sprite.visible = not hidden
-	zz.modulate.a = 0.0 if hidden else 1.0
-	var solid := PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]) if hidden else PackedVector2Array([
-		Vector2(size.x * 0.1, size.y * 0.3), Vector2(size.x * 0.9, size.y * 0.3),
-		Vector2(size.x * 0.9, size.y), Vector2(size.x * 0.1, size.y)])
-	DisplayServer.window_set_mouse_passthrough(solid, win.get_window_id())
-
-
-func set_hidden(on: bool) -> void:
-	hidden = on
-	_apply_hidden()
-	moved.emit(id, place())
+	# Clicks pass through around the picture. On Windows the click-through
+	# region also clips what the window draws, so it is the whole drawn
+	# picture and its "z z": the lower part only, as before, cut the tent's
+	# peak and the cottage's roof off (developer's PC, 2026-10-26).
+	var solid := Rect2(img.get_used_rect()).merge(Rect2(zz.position, Vector2(50, 30) * zoom)).grow(2.0)
+	solid = solid.intersection(Rect2(Vector2.ZERO, size))
+	DisplayServer.window_set_mouse_passthrough(PackedVector2Array([solid.position,
+		Vector2(solid.end.x, solid.position.y), solid.end, Vector2(solid.position.x, solid.end.y)]), win.get_window_id())
 
 
 func _place() -> void:
@@ -178,21 +164,12 @@ func _open_menu() -> void:
 		win.add_child(_menu)
 	_menu.clear()
 	_menu.add_item("Put away", 0)
-	_menu.add_item("Bring to front" if back else "Send to back", 1)
-	_menu.add_item("Make invisible", 2)
 	_menu.popup(Rect2i(DisplayServer.mouse_get_position(), Vector2i.ZERO))
 
 
 func _on_menu(choice: int) -> void:
-	match choice:
-		0:
-			main.put_out.call_deferred(id, false)   # back to storage (Shop > Showpieces)
-		1:
-			back = not back
-			win.always_on_top = not back
-			moved.emit(id, place())
-		2:
-			set_hidden(true)
+	if choice == 0:
+		main.put_out.call_deferred(id, false)   # back to storage (Shop > Showpieces)
 
 
 func free_spot() -> int:
