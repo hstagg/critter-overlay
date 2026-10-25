@@ -8,7 +8,7 @@ extends "res://critters/critter.gd"
 const BASE := Vector2(150, 270)
 const HEAD_PIVOT := Vector2(150, 181)
 const WALK_HEAD := Vector2(120, 199)
-const NAP_HEAD := Vector2(98, 222)
+const NAP_HEAD := Vector2(100, 232)       # resting on its paws
 const HEAD_MID := Vector2(150, 130)       # the middle of the face, which climbing turns it about
 const BACK_HIP := Vector2(219, 244)
 const ROLL_AT := Vector2(150, 200)
@@ -49,7 +49,7 @@ func _define() -> void:
 	hit_bounds = {
 		"sit": Rect2(60, 62, 180, 210),
 		"walk": Rect2(44, 86, 226, 186),
-		"loaf": Rect2(40, 150, 236, 122),
+		"loaf": Rect2(26, 118, 250, 154),
 	}
 	sit_parts = ["body", "foot-l", "foot-r"]
 	speed_range = Vector2(20.0, 30.0)   # an unhurried amble: slower than v2.0's 34 px/s (2026-10-26)
