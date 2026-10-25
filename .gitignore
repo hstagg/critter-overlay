@@ -24,3 +24,8 @@ native/src/*.obj
 
 # Soak harness output (tools/soak/run.sh)
 tools/soak/out/
+
+# OAuth clients and tokens (tools/post, tools/gmail) live outside the repo; never commit them
+google-client*.json
+client_secret*.json
+tokens.json

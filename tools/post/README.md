@@ -41,14 +41,18 @@ this repo.
   possible).
 - `front`, `summary_key`: extra front-matter keys for the post files, if the
   folder has its own conventions.
-- `youtube`, `tiktok`: the API app's client id and secret.
+- `google`: the Google OAuth client's JSON (YouTube and Gmail); `gmail`: the
+  one account Gmail may use, and whether it may send.
+- `tiktok`: the TikTok app's client key and secret.
 
 ## Signing in (once per platform, by the account owner)
 
-- **YouTube:** a Google Cloud project with the YouTube Data API v3 on, an OAuth
-  client of type "Desktop app", the owner added as a test user. Then
-  `post.py auth youtube`. Uploads from a project Google has not audited stay
-  **private**; the audit form is in the API's quota pages.
+- **YouTube:** one Google Cloud project shared with Gmail (`tools/gmail/README.md`
+  has the steps): YouTube Data API v3 on, a "Desktop app" OAuth client whose
+  JSON is named in the config as `"google": {"client_file": ...}`. Then
+  `post.py auth google`, which signs in once for both. Uploads from a project
+  Google has not audited stay **private**; the audit form is in the API's
+  quota pages.
 - **Instagram:** a Professional (creator or business) account and a Meta app
   with "Instagram API with Instagram login" and the
   `instagram_business_content_publish` permission. Generate a token in the
