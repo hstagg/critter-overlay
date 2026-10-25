@@ -188,6 +188,7 @@ func _init() -> void:
 	if by_name.has("Pip"):
 		var pip: Dictionary = Customs.all[by_name["Pip"]]
 		check(pip["from"] == "v2:pip-a1b2c3", "it remembers where it came from")
+		check(pip["enabled"] == false, "and waits switched off until the player turns it on")
 		check(is_equal_approx(pip["size"], 1.5) and is_equal_approx(pip["speed"], 0.8), "size and speed come over")
 		check(pip["sound"] == "rabbit", "and its sound")
 		check(int(pip["seen"].get("count", 0)) == 4, "and its sightings from v2.0's Seen Log")

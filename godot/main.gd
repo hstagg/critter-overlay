@@ -536,7 +536,7 @@ func _customs_note() -> void:
 		return
 	toasts.show_note(Icons.line("heart", 40, Color("#C0548A")), "From v2.0",
 		"Your custom critters are back",
-		"%s you made in v2.0 %s here again. Find %s in Settings › System." % [
+		"%s you made in v2.0 %s here, switched off for now. Turn %s on in Settings › System › Custom critters." % [
 			"The critter" if customs_back == 1 else "The %d critters" % customs_back,
 			"is" if customs_back == 1 else "are", "it" if customs_back == 1 else "them"])
 

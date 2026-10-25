@@ -373,7 +373,8 @@ static func carry_over(from_dir: String, v2_seen: Dictionary) -> int:
 			seen["count"] = c
 		elif typeof(old) in [TYPE_INT, TYPE_FLOAT]:
 			seen["count"] = int(old)
-		var extra := {"from": "v2:" + v2id, "seen": seen,
+		# Off until the player switches it on (developer's decision, 2026-10-26).
+		var extra := {"from": "v2:" + v2id, "seen": seen, "enabled": false,
 			"size": clampf(float(meta.get("size_multiplier", 1.0)), 0.5, 2.0),
 			"speed": clampf(float(meta.get("speed_multiplier", 1.0)), 0.5, 2.0)}
 		var sound: String = str(meta.get("sound_profile", "")).replace("duckling", "duck")
