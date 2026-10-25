@@ -30,7 +30,7 @@ const DEFAULTS := {
 	"focus": {
 		"mode": "gather",          # gather | timer
 		"start_with": 2,
-		"gather_every_min": 12,
+		"gather_every_min": 10,
 		"max_out": 8,
 		"pause_fullscreen": true,
 		"nap_after_min": 3,

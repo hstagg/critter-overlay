@@ -34,7 +34,12 @@ func _initialize() -> void:
 	check(a.visible and a.position == WinPool.AWAY, "put_out shows it off the screen first, so it draws before it is seen")
 	pool.move(a, Vector2i(120, 210))
 	check(a.position == WinPool.AWAY, "a move while held waits for the hold")
+	pool._process(0.016)
+	check(a.position == WinPool.AWAY, "not before it has drawn")
+	WinPool.test_frames = 0
+	pool.reveal(a, Vector2i(120, 210))
 	for i in WinPool.HOLD_FRAMES:
+		WinPool.test_frames += 1
 		pool._process(0.016)
 	check(a.position == Vector2i(120, 210), "then it goes where it was last asked")
 	pool.move(a, Vector2i(130, 220))
@@ -70,5 +75,10 @@ func _initialize() -> void:
 	check(ws[2].is_queued_for_deletion(), "the one over the limit is freed")
 
 	await process_frame
+	# Statics outlive the test: put the real frame counter back and let go
+	# of the windows, or tearing down at exit touches freed objects (a crash
+	# on CI with every check passed).
+	WinPool.test_frames = -1
+	WinPool.held.clear()
 	print("WIN POOL TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	quit(0 if fails == 0 and checks > 0 else 1)
