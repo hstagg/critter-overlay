@@ -69,11 +69,11 @@ const ROLL_EVERY_MIN := 5.5        # focus time banks one rarity roll per this m
 const ROLL_BANK_MAX := 6.0         # the most rolls that wait in the bank
 const SPAWN_PRICE := 30            # berries for Spawn now (always rolls)
 # The Shop's welcome gift, once, the first time a player opens it in 3.1
-# (2026-10-26). 5,000 buys a handful of small things and two of the large ones
-# (6 x 150 + 2 x 2,000 = 4,900), or a spread of mediums at 500, while the perks
-# (12,000) and showpieces (6,000) are still worth working towards. About 45
-# focus hours at ~110 an hour.
-const SHOP_GIFT := 5000
+# (D26, re-set with the prices in D28). 3,500 buys a handful of small things
+# and two of the large ones (8 x 50 + 2 x 1,500 = 3,400), or a dozen mediums,
+# while showpieces (8,000) and perks (20,000) stay worth working towards.
+# About 30 focus hours.
+const SHOP_GIFT := 3500
 const INFINITE_FLAG := "user://infinite_berries"   # the developer's own PC: berries never run out
 const INFINITE := 999999
 const MAX_TICK_S := 1.0            # the most one frame counts: a sleep or a stall is not focus
