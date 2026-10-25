@@ -1,15 +1,15 @@
 extends "res://critters/critter.gd"
 ## The panda (studio round 3, option 1: classic, rounder). Sits facing you,
-## pink paw pads out; walks side-on with its round face turned to you, a
-## little smaller (one head, as the kitten). Its walk is v2.0's lumber: slow,
+## pink paw pads out; walks side-on with its round face turned to you, the
+## same size as sitting (one head, as the kitten), on a round body. Its walk is v2.0's lumber: slow,
 ## heavy, swaying from side to side. Its own behaviour is v2.0's panda_roll:
 ## it tips over and rolls right round. Naps flat on its tummy.
 
 const BASE := Vector2(150, 270)
 const HEAD_PIVOT := Vector2(150, 181)
-const WALK_HEAD := Vector2(102, 196)
+const WALK_HEAD := Vector2(120, 199)
 const NAP_HEAD := Vector2(98, 222)
-const HEAD_SMALL := 0.78                  # the face-on head on the side-on body
+const HEAD_MID := Vector2(150, 130)       # the middle of the face, which climbing turns it about
 const BACK_HIP := Vector2(219, 244)
 const ROLL_AT := Vector2(150, 200)
 
@@ -48,7 +48,7 @@ func _define() -> void:
 	leg_lift = 4.0
 	hit_bounds = {
 		"sit": Rect2(60, 62, 180, 210),
-		"walk": Rect2(44, 98, 226, 174),
+		"walk": Rect2(44, 86, 226, 186),
 		"loaf": Rect2(40, 150, 236, 122),
 	}
 	sit_parts = ["body", "foot-l", "foot-r"]
@@ -91,19 +91,17 @@ func _behaviour_params(p: Dictionary) -> void:
 			super(p)
 
 
+func _climb_params(p: Dictionary) -> void:
+	# The base keeps the head upright on the wall by turning it about its pivot,
+	# which is the chin; the panda's head is all face, so that swung it off the
+	# body. Turn it about the middle of the face instead, which stays on the
+	# front of the body.
+	var before: float = p.head_rot
+	super(p)
+	var c := HEAD_MID - HEAD_PIVOT
+	p.head_off = p.head_off + c - c.rotated(deg_to_rad(p.head_rot - before))
+
+
 func _apply_extras(_p: Dictionary) -> void:
-	head.scale = Vector2.ONE * (1.0 if pose == "sit" else HEAD_SMALL)
 	if pose != "sit" and mouth_open != null:
 		mouth_open.visible = false
-
-
-# From the side the panda read as too long: while walking it is drawn a little
-# shorter and taller (2026-10-26), eased in and out so a change of pose does
-# not jump.
-var _round := 0.0
-
-
-func _apply(p: Dictionary) -> void:
-	super(p)
-	_round = lerpf(_round, 1.0 if pose == "walk" else 0.0, 0.2)
-	scale = scale * Vector2(1.0 - 0.1 * _round, 1.0 + 0.05 * _round)
