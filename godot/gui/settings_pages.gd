@@ -1358,7 +1358,7 @@ func _prop_panel(pid: String) -> Control:
 	var owned: bool = eco.owns(pid)
 	tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
 	info.add_child(tr)
-	var what := UI.label("It stands on your taskbar; drag it where you like. When you step away, sleepy critters curl up in it." + (" They go inside the cottage." if Prop.PROPS[pid][3] else ""), 13, c.ink2, 400)
+	var what := UI.label("It stands on your taskbar; drag it where you like, or right-click it to put it away. When you step away, sleepy critters curl up in it." + (" They go inside the cottage." if Prop.PROPS[pid][3] else ""), 13, c.ink2, 400)
 	what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	what.custom_minimum_size.x = 280
 	info.add_child(what)
@@ -1368,11 +1368,6 @@ func _prop_panel(pid: String) -> Control:
 		btn = K.button("Put it away" if out else "Put it out", "bs" if out else "bp", "", false, func():
 			w.main.put_out(pid, not out)
 			w.rebuild())
-		if out and Prop.place_of(eco.props_out[pid]).hidden and w.main.props.has(pid):
-			# Made invisible from its right-click menu: it can't be clicked, so it comes back here.
-			info.add_child(K.button("Show it again", "bp", "", false, func():
-				w.main.props[pid].set_hidden(false)
-				w.rebuild()))
 	elif eco.berries >= Prop.PRICE:
 		btn = K.button("Buy for %s" % _thousands(Prop.PRICE), "bp", "", false, func():
 			w.confirm("Buy the %s?" % Prop.prop_name(pid).to_lower(), "%s berries. It goes straight onto your desktop." % _thousands(Prop.PRICE), "Buy it", func():
