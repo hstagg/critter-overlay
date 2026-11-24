@@ -1732,7 +1732,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | A3 | Store schema 2 | done 2026-11-24 |
 | A4 | Gaits | done 2026-11-24 |
 | B1 | Side-on plan + kit data layer | done 2026-11-24 |
-| B2 | Faces-you plan | not started |
+| B2 | Faces-you plan | done 2026-11-24 |
 | B3 | Upright plan | not started |
 | B4 | Blob plan | not started |
 | B5 | Custom sounds | not started |
@@ -1811,3 +1811,13 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   - Checked on the VM: the kitten kit beside the kitten, and the bare kit
     with its darker far legs and melted nap. Screenshots only; the 20 s
     capture is still to do.
+- 2026-11-24: B2 done. The otter fixture is the otter's art moved by
+  (26, -8) onto the kit frame's ground point. Until F1 measures the two
+  heads, the clothes shift between faces is the neck's move (P15's
+  no-side-head rule), not the crown difference. A kit has one tail, so the
+  otter kit walks with its sitting tail. Its hit boxes sit inside the
+  otter's hand-set ones (60-85% of their area). `two_head.gd` assumed the
+  side face and the closed eyes were always drawn; `front.gd` overrides
+  `_build_head_extras`, `_on_pose` and `_apply_extras` so they are optional.
+  Seen on the VM: the otter kit beside the otter, and the one-face kit
+  plodding with its front face.
