@@ -195,7 +195,7 @@ func _init() -> void:
 		return p).call()}], true))
 	check(gi.frames.size() == 1 and gi.frames[0].get_pixel(4, 2).is_equal_approx(Color(1, 0, 0)) and gi.frames[0].get_pixel(4, 12).is_equal_approx(Color(0, 0, 1)), "an interlaced GIF comes out in row order")
 	var big := gif(9000, 10, [])
-	check(Gif.size_of(big) == Vector2i(9000, 10) and Gif.decode(big).error.contains("4096"), "an oversized GIF is refused from its header")
+	check(Gif.size_of(big) == Vector2i(9000, 10) and Gif.decode(big).error.contains("1280"), "an oversized GIF is refused from its header")
 	var many := []
 	for i in 70:
 		many.append({"x": 0, "y": 0, "w": 4, "h": 4, "px": solid(4, 4, 1 + i % 3)})

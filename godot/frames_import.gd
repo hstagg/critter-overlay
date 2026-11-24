@@ -18,6 +18,7 @@ extends RefCounted
 ## edge.
 
 const Raster := preload("res://raster_kit.gd")
+const Clean := preload("res://svg_clean.gd")
 const Gif := preload("res://gif.gd")
 const Apng := preload("res://apng.gd")
 const FrameData := preload("res://critters/kit/frame_data.gd")
@@ -144,9 +145,9 @@ static func _from_files(files: Dictionary, raw: Dictionary, fps: Dictionary) -> 
 
 
 static func _animation(name: String, bytes: PackedByteArray, raw: Dictionary, fps: Dictionary) -> String:
-	var d := Gif.decode(bytes) if name.get_extension().to_lower() == "gif" else Apng.decode(bytes)
-	if d.error != "":
-		return "%s: %s" % [name, d.error]
+	var d: Dictionary = Gif.decode(bytes) if name.get_extension().to_lower() == "gif" else Apng.decode(bytes)
+	if str(d.get("error", "can't be read")) != "" or d.get("frames", []).is_empty():
+		return "%s: %s" % [name, d.get("error", "can't be read")]
 	var clip := clip_name(name)
 	raw[clip] = d.frames
 	var total := 0.0
@@ -163,7 +164,7 @@ static func _aseprite(files: Dictionary, raw: Dictionary, fps: Dictionary) -> St
 			json_name = n
 	if files[json_name].size() > 256 * 1024:
 		return "That JSON is over 256 KB."
-	var j = JSON.parse_string(files[json_name].get_string_from_utf8())
+	var j = JSON.parse_string(Clean.text_of(files[json_name]))
 	if typeof(j) != TYPE_DICTIONARY or not j.has("frames"):
 		return "That JSON isn't an Aseprite sheet."
 	var meta: Dictionary = j.get("meta", {})

@@ -103,7 +103,7 @@ static func zip_entries(path: String) -> Dictionary:
 		var nlen := cd.decode_u16(at + 28)
 		var elen := cd.decode_u16(at + 30)
 		var clen := cd.decode_u16(at + 32)
-		var name := cd.slice(at + 46, at + 46 + nlen).get_string_from_utf8()
+		var name := Clean.text_of(cd.slice(at + 46, at + 46 + nlen))
 		at += 46 + nlen + elen + clen
 		if name.ends_with("/"):
 			continue
@@ -164,7 +164,7 @@ static func _from_files(files: Dictionary) -> Dictionary:
 	var offsets := {}
 	for n in files:
 		if n.get_file().to_lower() == "parts.txt":
-			for line in files[n].get_string_from_utf8().split("\n"):
+			for line in Clean.text_of(files[n]).split("\n"):
 				# "<file name> x y": the name may have spaces, so x and y are
 				# the last two words.
 				var bits: PackedStringArray = str(line).strip_edges().split(" ", false)

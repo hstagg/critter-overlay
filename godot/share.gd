@@ -61,7 +61,7 @@ static func decode_code(code: String) -> Dictionary:
 	if raw.is_empty() or raw.size() >= MAX_INFLATED:
 		out.error = "That code is damaged or too big."
 		return out
-	var j = JSON.parse_string(raw.get_string_from_utf8())
+	var j = JSON.parse_string(Clean.text_of(raw))
 	if typeof(j) != TYPE_DICTIONARY or typeof(j.get("s")) != TYPE_DICTIONARY:
 		out.error = "That code is damaged."
 		return out
@@ -260,7 +260,7 @@ static func _stage_kit(files: Dictionary, staging: String, out: Dictionary) -> S
 			continue
 		match n.get_extension():
 			"svg":
-				var c := Clean.clean(files[n].get_string_from_utf8())
+				var c := Clean.clean(Clean.text_of(files[n]))
 				if c.error != "":
 					return "%s: %s" % [part, c.error]
 				var f := FileAccess.open(staging.path_join("parts/%s.svg" % part), FileAccess.WRITE)
@@ -368,7 +368,8 @@ static func _stage_v2(files: Dictionary, meta: Dictionary, staging: String, out:
 static func _small_json(bytes: PackedByteArray):
 	if bytes.is_empty() or bytes.size() > 256 * 1024:
 		return null
-	return JSON.parse_string(bytes.get_string_from_utf8())
+	var text := Clean.text_of(bytes)
+	return JSON.parse_string(text) if text != "" else null
 
 
 static func _json(path: String, d: Dictionary) -> void:

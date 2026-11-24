@@ -51,7 +51,11 @@ static func stage(path: String, plan_hint := "") -> Dictionary:
 		if f.get_length() > Clean.MAX_BYTES:
 			out.error = "That drawing is over 2 MB."
 			return out
-		var r := Clean.split(f.get_as_text())
+		var text := Clean.text_of(f.get_buffer(f.get_length()))
+		if text == "":
+			out.error = "That file isn't a drawing saved as text (SVG)."
+			return out
+		var r := Clean.split(text)
 		if r.error != "":
 			out.error = r.error
 			return out

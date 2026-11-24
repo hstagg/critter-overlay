@@ -1762,7 +1762,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | F3 | Clothes on frame critters | not started |
 | G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
 | G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |
-| G3 | Hostile-file pass | not started |
+| G3 | Hostile-file pass | done 2026-11-24 |
 | H1 | Collection | not started |
 | H2 | Docs | not started |
 | H3 | Performance and soak | not started |
@@ -1911,3 +1911,30 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   A file's author, licence and `ai_made` are kept in `custom.json`. Also
   fixed two `frames_test.gd` checks that failed now and then (an ambient
   blink, and the frame where a walk ends).
+- 2026-11-24: G3 done: `tools/fuzz_import.gd`, 2,000 mutated cases for each
+  of 8 importers (16,000 in all): none slow, no script errors, 31 MB peak.
+  It found and fixed:
+  - a GIF whose interlaced frame claims 65535 x 65535 looped for minutes:
+    the de-interlacer stops when the decoded data runs out, and frames are
+    bounded by the screen;
+  - GIF screens are now 1280 px a side at most (frames are at most 4x the
+    300 x 280 frame), with a total pixel budget and a 4 s limit;
+  - an APNG with a cut-short header read past its end;
+  - junk text made the engine log a line for every bad byte, which took
+    seconds: `svg_clean.gd text_of()` checks UTF-8 quietly first, and every
+    importer reading a shared file as text uses it.
+
+**Where it stands (2026-11-24, end of the first overnight run).** Done:
+A1, A3, A4, B1-B6, C1-C3, D1, E1, E2, G3, and the engines of C4, G1 and G2.
+Each step is its own PR, stacked in order (#39 to #57), none merged. Every
+step left needs the developer, or a design that needs them:
+- **A0** (design session: My critters), then **A2** (the page, the colour
+  picker, the sound card from B5, the Copy and Paste code buttons from G1).
+- **C0** (design: importing), then C4's screens, **C5** (drop to import), E3,
+  and the install dialog from G2.
+- **D0** (design: the Studio window), then **D2-D7**.
+- **F1-F3** (clothes) can go ahead without a design session. F2 is the
+  biggest step left: porting `design/wear/*.py` to GDScript with a parity
+  test.
+- **Decision 8** (the tester's app) still decides which real-app files the
+  tests get.

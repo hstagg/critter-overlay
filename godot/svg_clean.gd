@@ -65,6 +65,37 @@ const ALIASES := {
 }
 
 
+# --- Text --------------------------------------------------------------------------
+
+static func text_of(bytes: PackedByteArray) -> String:
+	# The bytes as text, or "" if they aren't valid UTF-8. Checked here first:
+	# the engine logs a line for every bad byte it meets, and a hostile file
+	# can hold thousands (G3).
+	var i := 0
+	var n := bytes.size()
+	while i < n:
+		var b := bytes[i]
+		var extra := 0
+		if b < 0x80:
+			i += 1
+			continue
+		elif b >= 0xC2 and b <= 0xDF:
+			extra = 1
+		elif b >= 0xE0 and b <= 0xEF:
+			extra = 2
+		elif b >= 0xF0 and b <= 0xF4:
+			extra = 3
+		else:
+			return ""
+		if i + extra >= n:
+			return ""
+		for k in extra:
+			if bytes[i + 1 + k] & 0xC0 != 0x80:
+				return ""
+		i += 1 + extra
+	return bytes.get_string_from_utf8()
+
+
 # --- Cleaning -----------------------------------------------------------------------
 
 static func clean(text: String) -> Dictionary:
