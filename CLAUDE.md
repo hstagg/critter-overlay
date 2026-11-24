@@ -59,9 +59,14 @@ Minimum code that solves the problem. No features, options or abstractions nobod
 
 Turn each task into something verifiable before starting: a failing test, a `--selftest` run, a measured frame time. Work until that check passes rather than until the code looks right.
 
-### Design skill: store page and website only
+### Design skill: web pages and app UI design sessions
 
-`.claude/skills/design-taste-frontend/` (Leonxlnx/taste-skill, MIT, pinned at ce26fc2) is for the marketing site and store page. Do not apply it to the Godot app's own UI, and skip its image-generation steps. It is large (about 22k tokens), so invoke it only for web page work.
+`.claude/skills/design-taste-frontend/` (Leonxlnx/taste-skill, MIT, pinned at ce26fc2) is for two things:
+
+- **The marketing site and store page.**
+- **Design sessions for the Godot app's UI**, held with the developer and made with Claude Design, such as the design steps in `docs/custom-critters-build-plan.md`. The skill guides the design, which is drawn in the app's own look (`gui/theme.gd`, the GUI mock-ups in `design/`), not as a web page. The approved design is saved under `design/` and the Godot code follows it. Don't carry the skill's web code patterns (Tailwind, React, CSS libraries) into GDScript.
+
+Skip its image-generation steps. It is large (about 22k tokens), so invoke it only for this work, not for ordinary app code changes.
 
 ### The Admin page lands with every feature (v3)
 

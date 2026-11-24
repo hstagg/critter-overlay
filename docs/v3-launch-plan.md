@@ -892,7 +892,9 @@ Decided as later work, kept here so nothing is lost:
 
 - **Roam every monitor** (D8): critters walk across all screens, with mixed-DPI handling.
 - **In-app comments window** for tester feedback, with screenshots (D6).
-- **Custom critters**: see `docs/v3-custom-critters-plan.md`.
+- **Custom critters**: stickers shipped in 3.1. Next: `docs/custom-critters-build-plan.md`
+  (Shape Builder, Part kit, frame-by-frame; Coat Studio dropped 2026-11-19). The options
+  paper is `docs/v3-custom-critters-plan.md` on branch `v3-custom-critters-plan`.
 
 ---
 
