@@ -460,7 +460,9 @@ func kit_test(which: String) -> void:
 	# walks in and another sits.
 	var Fixtures = load("res://critters/kit/fixtures.gd")
 	var src := "user://admin_kits/" + which
-	if which in ["duckling", "upright"]:
+	if which in ["slime", "ghost", "snake"]:
+		Fixtures.blob_kit(src, which)
+	elif which in ["duckling", "upright"]:
 		Fixtures.duckling_kit(src, which == "upright", "waddle" if which == "duckling" else "hop")
 	elif which in ["otter", "oneface"]:
 		Fixtures.otter_kit(src, which == "oneface", "slide" if which == "otter" else "plod")
