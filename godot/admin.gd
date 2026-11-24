@@ -258,6 +258,8 @@ func run(action: String, chosen := "kitten") -> void:
 			import_test()
 		"carry_test":
 			carry_test()
+		"kit":
+			kit_test(arg)
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -449,6 +451,23 @@ func carry_test() -> void:
 	var n := Customs.carry_over(root, {})
 	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in System and the Collection." % n)
 	main.open_settings("system")
+
+
+func kit_test(which: String) -> void:
+	# A test kit made from the kitten's own art (critters/kit/fixtures.gd):
+	# "kitten" with every part, beside a real kitten; "bare" with only the
+	# required parts. Each walks in and another sits.
+	var Fixtures = load("res://critters/kit/fixtures.gd")
+	var src := "user://admin_kits/" + which
+	Fixtures.kitten_kit(src, which == "bare", "hop" if which == "hop" else "trot")
+	var id: String = Customs.add_folder(src)
+	if id == "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Test kit", "It didn't load: see the log.")
+		return
+	spawn(id, "common")
+	spawn(id, "common", "", "", 1, "sit")
+	if which == "kitten":
+		spawn("kitten", "common")
 
 
 static func test_picture(with_background: bool) -> Image:

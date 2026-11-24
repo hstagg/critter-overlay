@@ -19,6 +19,8 @@ extends Node2D
 ##   --species=NAME     which critter to spawn (default kitten; see species.gd),
 ##                      or custom:<id> for a homemade one (customs.gd)
 ##   --custom-dir=PATH  keep homemade critters in PATH instead of user://custom
+##   --kit-dir=PATH     add the homemade kit folder at PATH (a copy) and spawn it
+##                      (testing; needs --studio outside the admin build)
 ##   --studio           turn on every way of making a critter not yet released
 ##                      (docs/custom-critters-build-plan.md P20; the admin
 ##                      build always has them)
@@ -122,6 +124,7 @@ var evaluator := Behaviours.new()
 var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
 var admin_flag := false
 var studio_flag := false         # --studio
+var kit_dir := ""                 # --kit-dir
 var custom_sweep := 10.0          # s to the next check for homemade textures to free
 var admin_run := ""               # --admin-run=ACTION: an audit Run button, for testing
 var pairs := Pairs.new()
@@ -304,6 +307,8 @@ func _ready() -> void:
 			admin_flag = true
 		elif arg == "--studio":
 			studio_flag = true
+		elif arg.begins_with("--kit-dir="):
+			kit_dir = v
 		elif arg.begins_with("--admin-run="):
 			admin_run = v
 		elif arg.begins_with("--throw-demo="):
@@ -417,6 +422,11 @@ func _ready() -> void:
 	if admin_on() or studio_flag:
 		Customs.all_ways_on()
 	Customs.load_all()
+	if kit_dir != "":
+		var kid := Customs.add_folder(kit_dir)
+		if kid != "":
+			species = kid
+			species_fixed = true
 	var from_v2 := custom_v2_dir if custom_v2_dir != "" else (Customs.v2_dir() if real_run else "")
 	if from_v2 != "":
 		customs_back = Customs.carry_over(from_v2, economy.v2_custom_seen)

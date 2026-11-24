@@ -299,8 +299,7 @@ func schema_2(root: String) -> void:
 
 	Customs.all_ways_on()
 	Customs.load_all()
-	var kit_rig := ResourceLoader.exists(Customs.RIGS["side"])
-	check(Customs.all.has("custom:kit-222222") == kit_rig, "with the ways on, a kit loads once its rig exists")
+	check(not Customs.all.has("custom:kit-222222"), "with the ways on, a kit without its kit.json and parts is still skipped")
 	check(Customs.way({"kind": "kit", "from": "shapes"}) == "shapes" and Customs.way({"kind": "kit"}) == "kit"
 		and Customs.way({"kind": "frames"}) == "frames" and Customs.way({}) == "", "each kind waits behind its own way")
 	Customs.ways.clear()
