@@ -1753,7 +1753,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | D6 | Preview, pins and save | not started |
 | D7 | Usability pass | not started |
 | R2 | **Release 3.3.0** | not started |
-| E1 | Clip player | not started |
+| E1 | Clip player | done 2026-11-24 |
 | E2 | Frame formats | not started |
 | E3 | Frame importer | not started |
 | R3 | **Release 3.4.0** | not started |
@@ -1884,3 +1884,12 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   them as SVG then. Suggested pins: the neck is the centre of the area where
   the head and body shapes really overlap (not their boxes); the tail root
   is the point on the tail's centre line nearest the body.
+- 2026-11-24: E1 done. Atlas cells are at part scale (225 x 210), so 64
+  frames fit in 2048 x 2048 (9 x 9). `stride_px` is in drawing units. A
+  frame critter's moves are a nap and its `act-*` clips; the cast's shared
+  moves aren't offered, since its frames can't show them. The `land` clip
+  isn't played yet (a squash stands in). Clothes on frame critters wait for
+  F3. On the VM the pixel cat showed and sat with its own frames; walking
+  across the screen was checked headless (`frames_test.gd`), not on the VM.
+  VM note: a checkout there can be blocked by `.uid` files an earlier import
+  made; delete them before switching branches.

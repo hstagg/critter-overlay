@@ -74,6 +74,7 @@ func _init() -> void:
 	check(c.atlas.regions.walk.size() == 4 and c.atlas.regions["act-wave"].size() == 4, "every frame is on the atlas")
 	# Walking: frames follow the distance.
 	c.vx = c.facing * c.cruise
+	var x0: float = c.position.x
 	var seen := {}
 	for i in 120:
 		c.tick(1.0 / 30.0)
@@ -81,6 +82,7 @@ func _init() -> void:
 			c._go_walk()
 		seen[c.sheet.region_rect] = true
 	check(c.clip == "walk" and seen.size() == 4, "it walks through all four walk frames (%d)" % seen.size())
+	check(absf(c.position.x - x0) > 40.0, "and gets somewhere (%.0f px in 4 s)" % absf(c.position.x - x0))
 	check(absf(c.cycle_px - 100.0 * c.px()) < 0.5, "a walk cycle carries it stride_px (%.1f vs %.1f)" % [c.cycle_px, 100.0 * c.px()])
 	c._go_sit()
 	c.tick(0.1)
