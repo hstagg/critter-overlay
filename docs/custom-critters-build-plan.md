@@ -1739,7 +1739,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | B6 | Pairs and host numbers | done 2026-11-24 |
 | C0 | Design: importing | not started |
 | C1 | Templates | done 2026-11-24 |
-| C2 | SVG sanitiser and splitter | not started |
+| C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | not started |
 | C4 | Kit importer | not started |
 | C5 | Drop a file to import | not started |
@@ -1854,3 +1854,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   rig is unchanged. Layers of other poses are hidden. The guide PNGs ship as
   raw files (`templates/*.png` in both presets' include filter). Opening
   them in Inkscape, and the round trip, wait for C2 and C4.
+- 2026-11-24: C2 done. The whitelist also keeps `<use>` pointing inside
+  the file, `<style>` (Illustrator's default export, with `@import` and
+  outside links stripped) and `filter`/`feGaussianBlur` (A1: ThorVG draws
+  blur). An empty layer is a part not drawn. Unknown layers come back under
+  their own name for the importer to ask about. The app fixtures are made in
+  the test with each app's naming (Inkscape labels, Affinity `serif:id`,
+  Illustrator `_x5F_`/`_1_` ids); real exports from the tester's app should
+  be added as files once decision 8 is answered.
