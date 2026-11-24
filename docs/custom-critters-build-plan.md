@@ -844,7 +844,7 @@ end in the same thing: a critter.
   - **Every homemade critter in one place**, whatever made it, each with a
     small badge for how it was made. Whether the ways also get their own
     lists or filters is the first question for the A0 design session; the
-    starting point is one list with filter chips (All, Built, Drawn,
+    starting point is one list with filter chips (All, Shapes, Drawn,
     Animated, Picture).
   - **One "Make a critter" entry** that explains the ways in plain words and
     by what the player has ("No drawing app? Build from shapes", "Draw in
@@ -1726,7 +1726,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 
 | Step | What | Status |
 |---|---|---|
-| A0 | Design: My critters and Make a critter | waiting for a session with the developer |
+| A0 | Design: My critters and Make a critter | done 2026-11-24 (`design/studio/my-critters/`) |
 | A1 | Rasteriser spike | done 2026-11-24 |
 | A2 | Studio gate, My critters page, widgets | not started |
 | A3 | Store schema 2 | done 2026-11-24 |
@@ -1978,3 +1978,26 @@ step left needs the developer, or a design that needs them:
     kitten's metrics first, as a reference, then the wide, tall and tiny
     heads. One was written there tonight for the morning review;
     `FITS_BADLY` is empty until then.
+- 2026-11-24: A0 done, with the developer; saved in `design/studio/my-critters/`.
+  Decided:
+  - **One grid** (option A) with filter chips by kind, not sections per way
+    (option B, kept as `Grouped.html` for reference): players will have a
+    handful of critters, and one grid keeps a friend's critter next to the
+    ones like it.
+  - **A Settings page after Critters**, with a count in the sidebar, not a
+    window of its own. Making stays in the Studio window (decision 2).
+  - **One Make a critter chooser**, sorted by what the player has. Build from
+    shapes is the big first card ("No drawing app? Start here"); codes and
+    `.critter` files sit under "Got one from someone?". Each way says how the
+    critter will move (walks, sits and naps; plays your frames; slides along).
+    With no critters yet the page itself is the chooser.
+  - **One detail view** for every kind, in the Critters page's layout, plus
+    Edit, Share, Make a copy and Delete.
+  - **The words for each kind**: badges and chips Shapes, Drawn, Animated,
+    Picture (P26's "Built" becomes "Shapes"); Edit buttons Edit shapes, Bring
+    in a new version, Change frames, Change picture. "From a friend" is a note
+    on the card, not a kind.
+  - **The ways in**: the Critters page's "Your own" tile shows the newest
+    critter and the count and opens the page; the Collection's Homemade shelf
+    uses the same badges and links across; the System page keeps a pointer
+    row for one release, then it goes.

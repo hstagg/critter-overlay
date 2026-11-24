@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>My critters, first visit</title>
+<link rel="stylesheet" href="./critter.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="win th-light" style="width: 1100px; height: 1080px; display: flex; overflow: hidden">
+
+<aside style="width: 232px; flex-shrink: 0; background: var(--side); display: flex; flex-direction: column; gap: 18px; padding: 18px 14px; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 10px; padding: 2px 6px">
+<div style="width: 46px; height: 46px; border-radius: 15px; background: var(--surface); border: 2px solid var(--outline); box-shadow: 0 2px 0 var(--lip); overflow: hidden; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center"><img src="art/cast-kitten.svg" width="44" height="46" alt=""></div>
+<div><div class="disp" style="font-weight: 600; font-size: 18px; line-height: 1.1">Critter Overlay</div><div style="font-size: 12px; color: var(--ink3); margin-top: 2px">Version 3.2</div></div>
+</div>
+<nav aria-label="Settings sections" style="display: flex; flex-direction: column; gap: 4px">
+<a href="#home" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
+<a href="Entrances.html" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14.5" cy="6" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M7.5 17.5c0-3 2.2-5.5 4.5-5.5s4.5 2.5 4.5 5.5c0 1.8-1.5 2.3-2.8 2-1.1-.3-2.3-.3-3.4 0-1.3.3-2.8-.2-2.8-2z"/></svg><span>Critters</span></a>
+<a href="Empty.html" class="nav act" aria-current="page"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5c0-7.5 3-13.5 7-13.5s7 6 7 13.5z"/><path d="M9.5 12.5h.01M14.5 12.5h.01"/></svg><span>My critters</span><span class="pill" style="margin-left: auto; background: var(--fresh-tint); color: var(--fresh-ink)">New</span></a>
+<a href="#focus" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Focus</span></a>
+<a href="#world" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19 13 11"/></svg><span>World</span></a>
+<a href="#sound" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3l5 4V6L7 10z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/></svg><span>Sound</span></a>
+<a href="Entrances.html" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.5l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z"/></svg><span>Collection</span></a>
+<a href="#shop" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19s-7-4.4-7-9.5A3.8 3.8 0 0 1 12 7.5a3.8 3.8 0 0 1 7 2C19 14.6 12 19 12 19z"/></svg><span>Shop</span></a>
+<a href="#system" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>System</span></a>
+</nav>
+</aside>
+
+<main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<div style="height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px">
+<button class="wb" aria-label="Minimise"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+<button class="wb" aria-label="Close to tray"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+</div>
+<div style="padding: 0 40px 40px; display: flex; flex-direction: column; gap: 22px">
+<header><h1 class="h1">My critters</h1><p class="sub">Make a critter of your own and it will visit your desk with everyone else. Pick by what you have.</p></header>
+
+<a href="#studio" class="card" style="display: grid; grid-template-columns: minmax(0, 1fr) 250px; overflow: hidden; text-decoration: none; color: var(--ink); border-color: var(--outline); box-shadow: 0 3px 0 var(--lip)">
+<div style="padding: 24px 26px; display: flex; flex-direction: column; gap: 12px; justify-content: center">
+<span class="pill" style="align-self: flex-start; background: var(--chip-sel); color: var(--acc-ink)">No drawing app? Start here</span>
+<span class="disp" style="font-weight: 600; font-size: 26px">Build from shapes</span>
+<span class="wd" style="font-size: 14.5px; max-width: 400px">Put a critter together from circles, ovals, hearts and other shapes, right here. Pick its colours, eyes and how it walks.</span>
+<span class="btn bp" style="align-self: flex-start; margin-top: 4px; color: var(--btn-ink)">Start building</span>
+</div>
+<div class="well" style="background: var(--w-lilac); padding-bottom: 14px"><img src="art/shapes-critter.svg" width="190" height="197" alt=""></div>
+</a>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="font-weight: 800; font-size: 14px; color: var(--ink2); margin-left: 4px">Already have art?</div>
+<div class="card">
+<a href="#draw" class="row" style="text-decoration: none; color: var(--ink)"><span class="wayic" style="width: 42px; height: 42px; border-radius: 14px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></span><span class="rt"><span class="rtt">Draw in your own app</span><span class="rtd" style="display: block">Get a template, draw each body part on its own layer, then bring the file back. Walks, sits and naps.</span></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink3)"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="#anim" class="row" style="text-decoration: none; color: var(--ink)"><span class="wayic" style="width: 42px; height: 42px; border-radius: 14px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M8 5v14M16 5v14M3.5 9.5h4.5M3.5 14.5h4.5M16 9.5h4.5M16 14.5h4.5"/></svg></span><span class="rt"><span class="rtt">Bring an animation</span><span class="rtd" style="display: block">A GIF, an animated PNG or a folder of frames. It plays exactly as you drew it.</span></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink3)"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="#pic" class="row" style="text-decoration: none; color: var(--ink)"><span class="wayic" style="width: 42px; height: 42px; border-radius: 14px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/></svg></span><span class="rt"><span class="rtt">Use a picture</span><span class="rtd" style="display: block">One picture of a critter, with the background taken out. It slides along as it is. The quickest way.</span></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink3)"><path d="M9 6l6 6-6 6"/></svg></a>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 18px; border: 2px dashed var(--dash)">
+<span class="wayic" style="width: 40px; height: 40px; border-radius: 13px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/></svg></span>
+<label for="em-code" style="font-weight: 800; font-size: 14.5px; white-space: nowrap">Got a code or a file?</label>
+<input id="em-code" class="field" placeholder="Paste a critter code, it starts CRIT1-" style="flex: 1; min-width: 0; font-weight: 700; font-size: 13.5px">
+<button class="btn bs sm">Add</button>
+<button class="btn bq sm" style="color: var(--acc-ink)">Open a .critter file</button>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1100,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themeClass: this.props.dark ? 'th-dark' : 'th-light' };
+}
+}
+</script>
+</body>
+</html>
