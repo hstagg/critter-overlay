@@ -1758,7 +1758,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | E3 | Frame importer | not started |
 | R3 | **Release 3.4.0** | not started |
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
-| F2 | Clothes drawn at runtime | not started |
+| F2 | Clothes drawn at runtime | done 2026-11-24 (the contact sheet waits for review) |
 | F3 | Clothes on frame critters | not started |
 | G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
 | G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |
@@ -1948,3 +1948,33 @@ step left needs the developer, or a design that needs them:
   `kit.json`. The "Where's its head?" adjustment comes with C0's screens.
   `gap` (unused by any item) and a fitted `side` stand in for build.py's
   hand-set ones.
+- 2026-11-24: F2 done. `wear_draw.gd` is a line-for-line port of
+  `design/wear/*.py` (all 84 items and the helpers), drafted by a throwaway
+  converter from the Python's syntax tree and then read through. **Parity:
+  624 item files (60 items x 10 species, plus 24 species-only ones) checked,
+  624 match when rasterised, 0 drift, and all 624 come out as the very same
+  text.** Differences from the plan, and why:
+  - Numbers are written by the port's own formatter (exact half-to-even, as
+    Python's), since Godot's `"%.1f"` and `String.num` round half away and
+    off the rounded value; with Godot's, 1 file in 624 differed in a last
+    digit. The test's 1% is of the pixels either image draws, which is
+    stricter than of the whole 300 x 400 frame.
+  - The rig hook is `_wear_head()` (the kit's metrics, `{}` for the cast)
+    plus `_wears(id)`; `critter.gd wear()` turns the metrics into SVG through
+    `Wear.svg_for_kit()`, so the four kit rigs each add three lines.
+    `two_head.gd` asks `_wears()` too, so a faces-you kit's clothes move
+    between faces. Kit textures are keyed
+    `wear:<item>:<species>:<art_key>:<dye>`, which `forget()` already drops.
+  - `Wear.fits()` answers for homemade critters (kit critters only; never a
+    species-only or `FITS_BADLY` item), so the Shop, dressing and presents
+    all filter through it. Arriving homemade critters can now bring a
+    present, as the cast do. Frame critters still wear nothing (F3).
+  - The hoods for kits are the items in `hides.json` that aren't one
+    species' own: the frog, dino and bear hoods and the flower bonnet. They
+    hide `ear-l`, `ear-r`, `tuft` and `head-front` (`critter.gd
+    _hidden_by()`, also used by `front.gd`).
+  - The contact sheet goes to `user://wear_contact_sheet.png`, with a `.txt`
+    naming the items (an Image can't hold text). Each item is on the
+    kitten's metrics first, as a reference, then the wide, tall and tiny
+    heads. One was written there tonight for the morning review;
+    `FITS_BADLY` is empty until then.

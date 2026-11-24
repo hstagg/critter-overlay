@@ -264,6 +264,10 @@ func run(action: String, chosen := "kitten") -> void:
 			own_sound()
 		"kit_pair":
 			kit_pair(arg)
+		"dress_kit":
+			dress_kit_all()
+		"wear_sheet":
+			wear_sheet()
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -459,17 +463,122 @@ func carry_test() -> void:
 	main.open_settings("system")
 
 
-func kit_pair(name: String) -> void:
-	# The kitten kit (made if needed) and a kitten do a generic pair.
-	var id := ""
+func _kitten_kit() -> String:
+	# The kitten kit's id, made if needed; "" if it doesn't load.
 	for k in Customs.ids():
 		if Customs.all[k].get("name") == "Kitten kit":
-			id = k
-	if id == "":
-		var Fixtures = load("res://critters/kit/fixtures.gd")
-		id = Customs.add_folder(Fixtures.kitten_kit("user://admin_kits/kitten"))
+			return k
+	var Fixtures = load("res://critters/kit/fixtures.gd")
+	return Customs.add_folder(Fixtures.kitten_kit("user://admin_kits/kitten"))
+
+
+func kit_pair(name: String) -> void:
+	# The kitten kit (made if needed) and a kitten do a generic pair.
+	var id := _kitten_kit()
 	if id != "":
 		pair(name, id, "kitten")
+
+
+# --- Clothes on homemade critters (F2) -------------------------------------------------
+
+# Three heads no species has, in the head drawing's frame (the keys of
+# design/wear/build.py SPECIES; side as kit_data.gd head_metrics() sets it).
+const AWKWARD_HEADS := {
+	"wide": {"cx": 150.0, "cy": 150.0, "rx": 135.0, "ry": 52.0, "eye_y": 154.0, "eye_dx": 62.0, "eye_r": 13.0, "chin": 202.0, "top": 98.0, "side": 1.0},
+	"tall": {"cx": 150.0, "cy": 135.0, "rx": 42.0, "ry": 100.0, "eye_y": 120.0, "eye_dx": 17.0, "eye_r": 10.0, "chin": 235.0, "top": 35.0, "side": 0.8},
+	"tiny": {"cx": 150.0, "cy": 205.0, "rx": 26.0, "ry": 22.0, "eye_y": 207.0, "eye_dx": 10.0, "eye_r": 5.0, "chin": 227.0, "top": 183.0, "side": 0.8},
+}
+const KITTEN_HEAD := {"cx": 150, "cy": 122, "rx": 92, "ry": 74, "eye_y": 124, "eye_dx": 38, "eye_r": 18, "chin": 196, "side": 1.0}
+const SHEET_SCALE := 0.4       # each head 120 x 160 px
+const SHEET_ACROSS := 5        # items to a row
+const SHEET_PATH := "user://wear_contact_sheet.png"
+
+
+func dress_kit_all() -> void:
+	# The kitten kit (made if needed) sits and puts on every item homemade
+	# critters can wear, one after another, then takes the last one off.
+	var id := _kitten_kit()
+	if id == "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Kitten kit", "It didn't load: see the log.")
+		return
+	var hs := spawn(id, "common", "", "", 1, "sit")
+	if hs.is_empty():
+		return
+	var h = hs[0]
+	h.critter.mode_left = INF   # sits still to be looked at, as main.gd's clothes sheet does
+	h.critter.activity = 0.0
+	var ids := kit_items()
+	for i in ids.size() + 1:
+		get_tree().create_timer(1.0 + 1.5 * i).timeout.connect(func():
+			if is_instance_valid(h) and h.state != "popping":
+				h.critter.wear([ids[i]] if i < ids.size() else []))
+
+
+static func kit_items() -> Array:
+	# Every item a homemade critter can wear, in the catalogue's order.
+	return Wear.ITEMS.keys().filter(func(i): return Wear.for_kits(i))
+
+
+static func _head_svg(m: Dictionary) -> String:
+	# A plain head with eyes and a body below it, for the contact sheet.
+	var body := '<ellipse cx="%f" cy="%f" rx="%f" ry="44" fill="#E9D3B8" stroke="#6B4A3A" stroke-width="4"/>' % [m.cx, m.chin + 36.0, m.rx * 0.8]
+	var head := '<ellipse cx="%f" cy="%f" rx="%f" ry="%f" fill="#F6E3CC" stroke="#6B4A3A" stroke-width="4"/>' % [m.cx, m.cy, m.rx, m.ry]
+	var eyes := ""
+	for s in [-1, 1]:
+		eyes += '<circle cx="%f" cy="%f" r="%f" fill="#2B2330"/>' % [m.cx + s * m.eye_dx, m.eye_y, m.eye_r]
+	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -120 300 400" width="300" height="400">%s%s%s</svg>' % [body, head, eyes]
+
+
+static func contact_sheet() -> Image:
+	# Every item kits can wear on the kitten's head (as it ships) and on the
+	# three AWKWARD_HEADS, drawn by wear_draw.gd: four heads to an item,
+	# SHEET_ACROSS items to a row, in kit_items() order (the .txt beside the
+	# PNG lists them).
+	var heads := [KITTEN_HEAD, AWKWARD_HEADS.wide, AWKWARD_HEADS.tall, AWKWARD_HEADS.tiny]
+	var cw := int(300 * SHEET_SCALE)
+	var ch := int(400 * SHEET_SCALE)
+	var gap := 10
+	var block := Vector2i(cw * heads.size() + gap, ch + gap)
+	var ids := kit_items()
+	var rows := ceili(float(ids.size()) / SHEET_ACROSS)
+	var sheet := Image.create(block.x * SHEET_ACROSS + gap, block.y * rows + gap, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	var bare := []
+	for m in heads:
+		var img := Image.new()
+		img.load_svg_from_string(_head_svg(m), SHEET_SCALE)
+		img.convert(Image.FORMAT_RGBA8)
+		bare.append(img)
+	for n in ids.size():
+		var at := Vector2i(gap + (n % SHEET_ACROSS) * block.x, gap + (n / SHEET_ACROSS) * block.y)
+		var shade := Image.create(block.x - gap, ch, false, Image.FORMAT_RGBA8)
+		shade.fill(Color(0.94, 0.95, 0.97) if (n + n / SHEET_ACROSS) % 2 == 0 else Color(0.98, 0.97, 0.93))
+		sheet.blit_rect(shade, Rect2i(Vector2i.ZERO, shade.get_size()), at)
+		for k in heads.size():
+			var cell: Image = bare[k].duplicate()
+			var item := Image.new()
+			item.load_svg_from_string(Wear.svg_for_kit(ids[n], heads[k]), SHEET_SCALE)
+			item.convert(Image.FORMAT_RGBA8)
+			cell.blend_rect(item, Rect2i(Vector2i.ZERO, item.get_size()), Vector2i.ZERO)
+			sheet.blend_rect(cell, Rect2i(Vector2i.ZERO, cell.get_size()), at + Vector2i(k * cw, 0))
+	return sheet
+
+
+func wear_sheet() -> void:
+	# Writes the contact sheet and its index to user:// and opens it.
+	var img := contact_sheet()
+	img.save_png(SHEET_PATH)
+	var ids := kit_items()
+	var lines := ["Clothes contact sheet: each item on the kitten's head, then wide, tall and tiny heads.",
+		"%d items, %d to a row, left to right:" % [ids.size(), SHEET_ACROSS]]
+	for n in ids.size():
+		lines.append("row %d, %d: %s (%s)" % [n / SHEET_ACROSS + 1, n % SHEET_ACROSS + 1, Wear.item_name(ids[n]), ids[n]])
+	var f := FileAccess.open(SHEET_PATH.get_basename() + ".txt", FileAccess.WRITE)
+	f.store_string("
+".join(lines) + "
+")
+	f.close()
+	OS.shell_open(ProjectSettings.globalize_path(SHEET_PATH))
 
 
 func own_sound() -> void:

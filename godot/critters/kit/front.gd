@@ -45,6 +45,11 @@ func head_top_px() -> float:
 	return kit.head_top_px
 
 
+func _wear_head() -> Dictionary:
+	# Clothes are drawn from the kit's own head (F2).
+	return kit.head
+
+
 func _load_textures() -> void:
 	var key := art_key()
 	if _textures.has(key):
@@ -99,12 +104,10 @@ func _on_pose(p: String) -> void:
 	# two_head.gd's, keeping the front face on while walking when there is
 	# no side face.
 	_place_wear()
-	var hood := false
-	for id in worn:
-		hood = hood or "ears" in Wear.hides(id, species)
+	var hidden := _hidden_by_wear()   # a hood: the ears and head-front (wear.gd KIT_HOOD_HIDES)
 	var front_on := _sit_like(p) or head_side == null
 	for n in front_parts:
-		n.visible = front_on and not (hood and n in ears)
+		n.visible = front_on and not _hidden_by(n, hidden)
 	if head_side != null:
 		head_side.visible = p == "walk" or (p == "loaf" and side_in_loaf)
 	if loaf_eyes != null:
