@@ -122,6 +122,12 @@ static func write(staged: Dictionary, name: String, dest: String, extra := {}) -
 	d.merge(extra, true)
 	_json(dest.path_join("custom.json"), d)
 	ground(dest, kit)
+	# F1: the head's metrics, for clothes; the importer's "Where's its
+	# head?" step (with C0's screens) lets the player adjust them.
+	kit = JSON.parse_string(FileAccess.get_file_as_string(dest.path_join("kit.json")))
+	var r := KitData.build(dest, kit)
+	kit["head"] = r.head
+	_json(dest.path_join("kit.json"), kit)
 	return dest
 
 

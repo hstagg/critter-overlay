@@ -547,6 +547,18 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	r["head_height"] = (GROUND - eyes_walk.y) * PART_SCALE * r["critter_scale"]
 	r["speed_range"] = pl.speed * clampf(speed, 0.5, 2.0)
 	r["ground_dy"] = GROUND - _lowest(r, "walk")
+	# Head metrics for clothes (F1, P15), in the head drawing's own frame.
+	var head_img: Image = imgs.get("head", imgs.get("body"))
+	r["head"] = head_metrics(head_img, imgs.get("eyes"))
+	if front and imgs.has("head-side"):
+		var side := head_metrics(imgs["head-side"], imgs.get("eye-side"))
+		var crown_f := Vector2(r.head.cx, r.head.top)
+		var crown_s := Vector2(side.cx, side.top)
+		r["head_side"] = side
+		r["wear_walk_shift"] = (crown_s - P["neck-walk"]) - (crown_f - head_pivot)
+		r["wear_side_scale"] = clampf(side.rx / maxf(1.0, r.head.rx), 0.7, 1.0)
+	r["wear_crown"] = Vector2(r.head.cx, r.head.top)
+	r["wear_neck"] = Vector2(r.head.cx, r.head.chin)
 	# host.gd's spin centre and confetti height (P17), px at zoom 1.
 	r["body_centre_px"] = walk_hit.size.y * 0.5 * PART_SCALE * r["critter_scale"]
 	r["head_top_px"] = tall * PART_SCALE * r["critter_scale"]
@@ -608,6 +620,96 @@ static func hit_bounds(r: Dictionary) -> Dictionary:
 		out["sit"] = out["walk"]
 	if not out.has("stand"):
 		out["stand"] = out["sit"]
+	return out
+
+
+static func head_metrics(head: Image, eyes: Image) -> Dictionary:
+	# design/wear/build.py's numbers for a drawn head: the ellipse that has
+	# the head's solid pixels' spread (so thin whiskers barely move it), its
+	# crown and chin, the eyes' height, spacing and size (the two biggest
+	# blobs in the eyes drawing), and side, the hat scale.
+	var m := {"cx": 150.0, "cy": 130.0, "rx": 70.0, "ry": 60.0, "top": 70.0, "chin": 190.0,
+		"eye_y": 130.0, "eye_dx": 28.0, "eye_r": 14.0, "side": 1.0}
+	if head == null:
+		return m
+	var n := 0.0
+	var sx := 0.0
+	var sy := 0.0
+	var sxx := 0.0
+	var syy := 0.0
+	var used := head.get_used_rect()
+	var top := INF
+	var bottom := -INF
+	for y in range(used.position.y, used.end.y):
+		for x in range(used.position.x, used.end.x):
+			if head.get_pixel(x, y).a >= 0.5:
+				var u := Vector2(x, y) / PART_SCALE
+				n += 1.0
+				sx += u.x
+				sy += u.y
+				sxx += u.x * u.x
+				syy += u.y * u.y
+				top = minf(top, u.y)
+				bottom = maxf(bottom, u.y)
+	if n < 10.0:
+		return m
+	m.cx = sx / n
+	m.cy = sy / n
+	m.rx = 2.0 * sqrt(maxf(0.0, sxx / n - m.cx * m.cx))   # a filled ellipse's spread is r / 2
+	m.ry = 2.0 * sqrt(maxf(0.0, syy / n - m.cy * m.cy))
+	m.top = top
+	m.chin = bottom
+	m.side = clampf(0.5 + 0.5 * m.rx / 92.0, 0.8, 1.0)
+	var blobs := _blobs(eyes)
+	if blobs.size() >= 2:
+		var a: Dictionary = blobs[0]
+		var b: Dictionary = blobs[1]
+		m.eye_y = (a.c.y + b.c.y) * 0.5
+		m.eye_dx = absf(a.c.x - b.c.x) * 0.5
+		m.eye_r = (sqrt(a.n / PI) + sqrt(b.n / PI)) * 0.5
+	elif blobs.size() == 1:
+		m.eye_y = blobs[0].c.y
+		m.eye_dx = 0.0
+		m.eye_r = sqrt(blobs[0].n / PI)
+	return m
+
+
+static func _blobs(img: Image) -> Array:
+	# Connected patches of solid pixels, biggest first: [{"c": centre, "n": area}], in units.
+	if img == null:
+		return []
+	var w := img.get_width()
+	var h := img.get_height()
+	var seen := PackedByteArray()
+	seen.resize(w * h)
+	var out := []
+	var used := img.get_used_rect()
+	for y0 in range(used.position.y, used.end.y):
+		for x0 in range(used.position.x, used.end.x):
+			var i0 := y0 * w + x0
+			if seen[i0] == 1 or img.get_pixel(x0, y0).a < 0.5:
+				continue
+			var stack := PackedInt32Array([i0])
+			seen[i0] = 1
+			var n := 0
+			var c := Vector2.ZERO
+			while not stack.is_empty():
+				var i: int = stack[stack.size() - 1]
+				stack.resize(stack.size() - 1)
+				var x := i % w
+				var y := i / w
+				n += 1
+				c += Vector2(x, y)
+				for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+					var nx: int = x + d[0]
+					var ny: int = y + d[1]
+					if nx >= 0 and ny >= 0 and nx < w and ny < h:
+						var j := ny * w + nx
+						if seen[j] == 0 and img.get_pixel(nx, ny).a >= 0.5:
+							seen[j] = 1
+							stack.append(j)
+			out.append({"c": c / n / PART_SCALE, "n": n / (PART_SCALE * PART_SCALE)})
+	out.sort_custom(func(a, b): return a.n > b.n)
 	return out
 
 
