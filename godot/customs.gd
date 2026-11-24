@@ -59,7 +59,7 @@ const NEEDS := {
 	"chase_tail": {"parts": ["tail"], "plans": ["side"]},
 	"nose_twitch": {"parts": ["nose"]},
 	"stand_lookout": {"parts": ["stand-body"]},
-	"groom": {"parts": ["groom-paws"]},
+	"groom": {"any": ["groom-paws", "wing-l"]},   # upright: the duckling's fluff-up
 	"scratch": {"parts": ["scratch-foot"]},
 	"preen": {"parts": ["mouth-open"], "plans": ["upright"]},
 	"peck_ground": {"parts": ["mouth-open"], "plans": ["upright"]},

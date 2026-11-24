@@ -124,6 +124,66 @@ func faces_you(src: String) -> void:
 		c.free()
 
 
+func upright(src: String) -> void:
+	# B3: the duckling as an upright kit, and a bare one.
+	Fixtures.duckling_kit(src.path_join("duck_up"))
+	Fixtures.duckling_kit(src.path_join("bare_up"), true, "hop")
+	var did := Customs.add_folder(src.path_join("duck_up"))
+	check(did != "", "the duckling kit loads")
+	if did == "":
+		return
+	var d: Dictionary = Customs.all[did]
+	var r := KitData.build(str(d["_dir"]), d["_kit"])
+	var duck = spawn("duckling")
+	var shift := Fixtures.DUCKLING_SHIFT
+	check(absf(r.leg_len - duck.leg_len) <= 2.0, "duckling kit: leg length within 2 (%.1f vs %.1f)" % [r.leg_len, duck.leg_len])
+	check(r.head_at.sit == duck.head_at.sit + shift and r.head_at.walk == duck.head_at.walk + shift and r.head_at.loaf == duck.head_at.loaf + shift, "duckling kit: the head where the duckling's is")
+	check(r.walk_legs[0][1] == duck.walk_legs[0][1] + shift and r.walk_legs[1][1] == duck.walk_legs[1][1] + shift, "duckling kit: its legs on the duckling's hips")
+	check(r.tail_at.has("walk") and not r.tail_at.has("sit"), "duckling kit: the tail shows only walking")
+	check(r.auto.is_empty(), "duckling kit: nothing filled in (%s)" % str(r.auto))
+	for pose in ["walk", "sit", "loaf"]:
+		var got: Rect2 = r.hit_bounds[pose]
+		var want: Rect2 = duck.hit_bounds[pose]
+		want.position += shift
+		var share := got.get_area() / want.get_area()
+		check(want.grow(10.0).encloses(got) and share > 0.6, "duckling kit: %s hit box inside the duckling's and most of it (%s vs %s, %.2f)" % [pose, got, want, share])
+	duck.free()
+	var didles: Array = Species.row(did)["idles"]
+	for b in ["preen", "peck_ground", "groom", "ear_flick", "yawn", "tail_swish", "stretch"]:
+		check(b in didles, "duckling kit can %s" % b)
+	check(not "hunt" in didles and not "chase_tail" in didles, "and doesn't hunt or chase its tail")
+
+	var bid := Customs.add_folder(src.path_join("bare_up"))
+	check(bid != "", "the bare upright kit loads")
+	var bd: Dictionary = Customs.all[bid]
+	var br := KitData.build(str(bd["_dir"]), bd["_kit"])
+	for part in ["leg-far", "walk-body", "wing-r", "wing-side", "loaf-body"]:
+		check(br.auto.has(part), "bare upright kit: %s filled in" % part)
+	for id in [did, bid]:
+		var c = spawn(id)
+		var name: String = Customs.all[id]["name"]
+		c.vx = c.facing * c.cruise
+		var x0: float = c.position.x
+		for i in 120:
+			c.tick(1.0 / 30.0)
+			if c.mode != "walk":
+				c._go_walk()
+		check(absf(c.position.x - x0) > 5.0, "%s walks" % name)
+		check(c.wing_side != null and c.wing_side.visible and not c.wings.visible, "%s walks with its near wing" % name)
+		c._go_sit()
+		c.tick(0.1)
+		check(c.wings.visible and c.sit_body.visible, "%s stands facing you with both wings" % name)
+		c.vx = 0.0
+		c.start_behaviour("groom", 2.0)
+		for i in 20:
+			c.tick(1.0 / 30.0)
+		check(c.act == "groom" and absf(c.wing_l.rotation) > 0.01, "%s fluffs up, wings going" % name)
+		c._go_loaf(5.0)
+		c.tick(0.1)
+		check(c.loaf_body != null and shown(c.loaf_body), "%s naps with a body" % name)
+		c.free()
+
+
 func rect_near(a: Rect2, b: Rect2, eps: float) -> bool:
 	return a.position.distance_to(b.position) <= eps and a.end.distance_to(b.end) <= eps
 
@@ -252,6 +312,7 @@ func _init() -> void:
 		c.free()
 
 	faces_you(src)
+	upright(src)
 
 	# --- An edit makes new art: the rig and textures are keyed by rev.
 	var before := Customs.tex_key(kid)
