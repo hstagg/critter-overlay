@@ -1740,7 +1740,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | C0 | Design: importing | not started |
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
-| C3 | Raster imports | not started |
+| C3 | Raster imports | done 2026-11-24 |
 | C4 | Kit importer | not started |
 | C5 | Drop a file to import | not started |
 | R1 | **Release 3.2.0** | not started |
@@ -1862,3 +1862,10 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   the test with each app's naming (Inkscape labels, Affinity `serif:id`,
   Illustrator `_x5F_`/`_1_` ids); real exports from the tester's app should
   be added as files once decision 8 is answered.
+- 2026-11-24: C3 done. A zip's directory is read from its own bytes, before
+  anything is unpacked, so entry counts, unpacked sizes and names are checked
+  first. Spaces are allowed in names inside zips, beyond P10's character set,
+  since drawing apps use them. `parts.txt` lines are "file name x y". PNG
+  parts are kept at the size they came (the cache scales them, `kit_data.gd`).
+  The fixtures are made in the test; real exports from Krita and Photoshop
+  should be added as files once decision 8 is answered.
