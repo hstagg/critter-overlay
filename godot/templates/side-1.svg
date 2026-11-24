@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" viewBox="0 0 300 280" width="300" height="280" data-critter-template="side-1" data-gait="trot">
+<g inkscape:groupmode="layer" inkscape:label="guide" id="guide" sodipodi:insensitive="true"><rect x="0.5" y="0.5" width="299" height="279" fill="none" stroke="#B8A8A0" stroke-width="1" stroke-dasharray="4 4"/><line x1="0" y1="262" x2="300" y2="262" stroke="#8FB8E0" stroke-width="1.5"/><g opacity="0.22"><g transform="translate(26.0 -34.0)"><path d="M196 236 C 236 238 262 214 258 180 C 256 164 244 156 234 162 C 226 167 230 176 236 180 C 242 196 230 214 200 216 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M258 180 C 256 164 244 156 234 162 C 228 166 229 173 234 177 C 240 172 250 172 258 180 Z" fill="#E89A5B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/></g><g transform="translate(16.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#EDDCCB" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g><g transform="translate(96.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g><ellipse cx="165" cy="200" rx="72" ry="42" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="160" cy="221" rx="48" ry="13" fill="#FFF1E2"/>
+<path d="M168 161 q5 9 1 17 M186 162 q5 9 1 16 M204 167 q5 8 1 14" stroke="#E89A5B" stroke-width="5" stroke-linecap="round" fill="none"/><g transform="translate(-2.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g><g transform="translate(78.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g><g transform="translate(-38.0 8.0)"><path d="M74 92 C 66 50 74 30 84 28 C 96 28 116 50 122 64 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M85 78 C 81 56 85 45 90 44 C 97 45 106 56 110 63 Z" fill="#F7A9A2"/></g><g transform="translate(-38.0 8.0)"><path d="M226 92 C 234 50 226 30 216 28 C 204 28 184 50 178 64 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M215 78 C 219 56 215 45 210 44 C 203 45 194 56 190 63 Z" fill="#F7A9A2"/></g><g transform="translate(-38.0 8.0)"><ellipse cx="150" cy="122" rx="92" ry="74" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4"/>
+<ellipse cx="150" cy="153" rx="34" ry="22" fill="#FFF1E2"/>
+<path d="M138 60 q4 12 0 22 M150 56 q4 14 0 26 M162 60 q4 12 0 22" stroke="#E89A5B" stroke-width="5" stroke-linecap="round" fill="none"/>
+<path d="M62 116 l16 3 M62 128 l14 0 M238 116 l-16 3 M238 128 l-14 0" stroke="#E89A5B" stroke-width="4" stroke-linecap="round"/>
+<ellipse cx="88" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<ellipse cx="212" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<path d="M144 145 Q150 141 156 145 Q153 151 150 152 Q147 151 144 145 Z" fill="#E7837F" stroke="#6B4A3A" stroke-width="2" stroke-linejoin="round"/>
+<path d="M140 157 Q145 163 150 157 Q155 163 160 157" stroke="#6B4A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M60 146 l-20 -3 M60 154 l-20 3 M240 146 l20 -3 M240 154 l20 3" stroke="#6B4A3A" stroke-width="2" stroke-linecap="round" opacity="0.55"/></g><g transform="translate(-38.0 8.0)"><ellipse cx="112" cy="124" rx="15" ry="18" fill="#2B2330"/>
+<circle cx="106" cy="116" r="6" fill="#FFFFFF"/>
+<circle cx="118" cy="131" r="2.8" fill="#FFFFFF"/>
+<ellipse cx="188" cy="124" rx="15" ry="18" fill="#2B2330"/>
+<circle cx="182" cy="116" r="6" fill="#FFFFFF"/>
+<circle cx="194" cy="131" r="2.8" fill="#FFFFFF"/></g></g><text x="8" y="16" font-size="9" fill="#7A6A62" font-family="sans-serif">Side-on: draw it walking, facing left, feet on the line. Keep lines bold; overlap parts at the joints.</text><text x="8" y="276" font-size="8" fill="#7A6A62" font-family="sans-serif">Ground line: y 262. Pins (pink dots) are the joints: move them if your joints are elsewhere.</text></g>
+<g inkscape:groupmode="layer" inkscape:label="tail (optional)" id="tail"><g transform="translate(26.0 -34.0)"><path d="M196 236 C 236 238 262 214 258 180 C 256 164 244 156 234 162 C 226 167 230 176 236 180 C 242 196 230 214 200 216 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M258 180 C 256 164 244 156 234 162 C 228 166 229 173 234 177 C 240 172 250 172 258 180 Z" fill="#E89A5B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="leg-front-far (optional)" id="leg-front-far"><g transform="translate(16.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#EDDCCB" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="leg-back-far (optional)" id="leg-back-far"><g transform="translate(96.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#E3AE7B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="back-extra (optional)" id="back-extra"></g>
+<g inkscape:groupmode="layer" inkscape:label="body (optional)" id="body" style="display:none"><ellipse cx="150" cy="208" rx="64" ry="54" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4"/>
+<ellipse cx="150" cy="220" rx="38" ry="33" fill="#FFF1E2"/><ellipse cx="108" cy="254" rx="24" ry="13" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4"/><ellipse cx="192" cy="254" rx="24" ry="13" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4"/><ellipse cx="130" cy="252" rx="15" ry="12" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4"/>
+<ellipse cx="170" cy="252" rx="15" ry="12" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4"/>
+<path d="M126 259 v-5 M134 259 v-5 M166 259 v-5 M174 259 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g>
+<g inkscape:groupmode="layer" inkscape:label="walk-body" id="walk-body"><ellipse cx="165" cy="200" rx="72" ry="42" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="160" cy="221" rx="48" ry="13" fill="#FFF1E2"/>
+<path d="M168 161 q5 9 1 17 M186 162 q5 9 1 16 M204 167 q5 8 1 14" stroke="#E89A5B" stroke-width="5" stroke-linecap="round" fill="none"/></g>
+<g inkscape:groupmode="layer" inkscape:label="loaf-body (optional)" id="loaf-body" style="display:none"><path d="M70 262 C56 262 54 240 62 222 C76 192 110 178 150 178 C190 178 224 192 238 222 C246 240 244 262 230 262 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="150" cy="236" rx="40" ry="24" fill="#FFF1E2"/>
+<path d="M92 232 C84 240 84 251 90 258 M208 232 C216 240 216 251 210 258" stroke="#6B4A3A" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/><ellipse cx="130" cy="255" rx="14" ry="7" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="170" cy="255" rx="14" ry="7" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M126 261 v-4 M134 261 v-4 M166 261 v-4 M174 261 v-4" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/><path d="M232 242 C252 248 250 264 226 263 L196 263 C186 263 185 252 195 251 L224 251 C230 251 233 248 232 242 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M203 251 L195 251 C185 252 186 263 196 263 L203 263 C199 259 199 255 203 251 Z" fill="#E89A5B" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/></g>
+<g inkscape:groupmode="layer" inkscape:label="stand-body (optional)" id="stand-body" style="display:none"></g>
+<g inkscape:groupmode="layer" inkscape:label="front-extra (optional)" id="front-extra"></g>
+<g inkscape:groupmode="layer" inkscape:label="wing (optional)" id="wing"></g>
+<g inkscape:groupmode="layer" inkscape:label="leg-front" id="leg-front"><g transform="translate(-2.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#FFF1E2" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="leg-back" id="leg-back"><g transform="translate(78.0 0.0)"><path d="M106 208 L106 252 L130 252 L130 208 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M99 256 C99 250 104 247 112 247 L122 247 C128 247 131 250 131 255 C131 260 128 262 122 262 L106 262 C101 262 99 260 99 256 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M105 261 v-5 M112 262 v-5" stroke="#6B4A3A" stroke-width="2.5" stroke-linecap="round"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="ear-l (optional)" id="ear-l"><g transform="translate(-38.0 8.0)"><path d="M74 92 C 66 50 74 30 84 28 C 96 28 116 50 122 64 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M85 78 C 81 56 85 45 90 44 C 97 45 106 56 110 63 Z" fill="#F7A9A2"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="ear-r (optional)" id="ear-r"><g transform="translate(-38.0 8.0)"><path d="M226 92 C 234 50 226 30 216 28 C 204 28 184 50 178 64 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M215 78 C 219 56 215 45 210 44 C 203 45 194 56 190 63 Z" fill="#F7A9A2"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="head" id="head"><g transform="translate(-38.0 8.0)"><ellipse cx="150" cy="122" rx="92" ry="74" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4"/>
+<ellipse cx="150" cy="153" rx="34" ry="22" fill="#FFF1E2"/>
+<path d="M138 60 q4 12 0 22 M150 56 q4 14 0 26 M162 60 q4 12 0 22" stroke="#E89A5B" stroke-width="5" stroke-linecap="round" fill="none"/>
+<path d="M62 116 l16 3 M62 128 l14 0 M238 116 l-16 3 M238 128 l-14 0" stroke="#E89A5B" stroke-width="4" stroke-linecap="round"/>
+<ellipse cx="88" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<ellipse cx="212" cy="150" rx="15" ry="8" fill="#F59C9C" opacity="0.55"/>
+<path d="M144 145 Q150 141 156 145 Q153 151 150 152 Q147 151 144 145 Z" fill="#E7837F" stroke="#6B4A3A" stroke-width="2" stroke-linejoin="round"/>
+<path d="M140 157 Q145 163 150 157 Q155 163 160 157" stroke="#6B4A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M60 146 l-20 -3 M60 154 l-20 3 M240 146 l20 -3 M240 154 l20 3" stroke="#6B4A3A" stroke-width="2" stroke-linecap="round" opacity="0.55"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="eyes" id="eyes"><g transform="translate(-38.0 8.0)"><ellipse cx="112" cy="124" rx="15" ry="18" fill="#2B2330"/>
+<circle cx="106" cy="116" r="6" fill="#FFFFFF"/>
+<circle cx="118" cy="131" r="2.8" fill="#FFFFFF"/>
+<ellipse cx="188" cy="124" rx="15" ry="18" fill="#2B2330"/>
+<circle cx="182" cy="116" r="6" fill="#FFFFFF"/>
+<circle cx="194" cy="131" r="2.8" fill="#FFFFFF"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="eyes-closed (optional)" id="eyes-closed" style="display:none"><g transform="translate(-38.0 8.0)"><path d="M98 122 Q112 134 126 122 M174 122 Q188 134 202 122" stroke="#2B2330" stroke-width="5" stroke-linecap="round" fill="none"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="mouth-open (optional)" id="mouth-open" style="display:none"><g transform="translate(-38.0 8.0)"><ellipse cx="150" cy="163" rx="11" ry="12" fill="#8C3F45" stroke="#6B4A3A" stroke-width="2.5"/>
+<ellipse cx="150" cy="170" rx="7" ry="4" fill="#F08C8C"/></g></g>
+<g inkscape:groupmode="layer" inkscape:label="nose (optional)" id="nose" style="display:none"></g>
+<g inkscape:groupmode="layer" inkscape:label="head-front (optional)" id="head-front"></g>
+<g inkscape:groupmode="layer" inkscape:label="groom-paws (optional)" id="groom-paws" style="display:none"></g>
+<g inkscape:groupmode="layer" inkscape:label="scratch-foot (optional)" id="scratch-foot" style="display:none"><path d="M184 254 C 178 236 190 212 204 194 C 214 180 226 162 236 152 C 244 144 258 146 258 158 C 258 168 248 178 242 188 C 232 206 220 236 208 256 C 202 264 188 264 184 254 Z" fill="#F6C28F" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="249" cy="156" rx="7" ry="6" fill="#FFF1E2"/>
+<path d="M212 196 q8 4 14 -2 M220 212 q7 3 12 -2" stroke="#E89A5B" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<g inkscape:groupmode="layer" inkscape:label="pins" id="pins"><circle id="pin-ear-l" cx="62.0" cy="84.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-ear-r" cx="162.0" cy="84.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-eyes" cx="112.0" cy="132.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-head" cx="112.0" cy="198.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-hip-back" cx="196.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-hip-back-far" cx="214.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-hip-front" cx="116.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-hip-front-far" cx="134.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-leg-back" cx="196.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-leg-back-far" cx="214.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-leg-front" cx="116.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-leg-front-far" cx="134.0" cy="224.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-mouth-open" cx="112.0" cy="160.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-neck-loaf" cx="150.0" cy="212.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-neck-sit" cx="150.0" cy="190.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-neck-walk" cx="112.0" cy="198.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-scratch-foot" cx="194.0" cy="252.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-tail" cx="226.0" cy="192.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-tail-sit" cx="200.0" cy="226.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/><circle id="pin-tail-walk" cx="226.0" cy="192.0" r="3" fill="#E0457B" stroke="#FFFFFF" stroke-width="1"/></g>
+</svg>

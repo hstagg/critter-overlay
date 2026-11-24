@@ -1738,7 +1738,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | B5 | Custom sounds | done 2026-11-24 (the card waits for A2) |
 | B6 | Pairs and host numbers | done 2026-11-24 |
 | C0 | Design: importing | not started |
-| C1 | Templates | not started |
+| C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | not started |
 | C3 | Raster imports | not started |
 | C4 | Kit importer | not started |
@@ -1846,3 +1846,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   critter. The aura's crown lift is unchanged: homemade critters never
   wear an aura. Pair checks live in `kit_test.gd`, since there is no
   `pairs_test.gd`.
+- 2026-11-24: C1 done. The templates are built by `tools/build_templates.gd`
+  (headless Godot) rather than `design/templates/build.py`, so they come from
+  the same fixture data the tests use (`critters/kit/fixtures.gd`). The
+  side-on template shows the kitten walking: its head, tail and legs are
+  drawn where they sit when walking, with the pins moved to match, so the
+  rig is unchanged. Layers of other poses are hidden. The guide PNGs ship as
+  raw files (`templates/*.png` in both presets' include filter). Opening
+  them in Inkscape, and the round trip, wait for C2 and C4.
