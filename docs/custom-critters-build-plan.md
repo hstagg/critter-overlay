@@ -1734,7 +1734,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | B1 | Side-on plan + kit data layer | done 2026-11-24 |
 | B2 | Faces-you plan | done 2026-11-24 |
 | B3 | Upright plan | done 2026-11-24 |
-| B4 | Blob plan | not started |
+| B4 | Blob plan | done 2026-11-24 |
 | B5 | Custom sounds | not started |
 | B6 | Pairs and host numbers | not started |
 | C0 | Design: importing | not started |
@@ -1826,3 +1826,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   as defaults. The duckling's beak is drawn on its head in the fixture, and
   `beak-in` is its `mouth-open`. Groom counts a wing as "groom paws" for
   this plan (the fluff-up). Seen on the VM beside the duckling.
+- 2026-11-24: B4 done. Gait names in kit.json: `blob_bounce`, `glide` (4.4's
+  "slide", renamed so it isn't the otter's), `float`, `slither`. Float is a
+  hover in every pose (`p.float`), not a walking lift, so a ghost doesn't
+  drop to the ground to sit. Slither is a wave of the whole body (torso turn
+  and dip), not still.gd's mesh bend: simpler, and it reads well at size.
+  The fixtures are drawn in `fixtures.gd` rather than `test_data/`. Seen on
+  the VM: slime, ghost and snake getting about. Throwing, climbing and
+  popping them are on the Admin page but weren't run on the VM.
