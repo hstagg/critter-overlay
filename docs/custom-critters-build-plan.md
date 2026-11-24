@@ -1731,7 +1731,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | A2 | Studio gate, My critters page, widgets | not started |
 | A3 | Store schema 2 | done 2026-11-24 |
 | A4 | Gaits | done 2026-11-24 |
-| B1 | Side-on plan + kit data layer | not started |
+| B1 | Side-on plan + kit data layer | done 2026-11-24 |
 | B2 | Faces-you plan | not started |
 | B3 | Upright plan | not started |
 | B4 | Blob plan | not started |
@@ -1791,3 +1791,23 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   squash, legs and the dart and slide draws. The dart row of 4.5 was wrong
   (squirrel walks by distance and is always settled) and is fixed. The new
   gaits are `blob_bounce`, `float` and `slither`.
+- 2026-11-24: B1 done. Changes from the plan, all in the code's docstrings:
+  - **Fixtures are generated, not stored.** `critters/kit/fixtures.gd`
+    builds the kitten kit and the bare kit from `res://art/kitten/`, which
+    ships, so the Admin buttons work in the admin build too. The file is
+    left out of the player preset. The kitten's sitting and nap parts are
+    joined into one SVG each.
+  - **More optional pins** than 4.1 lists, because the cast draws parts in
+    one place and moves them in others: `head` (the head's pivot in its own
+    drawing), `neck-loaf`, `neck-stand`, `tail-walk`, `tail-sit`, the
+    `-far` hips, and each leg's own pivot. All default to the plain pins.
+  - **Size:** `critter_scale` = 0.45 x 226 / (walking height), where 226 is
+    the kitten's walking height, so the kitten kit is exactly the kitten's
+    size. (4.7 said 210 units.)
+  - **Hit boxes** are everything drawn plus 4, so they hold the kitten's
+    hand-trimmed boxes and run up to 22 units larger.
+  - **Grounding** is measured (`ground_dy`), not applied: the importer (C4)
+    and the builder (D6) move the art when they save it.
+  - Checked on the VM: the kitten kit beside the kitten, and the bare kit
+    with its darker far legs and melted nap. Screenshots only; the 20 s
+    capture is still to do.
