@@ -1754,7 +1754,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | D7 | Usability pass | not started |
 | R2 | **Release 3.3.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
-| E2 | Frame formats | not started |
+| E2 | Frame formats | done 2026-11-24 |
 | E3 | Frame importer | not started |
 | R3 | **Release 3.4.0** | not started |
 | F1 | Head metrics | not started |
@@ -1893,3 +1893,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   across the screen was checked headless (`frames_test.gd`), not on the VM.
   VM note: a checkout there can be blocked by `.uid` files an earlier import
   made; delete them before switching branches.
+- 2026-11-24: E2 done: `gif.gd`, `apng.gd` and `frames_import.gd` (stage
+  and write, no screens). Fixtures are made in the test by small GIF and
+  APNG writers there, not by outside tools; files from real apps (Aseprite,
+  Krita, ezgif) should be added once decision 8 is answered. The whole set of
+  clips is scaled by one factor to about the cast's height (pixel art by
+  whole steps, nearest-neighbour) and each clip is grounded on its lowest
+  pixel. Clip names are matched loosely ("idle" is sit, "sleeping" is nap);
+  anything else is the player's own move.
