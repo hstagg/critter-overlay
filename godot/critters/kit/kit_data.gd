@@ -134,7 +134,7 @@ static func image(folder: String, part: String) -> Image:
 	if src == "":
 		return null
 	var cached := folder.path_join("cache/%s.png" % part)
-	var stamp := "%d:%d" % [CACHE, FileAccess.get_modified_time(src)]
+	var stamp := "%d:%s" % [CACHE, FileAccess.get_md5(src)]   # by content: a rewrite in the same second counts
 	var stamp_path := folder.path_join("cache/%s.stamp" % part)
 	if FileAccess.file_exists(cached) and FileAccess.get_file_as_string(stamp_path) == stamp:
 		var c := Image.load_from_file(cached)
@@ -151,7 +151,11 @@ static func image(folder: String, part: String) -> Image:
 	img.convert(Image.FORMAT_RGBA8)
 	var want := Vector2i((FRAME * PART_SCALE).round())
 	if img.get_size() != want:
-		img.resize(want.x, want.y, Image.INTERPOLATE_LANCZOS)
+		# Through mipmaps: Lanczos rings, leaving faint pixels past the edge
+		# that would widen the hit box.
+		img.generate_mipmaps()
+		img.resize(want.x, want.y, Image.INTERPOLATE_TRILINEAR)
+		img.clear_mipmaps()
 	DirAccess.make_dir_recursive_absolute(folder.path_join("cache"))
 	img.save_png(cached)
 	var f := FileAccess.open(stamp_path, FileAccess.WRITE)
@@ -204,6 +208,27 @@ static func mirrored(img: Image, about_x: float) -> Image:
 			if px.a > 0.0 and to >= 0 and to < out.get_width():
 				out.set_pixel(to, y, px)
 	return out
+
+
+static func solid_bounds(img: Image) -> Rect2:
+	# As bounds(), counting only pixels at least half opaque.
+	if img == null:
+		return Rect2()
+	var used := img.get_used_rect()
+	if used.size.x <= 0:
+		return Rect2()
+	var top := -1
+	var bottom := -1
+	for y in range(used.position.y, used.end.y):
+		for x in range(used.position.x, used.end.x, 2):
+			if img.get_pixel(x, y).a >= 0.5:
+				if top < 0:
+					top = y
+				bottom = y
+				break
+	if top < 0:
+		return Rect2()
+	return Rect2(Vector2(used.position.x, top) / PART_SCALE, Vector2(used.size.x, bottom - top + 1) / PART_SCALE)
 
 
 static func bounds(img: Image) -> Rect2:
@@ -586,10 +611,12 @@ static func hit_bounds(r: Dictionary) -> Dictionary:
 	return out
 
 
-static func _lowest(r: Dictionary, pose: String) -> float:
+static func _lowest(r: Dictionary, pose: String, solid := false) -> float:
+	# The lowest drawn point of a pose, in units; solid: ignoring the faint
+	# edge pixels (half see-through or more).
 	var y := 0.0
 	for pair in _placed(r, pose):
-		var b := bounds(pair[0])
+		var b := solid_bounds(pair[0]) if solid else bounds(pair[0])
 		if b.size.x > 0:
 			y = maxf(y, b.end.y + pair[1].y)
 	return y
