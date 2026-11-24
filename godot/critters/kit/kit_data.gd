@@ -522,6 +522,9 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	r["head_height"] = (GROUND - eyes_walk.y) * PART_SCALE * r["critter_scale"]
 	r["speed_range"] = pl.speed * clampf(speed, 0.5, 2.0)
 	r["ground_dy"] = GROUND - _lowest(r, "walk")
+	# host.gd's spin centre and confetti height (P17), px at zoom 1.
+	r["body_centre_px"] = walk_hit.size.y * 0.5 * PART_SCALE * r["critter_scale"]
+	r["head_top_px"] = tall * PART_SCALE * r["critter_scale"]
 	return r
 
 

@@ -98,7 +98,7 @@ func setup(tier_name: String, species_id: String, critter_node, zoom: float, foo
 	_deep = Color(_row[1])
 	# The feet sit `foot_drop` px below the window's middle, the body's middle 36 px
 	# (times zoom) above the feet's pivot.
-	centre = Vector2(0, foot_drop - 36.0 * zoom)
+	centre = Vector2(0, foot_drop - (critter.body_centre_px() if critter != null else 36.0) * zoom)
 	_glow = _glow_texture(_row[0])
 	var n: int = _row[6]
 	for i in n:
