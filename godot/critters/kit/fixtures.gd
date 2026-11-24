@@ -194,6 +194,66 @@ static func blob_kit(dest: String, which: String) -> String:
 	return dest
 
 
+# --- A frame critter (E1): a pixel cat drawn here, frame by frame -------------
+
+const CAT := Color("#E8A25C")
+const CAT_LINE := Color("#5B3A29")
+const CAT_EYE := Color("#2B1E18")
+
+
+static func _cat_frame(leg_phase: int, eyes_open := true, paw_up := 0, sitting := false) -> Image:
+	# A chunky pixel cat in the 300 x 280 frame, feet on y 262, facing left.
+	var img := Image.create(300, 280, false, Image.FORMAT_RGBA8)
+	var box := func(x: int, y: int, w: int, h: int, c: Color) -> void:
+		img.fill_rect(Rect2i(x - 3, y - 3, w + 6, h + 6), CAT_LINE)
+		img.fill_rect(Rect2i(x, y, w, h), c)
+	if sitting:
+		box.call(120, 170, 80, 80, CAT)          # body, upright
+		box.call(186, 150, 14, 70, CAT)          # tail up the back
+	else:
+		box.call(110, 180, 120, 50, CAT)         # body
+		box.call(226, 150, 12, 50, CAT)          # tail
+		var lift: int = [0, 10, 0, -10][leg_phase % 4]   # front pair up, then back pair
+		box.call(120, 228 - maxi(0, lift), 18, 34, CAT)
+		box.call(200, 228 - maxi(0, -lift), 18, 34, CAT)
+	box.call(80, 110, 90, 80, CAT)               # head
+	box.call(84, 88, 22, 26, CAT)                # ears
+	box.call(144, 88, 22, 26, CAT)
+	if paw_up > 0:
+		box.call(70, 200 - paw_up * 12, 16, 40, CAT)
+	if eyes_open:
+		img.fill_rect(Rect2i(98, 136, 12, 16), CAT_EYE)
+		img.fill_rect(Rect2i(136, 136, 12, 16), CAT_EYE)
+	else:
+		img.fill_rect(Rect2i(96, 146, 16, 4), CAT_EYE)
+		img.fill_rect(Rect2i(134, 146, 16, 4), CAT_EYE)
+	return img
+
+
+static func pixel_cat(dest: String, with_sit := true) -> String:
+	# Walk (4), sit (2) and blink (1) if with_sit, and act-wave (4).
+	var clips := {"walk": [], "act-wave": []}
+	for i in 4:
+		clips.walk.append(_cat_frame(i))
+		clips["act-wave"].append(_cat_frame(0, true, 1 + i % 2, true))
+	if with_sit:
+		clips["sit"] = [_cat_frame(0, true, 0, true), _cat_frame(0, true, 0, true)]
+		clips["blink"] = [_cat_frame(0, false, 0, true)]
+	for c in clips:
+		DirAccess.make_dir_recursive_absolute(dest.path_join("clips").path_join(c))
+		for i in clips[c].size():
+			clips[c][i].save_png(dest.path_join("clips/%s/%d.png" % [c, i]))
+	_json(dest.path_join("custom.json"), {"schema": 2, "kind": "frames", "rev": 1,
+		"name": "Pixel cat" if with_sit else "Walk-only cat", "from": "test", "size": 1.0, "speed": 1.0,
+		"visits": 1, "enabled": true, "sound": "kitten", "pop": ["#E8A25C", "#F5C890", "#5B3A29"], "seen": {}})
+	var info := {"walk": {"fps": 8, "loop": true}, "act-wave": {"fps": 8, "loop": false, "loops": 2}}
+	if with_sit:
+		info["sit"] = {"fps": 2, "loop": true}
+		info["blink"] = {"fps": 8, "loop": false}
+	_json(dest.path_join("clips.json"), {"schema": 1, "faces": "left", "ground": 262, "stride_px": 100, "clips": info})
+	return dest
+
+
 static func _json(path: String, d: Dictionary) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(d, "\t"))

@@ -27,6 +27,7 @@ extends RefCounted
 
 const Species := preload("res://species.gd")
 const KitData := preload("res://critters/kit/kit_data.gd")
+const FrameData := preload("res://critters/kit/frame_data.gd")
 const STILL := "res://critters/still.gd"   # loaded, not preloaded: still.gd preloads this file
 
 const SCHEMA := 2
@@ -104,9 +105,7 @@ static func load_all() -> void:
 			printerr("CUSTOM skipped ", folder)
 			continue
 		d["_dir"] = folder
-		if kind(d) == "kit":
-			var k = JSON.parse_string(_read(folder.path_join("kit.json")))
-			d["_kit"] = k if typeof(k) == TYPE_DICTIONARY else {}
+		_read_extras(d)
 		var why := _unusable(d)
 		if why != "":
 			printerr("CUSTOM skipped ", folder, ": ", why)
@@ -114,6 +113,16 @@ static func load_all() -> void:
 		var id := "custom:" + name
 		all[id] = d
 		Species.custom[id] = _row(d)
+
+
+static func _read_extras(d: Dictionary) -> void:
+	# A kit's kit.json, a frame critter's clips.json (each its own file).
+	var files := {"kit": ["kit.json", "_kit"], "frames": ["clips.json", "_clips"]}
+	if files.has(kind(d)):
+		var f: Array = files[kind(d)]
+		var path := str(d["_dir"]).path_join(f[0])
+		var j = JSON.parse_string(_read(path)) if FileAccess.file_exists(path) and FileAccess.open(path, FileAccess.READ).get_length() <= 256 * 1024 else null
+		d[f[1]] = j if typeof(j) == TYPE_DICTIONARY else {}
 
 
 static func kind(d: Dictionary) -> String:
@@ -156,6 +165,8 @@ static func _unusable(d: Dictionary) -> String:
 		var lacking := KitData.missing(str(d["_dir"]), d.get("_kit", {}))
 		if not lacking.is_empty():
 			return "missing " + ", ".join(lacking)
+	if k == "frames":
+		return FrameData.missing(str(d["_dir"]), d.get("_clips", {}))
 	return ""
 
 
@@ -185,6 +196,13 @@ static func _row(d: Dictionary) -> Dictionary:
 		var k: Dictionary = d.get("_kit", {})
 		idles = idles_for(k, KitData.drawn(str(d["_dir"]), k))
 		gait = str(k.get("gait", "trot")).replace("_", " ")
+	elif kind(d) == "frames":
+		# Its own frames: a nap (its nap or sit clip) and each act-* clip.
+		idles = ["nap"]
+		for c in FrameData.clip_names(d.get("_clips", {}).get("clips", {})):
+			if c.begins_with("act-"):
+				idles.append("clip:" + c.trim_prefix("act-"))
+		gait = "its own frames"
 	return {"gait": gait, "script": load(rig_path(d)), "sound": sound if sound in SOUNDS or is_custom(sound) else "kitten",
 		"pop": pop, "idles": idles, "rarity_max": "common", "special": false, "custom": true,
 		"name": str(d.get("name", "Homemade critter"))}
@@ -372,6 +390,7 @@ static func _forget(id: String) -> void:
 		if k.begins_with(id + "@"):
 			_frames.erase(k)
 	KitData.forget(id)
+	FrameData.forget(id)
 	load("res://critters/critter.gd").forget(id)
 
 
@@ -435,7 +454,8 @@ static func save(id: String) -> void:
 	var d: Dictionary = all[id].duplicate()
 	var folder: String = d["_dir"]
 	d.erase("_dir")
-	d.erase("_kit")   # kit.json is its own file
+	d.erase("_kit")   # kit.json and clips.json are their own files
+	d.erase("_clips")
 	var f := FileAccess.open(folder.path_join("custom.json"), FileAccess.WRITE)
 	if f == null:
 		printerr("CUSTOM can't save ", folder)
@@ -641,9 +661,7 @@ static func add_folder(src: String) -> String:
 	var folder := dir.path_join(key)
 	_copy_tree(src, folder)
 	d["_dir"] = folder
-	if kind(d) == "kit":
-		var k = JSON.parse_string(_read(folder.path_join("kit.json")))
-		d["_kit"] = k if typeof(k) == TYPE_DICTIONARY else {}
+	_read_extras(d)
 	var why := _unusable(d)
 	if why != "":
 		printerr("CUSTOM can't use ", src, ": ", why)

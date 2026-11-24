@@ -182,7 +182,7 @@ func _process(delta: float) -> void:
 				seq_i -= 1
 				_left = 0.3
 				return
-			k.start_behaviour(b, main.evaluator.duration_of(b))
+			k.start_behaviour(b, main.evaluator.duration_of(b, k))
 			_left = GAP_S
 
 
@@ -504,7 +504,9 @@ func kit_test(which: String) -> void:
 	# walks in and another sits.
 	var Fixtures = load("res://critters/kit/fixtures.gd")
 	var src := "user://admin_kits/" + which
-	if which in ["slime", "ghost", "snake"]:
+	if which == "pixelcat":
+		Fixtures.pixel_cat(src)
+	elif which in ["slime", "ghost", "snake"]:
 		Fixtures.blob_kit(src, which)
 	elif which in ["duckling", "upright"]:
 		Fixtures.duckling_kit(src, which == "upright", "waddle" if which == "duckling" else "hop")

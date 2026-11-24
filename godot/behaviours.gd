@@ -64,8 +64,19 @@ func _init() -> void:
 	rng.randomize()
 
 
-func duration_of(b: String) -> float:
-	var d: Array = REGISTRY[b]["dur"]
+# A frame critter's own clips (clip:<name>, critters/kit/frames.gd) aren't
+# listed: each answers with this, and plays for its clip's length.
+const CLIP := {"dur": [1.0, 1.0], "cool": 30.0, "w": 1.0, "sleep": 0.0}
+
+
+static func entry(b: String) -> Dictionary:
+	return REGISTRY.get(b, CLIP if b.begins_with("clip:") else {})
+
+
+func duration_of(b: String, k = null) -> float:
+	if b.begins_with("clip:") and k != null and k.has_method("clip_length"):
+		return k.clip_length(b)
+	var d: Array = entry(b)["dur"]
 	return rng.randf_range(d[0], d[1])
 
 
@@ -88,8 +99,8 @@ func tick(delta: float, kittens: Array, sleep_bias: float) -> void:
 		var b := _pick(k, sleep_bias)
 		if b == "":
 			continue
-		k.cooldowns[b] = REGISTRY[b]["cool"]
-		k.start_behaviour(b, duration_of(b))
+		k.cooldowns[b] = entry(b)["cool"]
+		k.start_behaviour(b, duration_of(b, k))
 		busy += 1
 
 
@@ -97,10 +108,11 @@ func _pick(k, sleep_bias: float) -> String:
 	var names := []
 	var weights := []
 	var total := 0.0
-	for b in REGISTRY.keys():
+	var own: Array = k.idles.filter(func(b): return str(b).begins_with("clip:"))
+	for b in REGISTRY.keys() + own:
 		if k.on_cooldown(b) or not k.can_do(b):
 			continue
-		var w: float = REGISTRY[b]["w"] + REGISTRY[b]["sleep"] * sleep_bias
+		var w: float = entry(b)["w"] + entry(b)["sleep"] * sleep_bias
 		if w <= 0.0:
 			continue
 		names.append(b)
