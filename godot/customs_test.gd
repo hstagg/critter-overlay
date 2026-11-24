@@ -242,6 +242,7 @@ func _init() -> void:
 	check(not Customs.all.has(id) and not Species.custom.has(id), "remove takes it out")
 	check(not DirAccess.dir_exists_absolute(str(d.get("_dir", ""))), "and deletes its folder")
 	schema_2(root)
+	own_sounds(root)
 	clear_dir(root)
 	print("CUSTOMS TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	quit(0 if fails == 0 else 1)
@@ -348,4 +349,51 @@ func schema_2(root: String) -> void:
 	c.free()
 	check(not Customs._refs.has(old) and Customs._idle.has(old), "and out when freed")
 	Customs.sweep(1e9)
+	clear_dir(store)
+
+
+func beep(path: String, seconds: float, rate := 22050, stereo := false) -> void:
+	# A plain tone as a 16-bit WAV.
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = stereo
+	var ch := 2 if stereo else 1
+	var data := PackedByteArray()
+	data.resize(int(seconds * rate) * 2 * ch)
+	for i in int(seconds * rate) * ch:
+		data.encode_s16(i * 2, int(8000.0 * sin((i / ch) * TAU * 660.0 / rate)))
+	w.data = data
+	w.save_to_wav(path)
+
+
+func own_sounds(root: String) -> void:
+	# Plan B5: a homemade critter's own sound.
+	var store := root.path_join("sounds")
+	clear_dir(store)
+	DirAccess.make_dir_recursive_absolute(store)
+	Customs.dir = store.path_join("custom")
+	Customs.load_all()
+	var id := Customs.add("Beeper", [blob(60, 60, Color(0, 0, 0, 0), Color(0.5, 0.7, 0.9))])
+	beep(store.path_join("good.wav"), 0.6)
+	beep(store.path_join("long.wav"), 3.0)
+	beep(store.path_join("big.wav"), 1.9, 96000, true)   # under 2 s but over 500 KB
+	var f := FileAccess.open(store.path_join("song.mp3"), FileAccess.WRITE)
+	f.store_string("not a sound")
+	f.close()
+	f = FileAccess.open(store.path_join("junk.wav"), FileAccess.WRITE)
+	f.store_string("RIFF nonsense")
+	f.close()
+	check(Customs.check_sound(store.path_join("long.wav")).begins_with("Keep it to 2 seconds"), "a 3 s sound is refused")
+	check(Customs.check_sound(store.path_join("big.wav")).contains("500 KB"), "a sound over 500 KB is refused")
+	check(Customs.check_sound(store.path_join("song.mp3")) == "Use a WAV or OGG sound.", "an MP3 is refused")
+	check(Customs.check_sound(store.path_join("junk.wav")) != "", "a broken WAV is refused")
+	check(Customs.set_sound(id, store.path_join("good.wav")) == "", "a short WAV is taken")
+	var d: Dictionary = Customs.all[id]
+	check(d["sound"] == "own" and Customs.own_sound_path(d).ends_with("sound.wav"), "it is kept with the critter")
+	var st := Customs.sound_stream(id)
+	check(st != null and absf(st.get_length() - 0.6) < 0.05, "and plays back the same length (%.2f s)" % (st.get_length() if st else -1.0))
+	check(Species.row(id)["sound"] == id, "the critter's row plays its own sound")
+	Customs.load_all()
+	check(Species.row(id)["sound"] == id, "and still after loading again")
 	clear_dir(store)

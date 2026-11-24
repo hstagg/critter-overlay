@@ -1735,7 +1735,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | B2 | Faces-you plan | done 2026-11-24 |
 | B3 | Upright plan | done 2026-11-24 |
 | B4 | Blob plan | done 2026-11-24 |
-| B5 | Custom sounds | not started |
+| B5 | Custom sounds | done 2026-11-24 (the card waits for A2) |
 | B6 | Pairs and host numbers | not started |
 | C0 | Design: importing | not started |
 | C1 | Templates | not started |
@@ -1834,3 +1834,9 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   The fixtures are drawn in `fixtures.gd` rather than `test_data/`. Seen on
   the VM: slime, ghost and snake getting about. Throwing, climbing and
   popping them are on the Admin page but weren't run on the VM.
+- 2026-11-24: B5 done apart from the sound card, which goes on the My
+  critters page in A2 (after the A0 design session). A WAV is decoded and
+  written again; an OGG is kept as it is once it decodes, since Godot can't
+  write OGG. `custom.json` says `"sound": "own"` and the file is
+  `sound.wav` or `sound.ogg`. Admin: *Imported sound plays on pop*. Not yet
+  run on the VM (it has no audio device, so it can only check for errors).

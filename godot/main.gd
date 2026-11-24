@@ -1013,6 +1013,14 @@ func preview_sound(sp: String) -> void:
 
 
 func _play(sound: String) -> void:
+	if not sounds.has(sound) and Customs.is_custom(sound):
+		var own := Customs.sound_stream(sound)   # a homemade critter's own (plan B5)
+		if own == null:
+			return
+		player.stream = own
+		player.volume_db = linear_to_db(maxf(float(settings.value("sound.volume")) / 100.0, 0.0001))
+		player.play()
+		return
 	if sounds.has(sound):
 		player.stream = sounds[sound]
 		player.volume_db = linear_to_db(maxf(float(settings.value("sound.volume")) / 100.0, 0.0001))
