@@ -19,6 +19,9 @@ extends Node2D
 ##   --species=NAME     which critter to spawn (default kitten; see species.gd),
 ##                      or custom:<id> for a homemade one (customs.gd)
 ##   --custom-dir=PATH  keep homemade critters in PATH instead of user://custom
+##   --studio           turn on every way of making a critter not yet released
+##                      (docs/custom-critters-build-plan.md P20; the admin
+##                      build always has them)
 ##   --custom-v2=PATH   carry v2.0 custom critters over from PATH (testing; a
 ##                      normal run reads v2.0's own folder)
 ##   --import=PATH      open Settings › System with PATH in the custom critter
@@ -118,6 +121,8 @@ var win_pool := WinPool.new()   # the critters' windows, made once and used agai
 var evaluator := Behaviours.new()
 var admin: Node = null            # admin.gd: the Admin page's hands; null in the player build
 var admin_flag := false
+var studio_flag := false         # --studio
+var custom_sweep := 10.0          # s to the next check for homemade textures to free
 var admin_run := ""               # --admin-run=ACTION: an audit Run button, for testing
 var pairs := Pairs.new()
 var presence: Node
@@ -297,6 +302,8 @@ func _ready() -> void:
 			stills_dir = v
 		elif arg == "--admin":
 			admin_flag = true
+		elif arg == "--studio":
+			studio_flag = true
 		elif arg.begins_with("--admin-run="):
 			admin_run = v
 		elif arg.begins_with("--throw-demo="):
@@ -407,6 +414,8 @@ func _ready() -> void:
 	# timed or demo run keeps away from the player's own, unless given a folder.
 	if (seconds > 0.0 or demo != "") and Customs.dir == "user://custom":
 		Customs.dir = OS.get_temp_dir().path_join("critter_test_custom")
+	if admin_on() or studio_flag:
+		Customs.all_ways_on()
 	Customs.load_all()
 	var from_v2 := custom_v2_dir if custom_v2_dir != "" else (Customs.v2_dir() if real_run else "")
 	if from_v2 != "":
@@ -1087,6 +1096,10 @@ func _process(delta: float) -> void:
 		if tod_in <= 0.0:
 			tod_in = 30.0
 			_time_of_day()
+		custom_sweep -= delta
+		if custom_sweep <= 0.0:
+			custom_sweep = 10.0
+			Customs.sweep(Time.get_ticks_msec() / 1000.0)   # homemade textures none has drawn for a minute
 		var acting: bool = not presence.away and not paused and not busy_hidden
 		if acting:
 			evaluator.tick(delta, kittens(), maxf(presence.sleep_bias(), night_sleep))

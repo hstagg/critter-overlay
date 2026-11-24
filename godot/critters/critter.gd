@@ -25,13 +25,15 @@ const ACCEL := 4.0             # how quickly walking speed eases to its target, 
 const GRAVITY := 1800.0        # px/s^2, for hops and pounces
 const REGION_SLACK := 6.0      # px kept clear around a drawn critter
 const SPRING_DT := 1.0 / 120.0
+const CUSTOMS := "res://customs.gd"   # loaded, not preloaded: customs.gd -> species.gd -> the rigs
 
-static var _textures := {}     # species -> part -> texture
+static var _textures := {}     # art_key() -> part -> texture
 static var zoom := 1.0         # draws everything bigger, for close-up demo captures
 static var _wear_textures := {}   # "wear:item:species" -> texture
 
 # --- Species shape: set by each species in _define() ----------------------------
 var species := ""
+var _counted := false          # a homemade critter counted in customs.gd's textures in use
 var critter_scale := 0.45      # node scale: SVG texture -> screen
 var base_pt := Vector2(150, 262)   # the origin: between the feet, on the ground
 var ground_y := 262.0
@@ -172,6 +174,9 @@ func setup(world_ref: Node, x: float, face: int, start_mode: String) -> void:
 	blink_in = rng.randf_range(1.0, 5.0)
 	twitch_in = rng.randf_range(3.0, 9.0)
 	shift_in = rng.randf_range(2.0, 6.0)
+	if species.begins_with("custom:"):
+		load(CUSTOMS).acquire(species)   # released when this critter is freed
+		_counted = true
 	_load_textures()
 	_build()
 	match start_mode:
@@ -187,8 +192,26 @@ func setup(world_ref: Node, x: float, face: int, start_mode: String) -> void:
 
 func art_key() -> String:
 	# The texture set this critter draws with: its species, or one of the
-	# species' Rare or Epic versions (art/<species>/<version>/).
+	# species' Rare or Epic versions (art/<species>/<version>/). A homemade
+	# critter's carries its art's rev, so an edit never draws the old art.
+	if species.begins_with("custom:"):
+		return load(CUSTOMS).tex_key(species)
 	return species if version == "" else "%s/%s" % [species, version]
+
+
+static func forget(id: String) -> void:
+	# Drops a homemade critter's textures, every rev (customs.gd sweep()).
+	for k in _textures.keys():
+		if k.begins_with(id + "@"):
+			_textures.erase(k)
+	for k in _wear_textures.keys():
+		if k.contains(":%s:" % id):
+			_wear_textures.erase(k)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _counted:
+		load(CUSTOMS).release(species, Time.get_ticks_msec() / 1000.0)
 
 
 func _load_textures() -> void:

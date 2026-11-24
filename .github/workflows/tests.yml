@@ -52,7 +52,7 @@ jobs:
           $env:GODOT = "$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe"
           .\run-tests.ps1
 
-      - name: The player pack has no Admin page
+      - name: The player pack has no Admin page or test fixtures
         shell: pwsh
         run: |
           $godot = "$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe"
@@ -61,6 +61,7 @@ jobs:
           if (-not (Test-Path $pck)) { throw "The player pack was not exported" }
           $t = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($pck))
           foreach ($n in "admin.gdc", "admin_page.gdc") { if ($t.Contains($n)) { throw "The player pack carries $n" } }
+          if ($t.Contains("test_data/")) { throw "The player pack carries test fixtures (test_data/)" }
           foreach ($n in "main.gdc", "fonts/Fredoka-OFL.txt", "licenses/godot-cpp.txt") { if (-not $t.Contains($n)) { throw "The player pack is missing $n" } }
 
       - name: Compile the installer
