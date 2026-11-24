@@ -250,8 +250,9 @@ func _act(p: Pair) -> void:
 			ka.start_behaviour("look_at_cursor", p.length)
 			kb.start_behaviour("look_at_cursor", p.length)
 		"play_bow":
-			ka.start_behaviour("stretch", p.length)
-			kb.start_behaviour("stretch", p.length)
+			# Only a critter that can stretch bows; one that can't sits and looks.
+			ka.start_behaviour("stretch" if ka.can_do("stretch") else "sit_and_look", p.length)
+			kb.start_behaviour("stretch" if kb.can_do("stretch") else "sit_and_look", p.length)
 		"mutual_groom", "splash_play", "panda_snuggle":
 			# Each grooms if it can; one without groom art (the turtle, the
 			# unicorn) looks fondly at the other instead.
