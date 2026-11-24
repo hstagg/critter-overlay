@@ -454,20 +454,24 @@ func carry_test() -> void:
 
 
 func kit_test(which: String) -> void:
-	# A test kit made from the kitten's own art (critters/kit/fixtures.gd):
-	# "kitten" with every part, beside a real kitten; "bare" with only the
-	# required parts. Each walks in and another sits.
+	# A test kit made from the cast's own art (critters/kit/fixtures.gd):
+	# "kitten" or "otter" with every part, beside the real one; "bare" (side-on)
+	# or "oneface" (faces you) with only the required parts; "hop". Each
+	# walks in and another sits.
 	var Fixtures = load("res://critters/kit/fixtures.gd")
 	var src := "user://admin_kits/" + which
-	Fixtures.kitten_kit(src, which == "bare", "hop" if which == "hop" else "trot")
+	if which in ["otter", "oneface"]:
+		Fixtures.otter_kit(src, which == "oneface", "slide" if which == "otter" else "plod")
+	else:
+		Fixtures.kitten_kit(src, which == "bare", "hop" if which == "hop" else "trot")
 	var id: String = Customs.add_folder(src)
 	if id == "":
 		main.toasts.show_note(Icons.berry(40), "Admin", "Test kit", "It didn't load: see the log.")
 		return
 	spawn(id, "common")
 	spawn(id, "common", "", "", 1, "sit")
-	if which == "kitten":
-		spawn("kitten", "common")
+	if which in ["kitten", "otter"]:
+		spawn(which, "common")
 
 
 static func test_picture(with_background: bool) -> Image:
