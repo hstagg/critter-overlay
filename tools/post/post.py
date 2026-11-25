@@ -24,7 +24,8 @@ Usage:
   python tools/post/post.py publish [--live] [--now]
   python tools/post/post.py auth google|tiktok|instagram
 
-One Google sign-in covers YouTube uploads and Gmail (tools/gmail/), from one
+One Google sign-in covers YouTube (uploads, statistics, analytics and replies
+to comments) and Gmail (tools/gmail/), from one
 Google Cloud project: its Desktop OAuth client's JSON is named in the config
 as "google": {"client_file": ...}; "auth youtube" is the same as "auth google".
 
@@ -55,6 +56,8 @@ from pathlib import Path
 PLATFORMS = ("tiktok", "instagram", "youtube")
 GOOGLE = ("google", "youtube", "gmail")     # one sign-in, one token, kept as "google"
 GOOGLE_SCOPES = ("https://www.googleapis.com/auth/youtube.upload",
+                 "https://www.googleapis.com/auth/youtube.force-ssl",      # read the channel, reply to comments
+                 "https://www.googleapis.com/auth/yt-analytics.readonly",  # views, watch time, retention
                  "https://www.googleapis.com/auth/gmail.modify")
 DEFAULT_CONFIG = Path.home() / "critter-post" / "config.json"
 FIELDS = ("when", "title", "clip", "platforms", "hashtags", "posted")
