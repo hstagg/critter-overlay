@@ -999,7 +999,7 @@ func _shop(body: VBoxContainer) -> void:
 	header(body, "Shop", "Pick something to try it on. Berries come from working; nothing here costs money.", bp)
 
 	var sp: String = w.selected_species if Species.has(w.selected_species) else _built(false)[0]
-	var worn: Array = eco.worn.get(sp, [])
+	var worn: Array = eco.outfit(sp)
 	if shop_try != "" and not shop_try.begins_with("prop:") and not Wear.fits(shop_try, sp):
 		shop_try = ""
 	if shop_try == "":

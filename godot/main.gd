@@ -81,6 +81,7 @@ const Host := preload("res://host.gd")
 const WinPool := preload("res://win_pool.gd")
 const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
+const Codes := preload("res://codes.gd")
 const Tray := preload("res://gui/tray.gd")
 const Collection := preload("res://gui/collection.gd")
 const Toasts := preload("res://gui/toast.gd")
@@ -159,6 +160,7 @@ var custom_v2_dir := ""            # --custom-v2
 var customs_back := 0              # v2.0 custom critters carried over this launch
 var prop_dragging := false         # a showpiece is being dragged: full frame rate (prop.gd)
 var economy: Node
+var codes: RefCounted             # codes.gd: what this PC's codes unlock
 var tray: Node
 var toasts: Node
 var force_tier := ""
@@ -407,6 +409,17 @@ func _ready() -> void:
 	var fresh_economy := not (FileAccess.file_exists(esave) or FileAccess.file_exists(esave + ".tmp") or FileAccess.file_exists(esave + ".bak"))
 	add_child(economy)
 	economy.load_save()
+	# Codes (codes.gd): their own file. A run with its own economy save keeps
+	# its codes beside it, away from the player's. A creator code's berries
+	# are paid here, once per code, and again after Start over.
+	codes = Codes.new()
+	if esave != "user://economy.json":
+		codes.path = esave.get_basename() + "_codes.json"
+	if admin != null:
+		codes.trust(admin.TEST_KEYS)   # the test key: the admin build only
+	codes.load_file()
+	economy.codes = codes
+	economy.pay_purses(codes.purses())
 	# v2.0's Seen Log comes over once, into a new Collection. It is not tied to
 	# the settings import: settings may have been saved before the economy was.
 	if real_run and fresh_economy and not settings.value("system.v2_seen_done", false):
@@ -576,8 +589,8 @@ func sync_props() -> void:
 			props[pid].queue_free()
 			props.erase(pid)
 	for pid in economy.props_out:
-		if props.has(pid) or not Prop.PROPS.has(pid):
-			continue
+		if props.has(pid) or not Prop.PROPS.has(pid) or not economy.owns(pid):
+			continue   # (a pack's showpiece whose code is gone stays put away)
 		var p = Prop.new()
 		add_child(p)
 		p.setup(self, pid, economy.props_out[pid], Critter.zoom)
@@ -672,7 +685,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	_personalise(h)
-	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
+	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.outfit(sp), economy.dyed.get(sp, {}))
 	if tier != "":
 		h.tier = tier
 	if rolled and custom:
@@ -841,7 +854,7 @@ func _maybe_bring(h) -> void:
 	var item: String = economy.roll_brought_item(h.tier, h.species)
 	if item == "":
 		return
-	var outfit: Array = economy.worn.get(h.species, []).filter(func(x): return Wear.slot(x) != Wear.slot(item))
+	var outfit: Array = economy.outfit(h.species).filter(func(x): return Wear.slot(x) != Wear.slot(item))
 	h.critter.wear(outfit + [item], economy.dyed.get(h.species, {}))
 	var got_it: bool = economy.receive_brought(item)
 	if got_it:
@@ -1830,7 +1843,7 @@ func set_dye(sp: String, item: String, dye: String) -> void:
 func _redress(sp: String) -> void:
 	for h in hosts:
 		if h.species == sp and h.state != "popping":
-			h.critter.wear(economy.worn.get(sp, []), economy.dyed.get(sp, {}))
+			h.critter.wear(economy.outfit(sp), economy.dyed.get(sp, {}))
 
 
 func start_over() -> void:

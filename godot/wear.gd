@@ -165,7 +165,8 @@ static func slot(id: String) -> String:
 
 
 static func price(id: String) -> int:
-	return PRICES[ITEMS[id][2]] if ITEMS.has(id) else 0
+	# 0 for a pack's item (tier "pack", codes.gd), which is never sold.
+	return PRICES.get(ITEMS[id][2], 0) if ITEMS.has(id) else 0
 
 
 static func only(id: String) -> String:
