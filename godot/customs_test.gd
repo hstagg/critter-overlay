@@ -241,6 +241,7 @@ func _init() -> void:
 	Customs.remove(id)
 	check(not Customs.all.has(id) and not Species.custom.has(id), "remove takes it out")
 	check(not DirAccess.dir_exists_absolute(str(d.get("_dir", ""))), "and deletes its folder")
+	schema_2(root)
 	clear_dir(root)
 	print("CUSTOMS TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	quit(0 if fails == 0 else 1)
@@ -248,3 +249,104 @@ func _init() -> void:
 
 func root_add(n: Node) -> void:
 	get_root().add_child(n)
+
+
+func write_json(path: String, d: Dictionary) -> void:
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(d))
+	f.close()
+
+
+static func load_all_3_1_1(dir: String) -> Array:
+	# customs.gd load_all() as it shipped in 3.1.1, frozen: the folders an
+	# older copy would show. Kits must not be among them (plan 5.1).
+	var out := []
+	for name in DirAccess.get_directories_at(dir):
+		var folder := dir.path_join(name)
+		var d = JSON.parse_string(FileAccess.get_file_as_string(folder.path_join("custom.json"))) if FileAccess.file_exists(folder.path_join("custom.json")) else null
+		if typeof(d) != TYPE_DICTIONARY or not FileAccess.file_exists(folder.path_join("image.png")):
+			continue
+		out.append("custom:" + name)
+	return out
+
+
+func schema_2(root: String) -> void:
+	# Plan step A3: kinds, revs, the ways gate, unknown keys, the old loader,
+	# and textures freed a minute after the last critter drawing them goes.
+	var store := root.path_join("schema2")
+	clear_dir(store)
+	Customs.dir = store
+	Customs.ways.clear()
+	# A 3.1 sticker: schema 1, no kind, no rev, no thumb.
+	var pic := blob(80, 60, Color(0, 0, 0, 0), Color(0.9, 0.5, 0.2))
+	DirAccess.make_dir_recursive_absolute(store.path_join("old-111111"))
+	pic.save_png(store.path_join("old-111111/image.png"))
+	write_json(store.path_join("old-111111/custom.json"), {"schema": 1, "name": "Old", "size": 1.0, "visits": 1,
+		"enabled": true, "frames": 0, "seen": {"count": 4}, "future_key": {"a": 1}})
+	# A kit and a frame critter: no image.png.
+	write_json(store.path_join("kit-222222/custom.json"), {"schema": 2, "kind": "kit", "plan": "side", "rev": 3, "name": "Kit"})
+	write_json(store.path_join("anim-333333/custom.json"), {"schema": 2, "kind": "frames", "rev": 1, "name": "Anim"})
+	write_json(store.path_join("odd-444444/custom.json"), {"schema": 9, "kind": "hologram", "name": "Odd"})
+
+	Customs.load_all()
+	check(Customs.all.has("custom:old-111111"), "a 3.1 sticker loads under schema 2")
+	check(Customs.kind(Customs.all["custom:old-111111"]) == "sticker", "no kind means sticker")
+	check(Customs.thumb("custom:old-111111").ends_with("image.png"), "a 3.1 sticker's card falls back to its picture")
+	check(not Customs.all.has("custom:kit-222222") and not Customs.all.has("custom:anim-333333"), "kits and frame critters stay out while their ways are off")
+	check(not Customs.all.has("custom:odd-444444"), "an unknown kind is skipped")
+	check(load_all_3_1_1(store) == ["custom:old-111111"], "3.1.1's loader shows only the sticker")
+
+	Customs.all_ways_on()
+	Customs.load_all()
+	var kit_rig := ResourceLoader.exists(Customs.RIGS["side"])
+	check(Customs.all.has("custom:kit-222222") == kit_rig, "with the ways on, a kit loads once its rig exists")
+	check(Customs.way({"kind": "kit", "from": "shapes"}) == "shapes" and Customs.way({"kind": "kit"}) == "kit"
+		and Customs.way({"kind": "frames"}) == "frames" and Customs.way({}) == "", "each kind waits behind its own way")
+	Customs.ways.clear()
+
+	# Unknown keys survive a save; a rev bump changes the texture key.
+	var old := "custom:old-111111"
+	var key0 := Customs.tex_key(old)
+	Customs.bump_rev(old)
+	var saved = JSON.parse_string(FileAccess.get_file_as_string(store.path_join("old-111111/custom.json")))
+	check(typeof(saved) == TYPE_DICTIONARY and saved.get("future_key", {}).get("a", 0) == 1, "unknown keys survive a save")
+	check(int(saved.get("rev", 0)) == 1 and Customs.tex_key(old) != key0, "a rev bump makes a new texture key")
+
+	# A new sticker is schema 2 with a thumb.
+	var nid := Customs.add("New", [pic])
+	var nd: Dictionary = Customs.all[nid]
+	check(int(nd["schema"]) == 2 and nd["kind"] == "sticker" and int(nd["rev"]) == 1, "a new sticker is schema 2, rev 1")
+	check(FileAccess.file_exists(str(nd["_dir"]).path_join("thumb.png")) and not FileAccess.file_exists(str(nd["_dir"]).path_join("frames")), "and has a thumb")
+	var th := Image.load_from_file(str(nd["_dir"]).path_join("thumb.png"))
+	check(th != null and maxi(th.get_width(), th.get_height()) <= 128, "the thumb is at most 128 px")
+
+	# Textures in use: kept while drawn, freed a minute after the last goes.
+	var tex := Customs.frames(old)
+	check(tex.size() == 1 and Customs._frames.has(Customs.tex_key(old)), "a sticker's texture is cached under its rev")
+	Customs.acquire(old)
+	Customs.acquire(old)
+	Customs.release(old, 100.0)
+	check(Customs.sweep(1000.0).is_empty(), "one still drawing it: nothing is freed")
+	Customs.release(old, 100.0)
+	check(Customs.sweep(159.0).is_empty(), "59 s after the last went: still kept")
+	check(Customs.sweep(160.0) == [old] and not Customs._frames.has(Customs.tex_key(old)), "60 s after: freed")
+	Customs.release(old, 200.0)
+	check(Customs.sweep(1000.0).is_empty(), "a release with nothing held does nothing")
+	Customs.frames(old)
+	Customs.acquire(old)
+	Customs.release(old, 300.0)
+	Customs.acquire(old)   # back on screen before the minute is up
+	check(Customs.sweep(400.0).is_empty() and Customs._frames.has(Customs.tex_key(old)), "coming back in time keeps them")
+	Customs.release(old, 400.0)
+	Customs.sweep(500.0)
+
+	# A critter counts itself in and out.
+	var c = Species.row(old)["script"].new()
+	c.species = old
+	c.setup(World.new(), 200.0, 1, "sit")
+	check(Customs._refs.get(old, 0) == 1, "a homemade critter counts itself in")
+	c.free()
+	check(not Customs._refs.has(old) and Customs._idle.has(old), "and out when freed")
+	Customs.sweep(1e9)
+	clear_dir(store)

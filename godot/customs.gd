@@ -15,11 +15,28 @@ extends RefCounted
 ##
 ## Pictures are always decoded and re-saved as PNG, no more than MAX_SIDE a
 ## side, so nothing but pixels is kept (no EXIF or GPS from a photo).
+##
+## Schema 2 (docs/custom-critters-build-plan.md, 5.1) adds "kind" (sticker,
+## kit or frames; none means sticker, so 3.1 stores load unchanged) and "rev",
+## bumped whenever the art changes, so texture caches keyed by tex_key() never
+## show a stale picture. Kits and frame critters never write image.png, which
+## is how 3.1.x skips them rather than showing them broken. Each kind but
+## stickers waits behind its way's switch in `ways` (plan P20) until the
+## release that ships it. Textures of homemade critters are counted (acquire,
+## release) and freed by sweep() once none has drawn them for RELEASE_AFTER s.
 
 const Species := preload("res://species.gd")
 const STILL := "res://critters/still.gd"   # loaded, not preloaded: still.gd preloads this file
 
-const SCHEMA := 1
+const SCHEMA := 2
+const KINDS := ["sticker", "kit", "frames"]
+# The rig for each kit plan (plan 4.1-4.4) and for frame critters. A critter
+# whose rig isn't in this build is skipped with a log line.
+const RIGS := {"side": "res://critters/kit/side.gd", "front": "res://critters/kit/front.gd",
+	"upright": "res://critters/kit/upright.gd", "blob": "res://critters/kit/blob.gd",
+	"frames": "res://critters/kit/frames.gd"}
+const WAYS := ["kit", "shapes", "frames", "share"]
+const RELEASE_AFTER := 60.0     # s with none drawn before its textures are freed
 const MAX_SIDE := 512            # px, the longest side of a stored picture
 const MAX_FILE := 15 * 1024 * 1024
 const MAX_SOURCE_SIDE := 4096
@@ -31,7 +48,10 @@ const PREVIEW := "custom:_preview"   # the importer's picture before it is kept;
 
 static var dir := "user://custom"
 static var all := {}             # "custom:<id>" -> its custom.json, plus "_dir"
-static var _frames := {}         # "custom:<id>" -> Array[ImageTexture], loaded on first spawn
+static var _frames := {}         # tex_key() -> Array[ImageTexture], loaded on first spawn
+static var ways := {}            # way (WAYS) -> true when it is on in this build
+static var _refs := {}           # "custom:<id>" -> how many critters draw it now
+static var _idle := {}           # "custom:<id>" -> when the last one stopped (s)
 
 
 static func v2_dir() -> String:
@@ -49,13 +69,66 @@ static func load_all() -> void:
 	for name in DirAccess.get_directories_at(dir):
 		var folder := dir.path_join(name)
 		var d = JSON.parse_string(_read(folder.path_join("custom.json"))) if FileAccess.file_exists(folder.path_join("custom.json")) else null
-		if typeof(d) != TYPE_DICTIONARY or not FileAccess.file_exists(folder.path_join("image.png")):
+		if typeof(d) != TYPE_DICTIONARY:
 			printerr("CUSTOM skipped ", folder)
 			continue
 		d["_dir"] = folder
+		var why := _unusable(d)
+		if why != "":
+			printerr("CUSTOM skipped ", folder, ": ", why)
+			continue
 		var id := "custom:" + name
 		all[id] = d
 		Species.custom[id] = _row(d)
+
+
+static func kind(d: Dictionary) -> String:
+	return str(d.get("kind", "sticker"))
+
+
+static func way(d: Dictionary) -> String:
+	# Which switch a critter waits behind: "" for stickers, which have shipped.
+	match kind(d):
+		"kit":
+			return "shapes" if str(d.get("from", "")) == "shapes" else "kit"
+		"frames":
+			return "frames"
+	return ""
+
+
+static func way_on(w: String) -> bool:
+	return w == "" or bool(ways.get(w, false))
+
+
+static func all_ways_on() -> void:
+	# The admin build and --studio: every way not yet released is on.
+	for w in WAYS:
+		ways[w] = true
+
+
+static func _unusable(d: Dictionary) -> String:
+	# Why a stored critter can't come out in this build, or "".
+	var k := kind(d)
+	if not k in KINDS:
+		return "unknown kind " + k
+	if k == "sticker":
+		return "" if FileAccess.file_exists(str(d["_dir"]).path_join("image.png")) else "no image.png"
+	if not way_on(way(d)):
+		return "%s isn't on in this build" % way(d)
+	var rig := rig_path(d)
+	if rig == "" or not ResourceLoader.exists(rig):
+		return "no rig for %s" % str(d.get("plan", k))
+	return ""
+
+
+static func rig_path(d: Dictionary) -> String:
+	# The script that draws it: still.gd, a kit plan's rig or the frame rig.
+	match kind(d):
+		"sticker":
+			return STILL
+		"frames":
+			return RIGS["frames"]
+	return RIGS.get(str(d.get("plan", "")), "")
 
 
 static func _row(d: Dictionary) -> Dictionary:
@@ -66,7 +139,7 @@ static func _row(d: Dictionary) -> Dictionary:
 	if pop.is_empty():
 		pop = [Color8(240, 190, 140), Color8(255, 220, 180), Color8(250, 160, 170)]
 	var sound: String = d.get("sound", "kitten")
-	return {"gait": "a bob and a lean", "script": load(STILL), "sound": sound if sound in SOUNDS else "kitten",
+	return {"gait": "a bob and a lean", "script": load(rig_path(d)), "sound": sound if sound in SOUNDS else "kitten",
 		"pop": pop, "idles": IDLES, "rarity_max": "common", "special": false, "custom": true,
 		"name": str(d.get("name", "Homemade critter"))}
 
@@ -81,23 +154,91 @@ static func ids(enabled_only := false) -> Array:
 
 static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
 	# The importer's live preview: drawn by still.gd like a kept one, but held
-	# in memory only.
+	# in memory only. Each new picture is a new rev, so no view shows the last.
 	var tex := ImageTexture.create_from_image(img)
-	all[PREVIEW] = {"name": "Preview", "faces": faces, "size": size, "frames": 0, "_dir": ""}
-	_frames[PREVIEW] = [tex]
+	var rev := int(all.get(PREVIEW, {}).get("rev", 0)) + 1
+	_forget(PREVIEW)
+	all[PREVIEW] = {"name": "Preview", "faces": faces, "size": size, "frames": 0, "_dir": "", "rev": rev}
+	_frames[tex_key(PREVIEW)] = [tex]
 	Species.custom[PREVIEW] = _row(all[PREVIEW])
 
 
 static func clear_preview() -> void:
+	_forget(PREVIEW)
 	all.erase(PREVIEW)
-	_frames.erase(PREVIEW)
 	Species.custom.erase(PREVIEW)
+
+
+static func tex_key(id: String) -> String:
+	# The texture cache key, which changes whenever the critter's art does.
+	return "%s@%d" % [id, int(all.get(id, {}).get("rev", 0))]
+
+
+static func bump_rev(id: String) -> void:
+	# After its art changed: new textures the next time it is drawn.
+	_forget(id)
+	all[id]["rev"] = int(all[id].get("rev", 0)) + 1
+	save(id)
+
+
+static func thumb(id: String) -> String:
+	# The card picture's path: thumb.png, or a 3.1 sticker's picture.
+	var folder: String = all[id]["_dir"]
+	var t := folder.path_join("thumb.png")
+	return t if FileAccess.file_exists(t) else folder.path_join("image.png")
+
+
+static func make_thumb(img: Image, folder: String) -> void:
+	# A card picture no more than 128 px a side.
+	var t: Image = img.duplicate()
+	var k := minf(1.0, 128.0 / maxf(t.get_width(), t.get_height()))
+	if k < 1.0:
+		t.resize(maxi(1, roundi(t.get_width() * k)), maxi(1, roundi(t.get_height() * k)), Image.INTERPOLATE_LANCZOS)
+	t.save_png(folder.path_join("thumb.png"))
+
+
+# --- Textures in use ----------------------------------------------------------
+
+static func acquire(id: String) -> void:
+	# A critter or a preview has started drawing it.
+	_refs[id] = int(_refs.get(id, 0)) + 1
+	_idle.erase(id)
+
+
+static func release(id: String, now: float) -> void:
+	if not _refs.has(id):
+		return
+	_refs[id] -= 1
+	if _refs[id] <= 0:
+		_refs.erase(id)
+		_idle[id] = now
+
+
+static func sweep(now: float) -> Array:
+	# Frees the textures of each homemade critter none has drawn for
+	# RELEASE_AFTER seconds. Returns their ids.
+	var gone := []
+	for id in _idle.keys():
+		if now - float(_idle[id]) >= RELEASE_AFTER:
+			_idle.erase(id)
+			_forget(id)
+			gone.append(id)
+	return gone
+
+
+static func _forget(id: String) -> void:
+	# Every rev of its textures, here and in the rigs' cache.
+	for k in _frames.keys():
+		if k.begins_with(id + "@"):
+			_frames.erase(k)
+	load("res://critters/critter.gd").forget(id)
 
 
 static func frames(id: String) -> Array:
 	# The critter's textures: one for a still, or its v2.0 animation.
-	if _frames.has(id):
-		return _frames[id]
+	var key := tex_key(id)
+	if _frames.has(key):
+		return _frames[key]
 	var out := []
 	var folder: String = all[id]["_dir"]
 	var n := int(all[id].get("frames", 0))
@@ -110,7 +251,7 @@ static func frames(id: String) -> Array:
 		out.append(ImageTexture.create_from_image(img))
 	if out.is_empty():
 		printerr("CUSTOM no picture for ", id)
-	_frames[id] = out
+	_frames[key] = out
 	return out
 
 
@@ -164,17 +305,21 @@ static func save(id: String) -> void:
 static func remove(id: String) -> void:
 	if not all.has(id):
 		return
-	var folder: String = all[id]["_dir"]
-	for sub in ["frames", ""]:
-		var p := folder.path_join(sub)
-		if DirAccess.dir_exists_absolute(p):
-			for f in DirAccess.get_files_at(p):
-				DirAccess.remove_absolute(p.path_join(f))
-	DirAccess.remove_absolute(folder.path_join("frames"))
-	DirAccess.remove_absolute(folder)
+	_remove_tree(all[id]["_dir"])
+	_forget(id)
 	all.erase(id)
-	_frames.erase(id)
 	Species.custom.erase(id)
+
+
+static func _remove_tree(folder: String) -> void:
+	# A critter's folder and everything in it (frames/, parts/, cache/, clips/).
+	if not DirAccess.dir_exists_absolute(folder):
+		return
+	for sub in DirAccess.get_directories_at(folder):
+		_remove_tree(folder.path_join(sub))
+	for f in DirAccess.get_files_at(folder):
+		DirAccess.remove_absolute(folder.path_join(f))
+	DirAccess.remove_absolute(folder)
 
 
 # --- Making one ---------------------------------------------------------------
@@ -324,13 +469,14 @@ static func add(name: String, pictures: Array, extra := {}) -> String:
 	var folder := dir.path_join(key)
 	DirAccess.make_dir_recursive_absolute(folder)
 	imgs[0].save_png(folder.path_join("image.png"))
+	make_thumb(imgs[0], folder)
 	var n := 0
 	if imgs.size() > 1:
 		DirAccess.make_dir_recursive_absolute(folder.path_join("frames"))
 		for i in imgs.size():
 			imgs[i].save_png(folder.path_join("frames/%d.png" % i))
 		n = imgs.size()
-	var d := {"schema": SCHEMA, "name": name.strip_edges().left(40), "made": int(Time.get_unix_time_from_system()),
+	var d := {"schema": SCHEMA, "kind": "sticker", "rev": 1, "name": name.strip_edges().left(40), "made": int(Time.get_unix_time_from_system()),
 		"from": "import", "size": 1.0, "speed": 1.0, "visits": 1, "enabled": true, "frames": n,
 		"sound": SOUNDS[hash(name) % SOUNDS.size()], "pop": palette(imgs[0]), "seen": {}}
 	d.merge(extra, true)

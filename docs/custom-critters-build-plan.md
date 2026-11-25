@@ -1729,7 +1729,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | A0 | Design: My critters and Make a critter | waiting for a session with the developer |
 | A1 | Rasteriser spike | done 2026-11-24 |
 | A2 | Studio gate, My critters page, widgets | not started |
-| A3 | Store schema 2 | not started |
+| A3 | Store schema 2 | done 2026-11-24 |
 | A4 | Gaits | not started |
 | B1 | Side-on plan + kit data layer | not started |
 | B2 | Faces-you plan | not started |
@@ -1778,3 +1778,9 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 - 2026-11-24: A1 done: SVG throughout (P6), two-pass outlines confirmed (P5),
   ThorVG feature list recorded (P8). A0 needs the developer, so the steps that
   don't touch the UI (A3, A4, B1 on) run first; A2 waits for A0.
+- 2026-11-24: A3 done. The gate's switches (`Customs.ways`, `way_on()`,
+  `--studio`, all on in the admin build) were built here rather than in A2,
+  since `load_all` needs them; A2 keeps the page and widgets. The gate lives
+  in `customs.gd`, not `main.gd`, so static code can ask it. `economy_test`
+  and `save_test` fail on this PC on `main` as well (JSON parse of the save);
+  not touched here.
