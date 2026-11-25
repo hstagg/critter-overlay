@@ -1741,7 +1741,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
-| C4 | Kit importer | not started |
+| C4 | Kit importer | engine done 2026-11-24; screens wait for C0 |
 | C5 | Drop a file to import | not started |
 | R1 | **Release 3.2.0** | not started |
 | D0 | Design: the Studio window | not started |
@@ -1869,3 +1869,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   parts are kept at the size they came (the cache scales them, `kit_data.gd`).
   The fixtures are made in the test; real exports from Krita and Photoshop
   should be added as files once decision 8 is answered.
+- 2026-11-24: C4's engine done: `kit_import.gd` (stage a file, write a kit
+  folder, ground it). The screens wait for the C0 design session. Untouched
+  templates import as their example critters, as SVG and as 2x PNGs (the
+  round trip C1 asked for, `kit_import_test.gd`). Grounding counts only
+  pixels at least half opaque and leaves art within 6 units of the line
+  alone, since the cast's own feet sit a little into it. The part cache is
+  now keyed by file content (MD5), and PNG parts shrink through mipmaps,
+  because Lanczos left faint pixels that widened the hit boxes.
