@@ -17,6 +17,28 @@ const Onboarding := preload("res://gui/onboarding.gd")
 const Critter := preload("res://critters/critter.gd")
 const Icons := preload("res://gui/icons.gd")
 
+# The test key (number 15) and codes it signed (docs/codes-plan.md). Its
+# private half was thrown away once these were made. Only this page and the
+# tests trust it, so the player build, which leaves this file out, takes none
+# of these codes. tools/codes/mint.py check reads them back.
+const TEST_KEYS := {
+	15: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFH02oCg8GJyjtz4chpWR//JhqY15xLYyKQE0fR828BnIe31JA0NkQlpuYF+eBNa+VjcU+5Qb6FsOK31qTBahlg==",
+}
+const TEST_CODES := {
+	# kind 1, serials 1 and 2
+	"supporter": "Y4000-0D73R-8YT59-AA09C-EQWJB-EPNQT-XEWSJ-8NJ2B-VXBTD-J1M9M-46PXM-FHRZ7-KR02Z-RTEPG-CFVRZ-C4J27-5069F-SEYH9-8V93D-FBKDD-82GVA-2YE8",
+	"supporter_2": "Y4000-0QB18-SAM0A-RJ5RA-YDHVH-QWM9Q-8XYKM-ZX3H2-WFJHV-MW8CH-6921Z-F4S32-73GCV-A1NR8-BRY73-SJW7J-3V5QR-Z355J-100M6-SJ229-XB1G3-8GS4",
+	# serial 1 signed a second time: different text, the same code
+	"supporter_resigned": "Y4000-0EEKH-PNSCX-BTFZM-W06YR-B8XE9-D0H9G-1VX59-XG1NY-E8PPN-BZCG4-4M69E-3TR2N-47ZCN-0EFSQ-X6WGW-AQ5Y0-M4YY5-C9V5Y-76WG3-DZ707-0MXG",
+	# kind 2, serials 1 and 2
+	"creator": "Y8000-0E9Z8-F684H-8H70Q-AX3WD-31HHN-KR9TY-VYQ2S-2KYBC-MVAP5-W7DEC-PTJ77-QD26G-MDW6T-3DHV7-GA97G-0NTTM-EX8CC-XYQ4A-F3DY2-WB8VZ-ST0R",
+	"creator_2": "Y8000-0Q077-M455V-XXWAK-2Y46X-J19DH-G5TM4-G1YN9-9T4VP-MVYCM-VBA94-HPSP2-989ZG-NE2V8-HPZS2-PKN8C-RJKD0-C72Q1-STWPY-84Z4V-BYWR0-SPGT",
+	# kind 3, a later pack this version doesn't know
+	"later_pack": "YC000-0DJJ7-Z3M5A-3REPR-JZ4A6-M85MQ-BAWRC-JC849-S5488-HY86A-MYQSX-1AS5Y-S91WF-A0CHK-X60C0-J38VN-289P1-XQNDB-SMRVX-GZ7WZ-4F50B-D6XY",
+	# kind 15, the canary: grants nothing
+	"canary": "ZW000-0CG89-54EVB-92XKR-J5FM2-DCGQ7-DAT5Q-5E82A-8A0PB-BQ6Y0-8FAF6-FJEZT-SFN0Q-03RK1-NHMH2-KHQET-Y1ZVE-FG2KQ-09BRJ-QCV65-K6HDB-J8WT",
+}
+
 const WALK_S := 4.0               # the walk at the start of a run of moves
 const SIT_S := 1.5
 const NAP_S := 5.0
