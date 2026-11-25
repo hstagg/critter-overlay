@@ -48,9 +48,13 @@ this repo.
 ## Signing in (once per platform, by the account owner)
 
 - **YouTube:** one Google Cloud project shared with Gmail (`tools/gmail/README.md`
-  has the steps): YouTube Data API v3 on, a "Desktop app" OAuth client whose
-  JSON is named in the config as `"google": {"client_file": ...}`. Then
-  `post.py auth google`, which signs in once for both. Uploads from a project
+  has the steps): YouTube Data API v3 and YouTube Analytics API on, a "Desktop
+  app" OAuth client whose JSON is named in the config as
+  `"google": {"client_file": ...}`, and the consent screen published ("In
+  production"; while it says "Testing", Google expires the sign-in after 7
+  days). Then `post.py auth google`, which signs in once for both and also
+  grants reading the channel's statistics and analytics and replying to
+  comments (the marketing collector uses those). Uploads from a project
   Google has not audited stay **private**; the audit form is in the API's
   quota pages.
 - **Instagram:** a Professional (creator or business) account and a Meta app
