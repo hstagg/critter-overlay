@@ -18,8 +18,8 @@ extends RefCounted
 ## on, and call its _kick_squash, the same way the species' code does.
 
 const NAMES := ["trot", "hop", "waddle", "plod", "scurry", "dart", "slide", "bounce", "sway",
-	"blob_bounce", "float", "slither"]
-const LEGLESS := ["blob_bounce", "float", "slither"]   # the blob plan's own (4.4)
+	"blob_bounce", "glide", "float", "slither"]
+const LEGLESS := ["blob_bounce", "glide", "float", "slither"]   # the blob plan's own (4.4)
 
 # hop: rabbit.gd:46-50
 const HOP_CYCLE := 0.8
@@ -35,10 +35,11 @@ const BLOB_HOLD := 0.1
 const BLOB_ARC_SPEED := (1.0 - (1.0 - BLOB_ARC) * BLOB_HOLD) / BLOB_ARC   # averages 1
 const BLOB_HEIGHT := 14.0
 
-# float: new. Bobbing in the air, never touching the ground.
+# float: new. Bobbing in the air, never touching the ground; in drawing
+# units (plan 4.4: 10 to 20 up), so a big ghost floats as high for its size.
 const FLOAT_PERIOD := 1.6      # s per bob
-const FLOAT_HEIGHT := 6.0      # px held above the ground
-const FLOAT_BOB := 4.0         # px either way
+const FLOAT_HEIGHT := 15.0     # units held above the ground
+const FLOAT_BOB := 5.0         # units either way
 
 
 static func state(gait_name: String, mid := Vector2(150, 220), feet := Vector2(150, 262)) -> Dictionary:
@@ -50,7 +51,7 @@ static func state(gait_name: String, mid := Vector2(150, 220), feet := Vector2(1
 
 static func timed(s: Dictionary) -> bool:
 	# Whether the gait follows time rather than distance.
-	return s.name in ["hop", "blob_bounce", "float"]
+	return s.name in ["hop", "blob_bounce"]
 
 
 # --- tick: before the critter's own (dart, slide) ---------------------------------
@@ -100,10 +101,6 @@ static func advance(c, s: Dictionary, delta: float) -> bool:
 			return true
 		"blob_bounce":
 			_hop_advance(c, s, delta, BLOB_CYCLE, BLOB_ARC, BLOB_HEIGHT)
-			return true
-		"float":
-			c.gait = fmod(c.gait + delta / FLOAT_PERIOD, 1.0)
-			c.lift = (FLOAT_HEIGHT + FLOAT_BOB * sin(c.gait * TAU)) * c.zoom
 			return true
 		"slide":
 			return s.slide_left > 0.0   # otter.gd:124-127: legs stay tucked while sliding
@@ -163,8 +160,15 @@ static func settled(c, s: Dictionary) -> bool:
 
 # --- Pose --------------------------------------------------------------------------
 
+static func hover(c) -> float:
+	# float: px held above the ground now, in every pose.
+	return (FLOAT_HEIGHT + FLOAT_BOB * sin(c.t * TAU / FLOAT_PERIOD + c.phase)) * c.px()
+
+
 static func params(c, s: Dictionary, p: Dictionary) -> void:
-	# The gait's part of the walking pose, on top of critter.gd's _base_params.
+	# The gait's part of the pose, on top of critter.gd's _base_params.
+	if s.name == "float":
+		p.float += hover(c)   # critter.gd _apply lifts the body by p.float (x zoom)
 	if c.pose != "walk":
 		return
 	var g: float = c.gait
@@ -222,6 +226,11 @@ static func params(c, s: Dictionary, p: Dictionary) -> void:
 				p.blink = false
 		"float":
 			p.torso_rot += 2.0 * sin(g * TAU + 0.6)
+		"glide":
+			# new: gliding along, a slow wobble.
+			var moving := smoothstep(0.0, 10.0, absf(c.vx))
+			p.torso_pivot = s.feet
+			p.torso_rot += 2.5 * sin(c.t * 3.0 + c.phase) * moving
 		"slither":
 			var moving := smoothstep(0.0, 10.0, absf(c.vx))
 			p.torso_pivot = s.feet

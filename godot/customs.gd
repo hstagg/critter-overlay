@@ -188,6 +188,8 @@ static func _row(d: Dictionary) -> Dictionary:
 static func idles_for(kit: Dictionary, parts: Array) -> Array:
 	# The behaviours a kit meets the needs of (NEEDS).
 	var pl := KitData.plan(kit)
+	if str(kit.get("plan", "")) == "blob":
+		parts = parts + ["head"]   # a blob's eyes do the head's looking (4.6)
 	var out := []
 	for b in NEEDS:
 		var n: Dictionary = NEEDS[b]

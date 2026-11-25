@@ -76,6 +76,16 @@ const PLANS := {
 		"speed": Vector2(35.0, 58.0),
 		"legged": true,
 	},
+	"blob": {
+		"rig": "res://critters/kit/blob.gd",
+		"required": ["body", "eyes"],
+		"optional": ["head", "eyes-closed", "mouth-open", "ear-l", "ear-r", "tail", "head-front",
+			"back-extra", "loaf-body"],
+		"pins": ["eyes"],
+		"gaits": ["blob_bounce", "glide", "float", "slither"],
+		"speed": Vector2(32.0, 52.0),
+		"legged": false,
+	},
 }
 
 static var _rigs := {}         # tex key ("custom:<id>@<rev>") -> rig
@@ -162,6 +172,17 @@ static func tinted(img: Image, k: float, shift_units := 0.0) -> Image:
 	return out
 
 
+static func widened(img: Image, k: float) -> Image:
+	# Stretched to k of its width about the frame's middle (x 150).
+	var out := Image.create(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8)
+	var wide: Image = img.duplicate()
+	var w := roundi(img.get_width() * k)
+	wide.resize(w, img.get_height(), Image.INTERPOLATE_BILINEAR)
+	var cut := (w - img.get_width()) / 2
+	out.blit_rect(wide, Rect2i(cut, 0, img.get_width(), img.get_height()), Vector2i.ZERO)
+	return out
+
+
 static func squashed(img: Image, k: float) -> Image:
 	# Squashed to k of its height towards the top of the frame (the rig moves
 	# it back down onto the ground with its pivot).
@@ -231,7 +252,12 @@ static func pins(kit: Dictionary) -> Dictionary:
 			warn.append("%s was above the neck" % hip)
 	def.call("neck-sit", p["neck-walk"])
 	# The head is drawn where it sits in the plan's one required pose.
-	def.call("head", p["neck-sit"] if str(kit.get("plan", "")) == "front" else p["neck-walk"])
+	match str(kit.get("plan", "")):
+		"front":
+			def.call("head", p["neck-sit"])
+		"blob":
+			def.call("head", p["eyes"] + Vector2(0, 30))   # where its eyes and ears ride
+	def.call("head", p["neck-walk"])
 	def.call("eye-side", p["neck-walk"] + Vector2(-30, -40))
 	def.call("tail-walk", p.get("tail", Vector2(226, 192)))
 	def.call("tail", p["tail-walk"])
@@ -277,10 +303,12 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			imgs[part] = img
 	var auto := {}
 	var front := str(kit.get("plan", "")) == "front"
+	var blob := str(kit.get("plan", "")) == "blob"
 	var upright := str(kit.get("plan", "")) == "upright"
 	var pivots := {"walk-body": BASE}
 	var head_pivot: Vector2 = P["head"]
-	pivots["head"] = head_pivot
+	if imgs.has("head"):
+		pivots["head"] = head_pivot
 	pivots["eyes"] = P["eyes"]
 	if imgs.has("eyes-closed"):
 		pivots["eyes-closed"] = P["eyes"]
@@ -315,7 +343,7 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			pivots["leg-far"] = art
 			auto["leg-far"] = "tint"
 		walk_legs = [["leg-far", far_hip, 1, false], ["leg-near", hip, 0, true]]
-	for side in ([] if upright else ["front", "back"]):
+	for side in ([] if upright or blob else ["front", "back"]):
 		var near: String = "leg-" + side
 		var far: String = near + "-far"
 		var hip: Vector2 = P["hip-" + side]
@@ -329,7 +357,7 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			auto[far] = "tint"
 		pivots[far] = leg_pins[far][1]
 		leg_pins[near] = [hip, art]
-	if not upright:
+	if not upright and not blob:
 		walk_legs = [
 			["leg-front-far", leg_pins["leg-front-far"][0], 1, true],
 			["leg-back-far", leg_pins["leg-back-far"][0], 0, false],
@@ -366,7 +394,15 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	var head_at := {"walk": P["neck-walk"]}
 	var tail_at := {}
 	var sit_parts := []
-	if upright:
+	if blob:
+		# One body for every pose; no legs. Its eyes ride on the body when
+		# there is no head (the head node holds them either way).
+		imgs["walk-body"] = imgs["body"]
+		pivots["body"] = BASE
+		sit_parts = ["body"]
+		head_at["walk"] = head_pivot
+		head_at["sit"] = head_pivot
+	elif upright:
 		# Stands facing you; walks on its walking body, or the same body.
 		for part in ["body", "foot-l", "foot-r"]:
 			if imgs.has(part):
@@ -416,8 +452,8 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		auto["body"] = "walk"
 		head_at["sit"] = P["neck-walk"]
 	# Napping not drawn: the pose it was drawn in, melted onto the ground.
-	var melt_from := "body" if front or upright else "walk-body"
-	var melt_neck: Vector2 = P["neck-sit"] if front or upright else P["neck-walk"]
+	var melt_from := "body" if front or upright or blob else "walk-body"
+	var melt_neck: Vector2 = head_pivot if blob else (P["neck-sit"] if front or upright else P["neck-walk"])
 	var wb := bounds(imgs[melt_from])
 	var bottom := wb.end.y if wb.size.y > 0 else GROUND
 	var melt := func(v: Vector2) -> Vector2:
@@ -425,6 +461,12 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	if imgs.has("loaf-body"):
 		pivots["loaf-body"] = BASE
 		head_at["loaf"] = P.get("neck-loaf", P["neck-walk"] + Vector2(0, 20))
+	elif blob:
+		# 4.4: melted, 120% wide and 70% tall.
+		imgs["loaf-body"] = squashed(widened(imgs["body"], 1.2), 0.7)
+		pivots["loaf-body"] = Vector2(BASE.x, 0.7 * bottom)
+		auto["loaf-body"] = "melt"
+		head_at["loaf"] = Vector2(head_pivot.x, GROUND + 0.7 * (head_pivot.y - bottom))
 	else:
 		imgs["loaf-body"] = squashed(imgs[melt_from], MELT)
 		pivots["loaf-body"] = Vector2(BASE.x, MELT * bottom)
@@ -440,6 +482,9 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			tail_at["sit"] = P["tail-sit"]
 		if upright:
 			tail_at.erase("sit")   # duckling.gd: the tail shows only walking
+		if blob:
+			tail_at["sit"] = P["tail-walk"]
+			tail_at["loaf"] = Vector2(P["tail-walk"].x, GROUND + 0.7 * (P["tail-walk"].y - bottom))
 		if auto.has("loaf-body"):
 			tail_at["loaf"] = melt.call(P["tail-walk"])
 
@@ -458,7 +503,15 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	r["wear_nap_shift"] = head_at["loaf"] - P["neck-sit"]
 	r["mid"] = (P["hip-front"] + P["hip-back"]) * 0.5 - Vector2(0, 10)
 	r["feet"] = Vector2(BASE.x, GROUND)
+	r["blob"] = blob
 	r["leg_len"] = maxf(8.0, GROUND - (P["hip"] if upright else P["hip-front"]).y)
+	if blob:
+		# No legs: leg_len only sets how far one gait cycle carries it
+		# (critter.gd cycle_px), a step about a third of its height.
+		var bb := bounds(imgs["body"])
+		r["leg_len"] = maxf(8.0, bb.size.y * 0.3)
+		r["mid"] = Vector2(bb.get_center().x, bb.end.y - 10.0)
+		r["feet"] = Vector2(bb.get_center().x, GROUND)
 	r["stride_deg"] = 26.0 if upright else 18.0
 	r["leg_lift"] = 6.0 * r["leg_len"] / 38.0
 	r["hit_bounds"] = hit_bounds(r)

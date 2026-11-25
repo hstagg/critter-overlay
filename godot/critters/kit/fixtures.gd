@@ -139,6 +139,61 @@ static func duckling_kit(dest: String, bare := false, gait := "waddle") -> Strin
 	return dest
 
 
+# --- Blobs, drawn here (B4) -------------------------------------------------
+
+const LINE := 'stroke="#6B4A3A" stroke-width="5" stroke-linejoin="round"'
+const EYES := '<ellipse cx="128" cy="196" rx="9" ry="12" fill="#3A2A22"/><ellipse cx="168" cy="196" rx="9" ry="12" fill="#3A2A22"/><circle cx="131" cy="191" r="3.5" fill="#FFFFFF"/><circle cx="171" cy="191" r="3.5" fill="#FFFFFF"/><ellipse cx="116" cy="214" rx="9" ry="5" fill="#F29C9C" opacity="0.7"/><ellipse cx="180" cy="214" rx="9" ry="5" fill="#F29C9C" opacity="0.7"/>'
+const BLOBS := {
+	"slime": {
+		"gait": "blob_bounce", "sound": "duck", "pop": ["#8EE07A", "#C6F2A8", "#5BBF4E"],
+		"pins": {"eyes": [148, 198], "ear-l": [122, 152], "tail": [210, 250]},
+		"parts": {
+			"body": '<path d="M70 262 C64 212 96 150 150 150 C204 150 236 212 230 262 Z" fill="#8EE07A" %s/><ellipse cx="118" cy="182" rx="16" ry="9" fill="#FFFFFF" opacity="0.5"/>',
+			"eyes": EYES,
+			"ear-l": '<path d="M122 154 C116 132 112 120 104 112" fill="none" %s/><circle cx="104" cy="110" r="7" fill="#8EE07A" %s/>',
+		},
+	},
+	"ghost": {
+		"gait": "float", "sound": "otter", "pop": ["#F4F1FF", "#D9D2F5", "#B9AEE8"],
+		"pins": {"eyes": [148, 190], "tail": [200, 250]},
+		"parts": {
+			"body": '<path d="M86 258 L86 170 C86 120 116 96 150 96 C184 96 214 120 214 170 L214 258 L194 242 L174 258 L150 242 L126 258 L106 242 Z" fill="#F4F1FF" %s/>',
+			"eyes": '<ellipse cx="128" cy="176" rx="9" ry="12" fill="#3A2A22"/><ellipse cx="168" cy="176" rx="9" ry="12" fill="#3A2A22"/><circle cx="131" cy="171" r="3.5" fill="#FFFFFF"/><circle cx="171" cy="171" r="3.5" fill="#FFFFFF"/><ellipse cx="116" cy="194" rx="9" ry="5" fill="#F29C9C" opacity="0.7"/><ellipse cx="180" cy="194" rx="9" ry="5" fill="#F29C9C" opacity="0.7"/>',
+			"mouth-open": '<ellipse cx="148" cy="214" rx="9" ry="12" fill="#6B4A3A"/>',
+		},
+	},
+	"snake": {
+		"gait": "slither", "sound": "hedgehog", "pop": ["#F2B45A", "#F8D48C", "#C97F2F"],
+		"pins": {"eyes": [92, 214], "tail": [262, 246]},
+		"parts": {
+			"body": '<path d="M262 250 C230 262 200 236 172 250 C144 264 120 262 104 252 C78 252 62 236 64 214 C66 190 88 178 108 184 C126 190 132 212 126 236 C150 232 170 222 196 230 C222 238 246 232 268 236 Z" fill="#F2B45A" %s/><path d="M150 244 L160 236 M190 236 L200 230 M226 238 L236 234" fill="none" stroke="#C97F2F" stroke-width="4" stroke-linecap="round"/>',
+			"eyes": '<ellipse cx="84" cy="208" rx="6" ry="8" fill="#3A2A22"/><ellipse cx="106" cy="208" rx="6" ry="8" fill="#3A2A22"/><circle cx="86" cy="205" r="2.5" fill="#FFFFFF"/><circle cx="108" cy="205" r="2.5" fill="#FFFFFF"/>',
+			"tail": '<path d="M262 246 C274 244 282 236 286 228" fill="none" %s/>',
+		},
+	},
+}
+
+
+static func blob_kit(dest: String, which: String) -> String:
+	# A slime (bounce, one antenna), a ghost (float, no head) or a snake
+	# (slither), drawn in the cast's style: warm brown outline, blush.
+	var b: Dictionary = BLOBS[which]
+	DirAccess.make_dir_recursive_absolute(dest.path_join("parts"))
+	for part in b.parts:
+		var body: String = b.parts[part]
+		while body.contains("%s"):
+			body = body.replace("%s", LINE)
+		var f := FileAccess.open(dest.path_join("parts/%s.svg" % part), FileAccess.WRITE)
+		f.store_string('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" width="300" height="280">%s</svg>' % body)
+		f.close()
+	_json(dest.path_join("custom.json"), {"schema": 2, "kind": "kit", "rev": 1, "name": which.capitalize(),
+		"from": "test", "size": 1.0, "speed": 1.0, "visits": 1, "enabled": true, "sound": b.sound,
+		"pop": b.pop, "seen": {}})
+	_json(dest.path_join("kit.json"), {"schema": 1, "plan": "blob", "gait": b.gait, "faces": "left",
+		"pins": b.pins, "made_with": "svg"})
+	return dest
+
+
 static func _json(path: String, d: Dictionary) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(d, "\t"))

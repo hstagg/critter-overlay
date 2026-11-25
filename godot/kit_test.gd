@@ -184,6 +184,54 @@ func upright(src: String) -> void:
 		c.free()
 
 
+func blobs(src: String) -> void:
+	# B4: a slime (bounce), a ghost (float, no head) and a snake (slither).
+	for which in ["slime", "ghost", "snake"]:
+		Fixtures.blob_kit(src.path_join(which), which)
+		var id := Customs.add_folder(src.path_join(which))
+		check(id != "", "the %s loads" % which)
+		if id == "":
+			continue
+		var idles: Array = Species.row(id)["idles"]
+		for b in ["stretch", "hunt", "chase_tail", "scratch", "groom", "stand_lookout"]:
+			check(not b in idles, "the %s is never given %s" % [which, b])
+		for b in ["sit_and_look", "nap", "shake_off", "look_at_cursor"]:
+			check(b in idles, "the %s can %s" % [which, b])
+		var c = spawn(id)
+		check(c.legs.is_empty() and c.head != null and c.eyes != null, "the %s has no legs and carries its eyes" % which)
+		c.vx = c.facing * c.cruise
+		var x0: float = c.position.x
+		var low := 1e9
+		var high := 0.0
+		for i in 240:
+			c.tick(1.0 / 30.0)
+			if c.mode != "walk":
+				c._go_walk()
+			var units: float = (c.lift / c.zoom + c._base_params().float) / c.px()
+			if i < 30:
+				continue   # rising to its hover height
+			low = minf(low, units)
+			high = maxf(high, units)
+		check(absf(c.position.x - x0) > 5.0, "the %s gets about (moved %.0f px)" % [which, c.position.x - x0])
+		if which == "ghost":
+			check(low >= 9.9 and high <= 20.1, "the ghost floats 10 to 20 units up (%.1f to %.1f)" % [low, high])
+		if which == "slime":
+			check(high > 3.0, "the slime bounces (up to %.1f units)" % high)
+		c._go_loaf(5.0)
+		c.tick(0.1)
+		check(c.loaf_body != null and shown(c.loaf_body), "the %s naps melted" % which)
+		var lb: Rect2 = KitData.bounds(c.kit.images["loaf-body"])
+		var bb: Rect2 = KitData.bounds(c.kit.images["body"])
+		check(lb.size.x > bb.size.x * 1.1 and lb.size.y < bb.size.y * 0.8, "the %s's nap is wider and lower (%s vs %s)" % [which, lb.size, bb.size])
+		c._go_walk()
+		c.climbing = true
+		c.climb_turn = 90.0
+		var p: Dictionary = c._base_params()
+		check(c._climb_surge() == 1.0 and p.has("torso_rot"), "the %s climbs as a slide" % which)
+		c.climbing = false
+		c.free()
+
+
 func rect_near(a: Rect2, b: Rect2, eps: float) -> bool:
 	return a.position.distance_to(b.position) <= eps and a.end.distance_to(b.end) <= eps
 
@@ -313,6 +361,7 @@ func _init() -> void:
 
 	faces_you(src)
 	upright(src)
+	blobs(src)
 
 	# --- An edit makes new art: the rig and textures are keyed by rev.
 	var before := Customs.tex_key(kid)
