@@ -140,6 +140,8 @@ func _init() -> void:
 		DirAccess.remove_absolute(dir.path_join("parts/" + p))
 	for p in DirAccess.get_files_at(dir.path_join("cache")):
 		DirAccess.remove_absolute(dir.path_join("cache/" + p))
+	for sub in ["parts", "cache", ""]:
+		DirAccess.remove_absolute(dir.path_join(sub))
 
 	print("SHAPES TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	quit(0 if fails == 0 else 1)

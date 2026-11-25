@@ -69,7 +69,16 @@ func _init() -> void:
 		img.load_svg_from_string(svg, 2.0)
 		img.save_png(ProjectSettings.globalize_path(OUT + name + "-guide.png"))
 		print("TEMPLATE ", name, " ", img.get_size())
+	_remove(ProjectSettings.globalize_path(tmp))
 	quit()
+
+
+func _remove(path: String) -> void:
+	for d in DirAccess.get_directories_at(path):
+		_remove(path.path_join(d))
+	for f in DirAccess.get_files_at(path):
+		DirAccess.remove_absolute(path.path_join(f))
+	DirAccess.remove_absolute(path)
 
 
 func inner(path: String) -> String:

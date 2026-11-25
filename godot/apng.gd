@@ -73,6 +73,9 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		out.error = "That isn't a PNG."
 		return out
 	var ihdr: PackedByteArray = cs[0][1]
+	if ihdr.size() < 13:
+		out.error = "That PNG is damaged."   # G3: a cut-short header
+		return out
 	var size := Vector2i(_u32(ihdr, 0), _u32(ihdr, 4))
 	if size.x <= 0 or size.y <= 0 or size.x > MAX_SIDE or size.y > MAX_SIDE:
 		out.error = "That picture is %d x %d: 4096 px a side at most." % [size.x, size.y]

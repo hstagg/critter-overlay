@@ -9,8 +9,13 @@ extends RefCounted
 ## The screen size is read and refused (over MAX_SIDE) before any decoding,
 ## and decoding stops at MAX_FRAMES.
 
-const MAX_SIDE := 4096
+# Frame critters' frames are at most 4x the 300 x 280 frame, so a GIF screen
+# over 1280 px is refused, and the work is capped (G3: a few KB of LZW can
+# expand to millions of pixels, which takes GDScript minutes).
+const MAX_SIDE := 1280
 const MAX_FRAMES := 64
+const MAX_PIXELS := 24 * 1024 * 1024   # every frame's canvas in all
+const MAX_MS := 4000
 
 
 static func size_of(bytes: PackedByteArray) -> Vector2i:
@@ -22,14 +27,19 @@ static func size_of(bytes: PackedByteArray) -> Vector2i:
 
 static func decode(bytes: PackedByteArray) -> Dictionary:
 	var out := {"frames": [], "delays": [], "size": Vector2i.ZERO, "error": ""}
+	var deadline := Time.get_ticks_msec() + MAX_MS
 	var size := size_of(bytes)
 	if size.x < 0:
 		out.error = "That isn't a GIF."
 		return out
 	if size.x <= 0 or size.y <= 0 or size.x > MAX_SIDE or size.y > MAX_SIDE:
-		out.error = "That GIF is %d x %d: 4096 px a side at most." % [size.x, size.y]
+		out.error = "That GIF is %d x %d: %d px a side at most." % [size.x, size.y, MAX_SIDE]
 		return out
 	out.size = size
+	if bytes.size() < 13:
+		out.error = "That GIF is cut short."
+		return out
+	var frame_cap := mini(MAX_FRAMES, maxi(1, MAX_PIXELS / (size.x * size.y)))
 	var at := 13
 	var flags := bytes[10]
 	var global := PackedColorArray()
@@ -39,13 +49,18 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		at += 3 * n
 	var canvas := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	var gce := {"dispose": 0, "transparent": -1, "delay": 0.1}
-	while at < bytes.size() and out.frames.size() < MAX_FRAMES:
+	while at < bytes.size() and out.frames.size() < frame_cap:
+		if Time.get_ticks_msec() > deadline:
+			out.error = "That GIF takes too long to read."
+			return out
 		var block := bytes[at]
 		at += 1
 		match block:
 			0x3B:
 				break
 			0x21:
+				if at >= bytes.size():
+					break
 				var label := bytes[at]
 				at += 1
 				if label == 0xF9 and at + 5 <= bytes.size():
@@ -59,8 +74,12 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 					break
 				var x := bytes.decode_u16(at)
 				var y := bytes.decode_u16(at + 2)
-				var w := bytes.decode_u16(at + 4)
-				var h := bytes.decode_u16(at + 6)
+				# A frame can't be bigger than the screen it is drawn on (G3:
+				# an inflated size made a 2-minute loop).
+				var w := mini(bytes.decode_u16(at + 4), maxi(0, size.x - x))
+				var h := mini(bytes.decode_u16(at + 6), maxi(0, size.y - y))
+				var stride := bytes.decode_u16(at + 4)
+				var full_h := bytes.decode_u16(at + 6)
 				var lf := bytes[at + 8]
 				at += 9
 				var pal := global
@@ -81,13 +100,15 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 						break
 					data.append_array(bytes.slice(at, at + len))
 					at += len
-				var idx := _lzw(data, min_code, w * h)
+				var idx := _lzw(data, min_code, mini(stride * full_h, size.x * size.y), deadline)
 				if lf & 0x40:
-					idx = _deinterlace(idx, w, h)
+					idx = _deinterlace(idx, stride, full_h)
 				var before: Image = canvas.duplicate() if gce.dispose == 3 else null
 				for py in h:
+					if py * stride >= idx.size():
+						break
 					for px in w:
-						var i := py * w + px
+						var i := py * stride + px
 						if i >= idx.size():
 							break
 						var c := idx[i]
@@ -133,7 +154,7 @@ static func _skip_blocks(bytes: PackedByteArray, at: int) -> int:
 	return at
 
 
-static func _lzw(data: PackedByteArray, min_code: int, want: int) -> PackedInt32Array:
+static func _lzw(data: PackedByteArray, min_code: int, want: int, deadline := 0) -> PackedInt32Array:
 	# GIF's LZW: variable-width codes, least significant bit first.
 	var out := PackedInt32Array()
 	if min_code < 2 or min_code > 8:
@@ -170,6 +191,8 @@ static func _lzw(data: PackedByteArray, min_code: int, want: int) -> PackedInt32
 				continue
 			if code == stop or out.size() >= want:
 				return out
+			if deadline > 0 and out.size() & 0xFFFF == 0 and Time.get_ticks_msec() > deadline:
+				return out
 			var cur := code
 			stack.clear()
 			if code >= next:
@@ -200,6 +223,8 @@ static func _deinterlace(idx: PackedInt32Array, w: int, h: int) -> PackedInt32Ar
 	for pass_ in [[0, 8], [4, 8], [2, 4], [1, 2]]:
 		var y: int = pass_[0]
 		while y < h:
+			if row * w >= idx.size():
+				return out   # G3: no rows left to place (a corrupt size can claim 65535 of them)
 			for x in w:
 				if row * w + x < idx.size() and y * w + x < out.size():
 					out[y * w + x] = idx[row * w + x]
