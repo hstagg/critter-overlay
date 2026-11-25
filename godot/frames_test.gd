@@ -80,11 +80,14 @@ func _init() -> void:
 		c.tick(1.0 / 30.0)
 		if c.mode != "walk":
 			c._go_walk()
-		seen[c.sheet.region_rect] = true
+		if c.clip == "walk" and c.pose == "walk":
+			seen[c.sheet.region_rect] = true   # not the odd frame where its walk ran out
 	check(c.clip == "walk" and seen.size() == 4, "it walks through all four walk frames (%d)" % seen.size())
 	check(absf(c.position.x - x0) > 40.0, "and gets somewhere (%.0f px in 4 s)" % absf(c.position.x - x0))
 	check(absf(c.cycle_px - 100.0 * c.px()) < 0.5, "a walk cycle carries it stride_px (%.1f vs %.1f)" % [c.cycle_px, 100.0 * c.px()])
 	c._go_sit()
+	c.blink_left = 0.0
+	c.blink_in = 1e9   # no ambient blink in the way
 	c.tick(0.1)
 	check(c.clip == "sit", "sitting plays sit")
 	c.blink_left = 0.1

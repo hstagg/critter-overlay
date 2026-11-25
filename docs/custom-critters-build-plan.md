@@ -1760,8 +1760,8 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | F1 | Head metrics | not started |
 | F2 | Clothes drawn at runtime | not started |
 | F3 | Clothes on frame critters | not started |
-| G1 | Builder codes | not started |
-| G2 | `.critter` v3 files | not started |
+| G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
+| G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |
 | G3 | Hostile-file pass | not started |
 | H1 | Collection | not started |
 | H2 | Docs | not started |
@@ -1901,3 +1901,13 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   whole steps, nearest-neighbour) and each clip is grounded on its lowest
   pixel. Clip names are matched loosely ("idle" is sit, "sleeping" is nap);
   anything else is the player's own move.
+- 2026-11-24: G1 and G2's engine done in `share.gd` (no screens yet: Copy
+  code, Paste a code, Save as file and the install dialog go on the My
+  critters page and the import flow once they are designed). A code carries
+  the shapes and the name, about 1 KB for a simple critter. Installing a file
+  writes to a staging folder through the import paths, checks `app_min` and
+  the content hash, and only `install()` adds it to the store. A builder
+  critter's file carries `shapes.json`, and the app writes its parts again.
+  A file's author, licence and `ai_made` are kept in `custom.json`. Also
+  fixed two `frames_test.gd` checks that failed now and then (an ambient
+  blink, and the frame where a walk ends).
