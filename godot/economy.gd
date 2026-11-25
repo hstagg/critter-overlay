@@ -131,7 +131,8 @@ var early_paid := []               # EARLY_GIFTS indices paid
 var early_min := 0.0               # focus minutes since the ladder began, until it is done
 var early_days := 0                # days with EARLY_DAY_MIN of focus
 var early_day := ""                # the last day counted
-var infinite := false             # INFINITE_FLAG exists: spending never lowers the count
+var infinite := false             # infinite_flag exists: spending never lowers the count
+var infinite_flag := INFINITE_FLAG  # the tests point this elsewhere, so the developer's own flag doesn't reach them
 var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
 
 var rng := RandomNumberGenerator.new()
@@ -682,7 +683,7 @@ func load_save() -> void:
 	var d = SaveFile.read(save_path)
 	if d != null:
 		from_dict(d)
-	infinite = FileAccess.file_exists(INFINITE_FLAG)
+	infinite = FileAccess.file_exists(infinite_flag)
 	_top_up()
 
 

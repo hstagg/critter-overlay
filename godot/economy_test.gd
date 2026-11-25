@@ -20,6 +20,7 @@ func check(ok: bool, what: String) -> void:
 func fresh(path: String) -> Node:
 	var e = Economy.new()
 	e.save_path = path
+	e.infinite_flag = "user://economy_test_no_infinite_flag"   # not the developer's own flag
 	e.now_fn = func() -> float: return clock
 	e.rng.seed = 7
 	return e
