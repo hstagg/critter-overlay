@@ -26,6 +26,7 @@ extends RefCounted
 ## release) and freed by sweep() once none has drawn them for RELEASE_AFTER s.
 
 const Species := preload("res://species.gd")
+const KitData := preload("res://critters/kit/kit_data.gd")
 const STILL := "res://critters/still.gd"   # loaded, not preloaded: still.gd preloads this file
 
 const SCHEMA := 2
@@ -37,6 +38,33 @@ const RIGS := {"side": "res://critters/kit/side.gd", "front": "res://critters/ki
 	"frames": "res://critters/kit/frames.gd"}
 const WAYS := ["kit", "shapes", "frames", "share"]
 const RELEASE_AFTER := 60.0     # s with none drawn before its textures are freed
+
+# What each behaviour needs of a kit (plan 4.6). "parts": all of these drawn;
+# "any": one of these; "plans": only these body plans; "gaits": only these
+# gaits; "legged": a plan with legs. A kit's idles are those it meets. The
+# moves only one species can draw (ball_up, head_tuck, chitter, belly_roll,
+# panda_roll, prance, snuffle) are never offered.
+const NEEDS := {
+	"sit_and_look": {"parts": ["head", "eyes"]},
+	"look_at_cursor": {"parts": ["head", "eyes"]},
+	"wake_up": {"parts": ["head", "eyes"]},
+	"listen": {"parts": ["head", "eyes"]},
+	"nap": {},
+	"shake_off": {},
+	"stretch": {"legged": true},
+	"yawn": {"parts": ["mouth-open"]},
+	"sneeze": {"parts": ["mouth-open"]},
+	"ear_flick": {"any": ["ear-l", "ear-r", "tuft"]},
+	"tail_swish": {"parts": ["tail"]},
+	"chase_tail": {"parts": ["tail"], "plans": ["side"]},
+	"nose_twitch": {"parts": ["nose"]},
+	"stand_lookout": {"parts": ["stand-body"]},
+	"groom": {"parts": ["groom-paws"]},
+	"scratch": {"parts": ["scratch-foot"]},
+	"preen": {"parts": ["mouth-open"], "plans": ["upright"]},
+	"peck_ground": {"parts": ["mouth-open"], "plans": ["upright"]},
+	"hunt": {"plans": ["side"], "gaits": ["trot"]},
+}
 const MAX_SIDE := 512            # px, the longest side of a stored picture
 const MAX_FILE := 15 * 1024 * 1024
 const MAX_SOURCE_SIDE := 4096
@@ -73,6 +101,9 @@ static func load_all() -> void:
 			printerr("CUSTOM skipped ", folder)
 			continue
 		d["_dir"] = folder
+		if kind(d) == "kit":
+			var k = JSON.parse_string(_read(folder.path_join("kit.json")))
+			d["_kit"] = k if typeof(k) == TYPE_DICTIONARY else {}
 		var why := _unusable(d)
 		if why != "":
 			printerr("CUSTOM skipped ", folder, ": ", why)
@@ -117,7 +148,11 @@ static func _unusable(d: Dictionary) -> String:
 		return "%s isn't on in this build" % way(d)
 	var rig := rig_path(d)
 	if rig == "" or not ResourceLoader.exists(rig):
-		return "no rig for %s" % str(d.get("plan", k))
+		return "no rig for %s" % str(d.get("_kit", d).get("plan", k))
+	if k == "kit":
+		var lacking := KitData.missing(str(d["_dir"]), d.get("_kit", {}))
+		if not lacking.is_empty():
+			return "missing " + ", ".join(lacking)
 	return ""
 
 
@@ -128,7 +163,7 @@ static func rig_path(d: Dictionary) -> String:
 			return STILL
 		"frames":
 			return RIGS["frames"]
-	return RIGS.get(str(d.get("plan", "")), "")
+	return RIGS.get(str(d.get("_kit", d).get("plan", "")), "")
 
 
 static func _row(d: Dictionary) -> Dictionary:
@@ -139,9 +174,35 @@ static func _row(d: Dictionary) -> Dictionary:
 	if pop.is_empty():
 		pop = [Color8(240, 190, 140), Color8(255, 220, 180), Color8(250, 160, 170)]
 	var sound: String = d.get("sound", "kitten")
-	return {"gait": "a bob and a lean", "script": load(rig_path(d)), "sound": sound if sound in SOUNDS else "kitten",
-		"pop": pop, "idles": IDLES, "rarity_max": "common", "special": false, "custom": true,
+	var idles := IDLES
+	var gait := "a bob and a lean"
+	if kind(d) == "kit":
+		var k: Dictionary = d.get("_kit", {})
+		idles = idles_for(k, KitData.drawn(str(d["_dir"]), k))
+		gait = str(k.get("gait", "trot")).replace("_", " ")
+	return {"gait": gait, "script": load(rig_path(d)), "sound": sound if sound in SOUNDS else "kitten",
+		"pop": pop, "idles": idles, "rarity_max": "common", "special": false, "custom": true,
 		"name": str(d.get("name", "Homemade critter"))}
+
+
+static func idles_for(kit: Dictionary, parts: Array) -> Array:
+	# The behaviours a kit meets the needs of (NEEDS).
+	var pl := KitData.plan(kit)
+	var out := []
+	for b in NEEDS:
+		var n: Dictionary = NEEDS[b]
+		if n.has("plans") and not str(kit.get("plan", "")) in n.plans:
+			continue
+		if n.has("gaits") and not str(kit.get("gait", "trot")) in n.gaits:
+			continue
+		if n.get("legged", false) and not pl.get("legged", false):
+			continue
+		if not n.get("parts", []).all(func(x): return x in parts):
+			continue
+		if n.has("any") and not n.any.any(func(x): return x in parts):
+			continue
+		out.append(b)
+	return out
 
 
 static func is_custom(id: String) -> bool:
@@ -231,6 +292,7 @@ static func _forget(id: String) -> void:
 	for k in _frames.keys():
 		if k.begins_with(id + "@"):
 			_frames.erase(k)
+	KitData.forget(id)
 	load("res://critters/critter.gd").forget(id)
 
 
@@ -294,6 +356,7 @@ static func save(id: String) -> void:
 	var d: Dictionary = all[id].duplicate()
 	var folder: String = d["_dir"]
 	d.erase("_dir")
+	d.erase("_kit")   # kit.json is its own file
 	var f := FileAccess.open(folder.path_join("custom.json"), FileAccess.WRITE)
 	if f == null:
 		printerr("CUSTOM can't save ", folder)
@@ -485,6 +548,41 @@ static func add(name: String, pictures: Array, extra := {}) -> String:
 	all[id] = d
 	save(id)
 	return id
+
+
+static func add_folder(src: String) -> String:
+	# Copies a whole critter folder (custom.json, kit.json, parts/ ...) into
+	# the store as a new critter and loads it. Returns its id, or "" with a
+	# log line if it can't be used here. For --kit-dir and the test kits.
+	var d = JSON.parse_string(_read(src.path_join("custom.json")))
+	if typeof(d) != TYPE_DICTIONARY:
+		printerr("CUSTOM no custom.json in ", src)
+		return ""
+	var key := "%s-%s" % [src.get_file().to_lower().replace("_", "-").left(24), "%06x" % (randi() & 0xFFFFFF)]
+	var folder := dir.path_join(key)
+	_copy_tree(src, folder)
+	d["_dir"] = folder
+	if kind(d) == "kit":
+		var k = JSON.parse_string(_read(folder.path_join("kit.json")))
+		d["_kit"] = k if typeof(k) == TYPE_DICTIONARY else {}
+	var why := _unusable(d)
+	if why != "":
+		printerr("CUSTOM can't use ", src, ": ", why)
+		_remove_tree(folder)
+		return ""
+	var id := "custom:" + key
+	all[id] = d
+	Species.custom[id] = _row(d)
+	return id
+
+
+static func _copy_tree(from: String, to: String) -> void:
+	DirAccess.make_dir_recursive_absolute(to)
+	for sub in DirAccess.get_directories_at(from):
+		if sub != "cache":
+			_copy_tree(from.path_join(sub), to.path_join(sub))
+	for f in DirAccess.get_files_at(from):
+		DirAccess.copy_absolute(from.path_join(f), to.path_join(f))
 
 
 # --- v2.0 -------------------------------------------------------------------
