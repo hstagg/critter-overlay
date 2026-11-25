@@ -262,6 +262,8 @@ func run(action: String, chosen := "kitten") -> void:
 			kit_test(arg)
 		"own_sound":
 			own_sound()
+		"kit_pair":
+			kit_pair(arg)
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -270,10 +272,12 @@ func run(action: String, chosen := "kitten") -> void:
 
 # --- Pairs, clothes, events ----------------------------------------------------------
 
-func pair(name: String) -> void:
+func pair(name: String, sa := "", sb := "") -> void:
 	var d: Array = Pairs.PAIRS[name]
-	var sa: String = d[3][0] if not d[3].is_empty() else "kitten"
-	var sb: String = d[4][0] if not d[4].is_empty() else "rabbit"
+	if sa == "":
+		sa = d[3][0] if not d[3].is_empty() else "kitten"
+	if sb == "":
+		sb = d[4][0] if not d[4].is_empty() else "rabbit"
 	var c: Vector2 = main.area.get_center() + Vector2(0, 120)
 	# 120 px apart: any further and the walk over outlasts the 8 s approach
 	# limit at the slower cruise speeds (pairs.gd APPROACH_LIMIT).
@@ -453,6 +457,19 @@ func carry_test() -> void:
 	var n := Customs.carry_over(root, {})
 	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in System and the Collection." % n)
 	main.open_settings("system")
+
+
+func kit_pair(name: String) -> void:
+	# The kitten kit (made if needed) and a kitten do a generic pair.
+	var id := ""
+	for k in Customs.ids():
+		if Customs.all[k].get("name") == "Kitten kit":
+			id = k
+	if id == "":
+		var Fixtures = load("res://critters/kit/fixtures.gd")
+		id = Customs.add_folder(Fixtures.kitten_kit("user://admin_kits/kitten"))
+	if id != "":
+		pair(name, id, "kitten")
 
 
 func own_sound() -> void:

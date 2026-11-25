@@ -232,6 +232,52 @@ func blobs(src: String) -> void:
 		c.free()
 
 
+func pairs_and_sizes() -> void:
+	# B6: homemade critters join only the generic pairs they can do (P16),
+	# and host.gd's sizes come from the critter (P17).
+	var Pairs = load("res://pairs.gd")
+	var pairs = Pairs.new()
+	var kit_id := ""
+	var blob_id := ""
+	for id in Customs.ids():
+		var k: Dictionary = Customs.all[id].get("_kit", {})
+		if k.get("plan") == "side" and kit_id == "" and Customs.all[id]["name"] == "Kitten kit":
+			kit_id = id
+		if k.get("plan") == "blob" and blob_id == "":
+			blob_id = id
+	var kitten_idles: Array = Species.row("kitten")["idles"]
+	var seen := {}
+	for i in 600:
+		for pair in [[kit_id, "kitten"], ["kitten", kit_id], [kit_id, kit_id]]:
+			var pick = pairs._pick(pair[0], pair[1], Species.row(pair[0])["idles"], Species.row(pair[1])["idles"])
+			if not pick.is_empty():
+				seen[pick[0]] = true
+	check(not seen.has("kitten_tussle") and not seen.has("near_miss") and not seen.has("mutual_groom"), "a kit never gets a species pair (%s)" % str(seen.keys()))
+	check(seen.has("sniff") and seen.has("play_bow") and seen.has("sit_together"), "the kitten kit joins sniff, play bow and sit together (%s)" % str(seen.keys()))
+	var bseen := {}
+	for i in 600:
+		var pick = pairs._pick(blob_id, "kitten", Species.row(blob_id)["idles"], kitten_idles)
+		if not pick.is_empty():
+			bseen[pick[0]] = true
+	check(not bseen.has("play_bow") and bseen.has("sit_together"), "a blob never bows (%s)" % str(bseen.keys()))
+	var cast_seen := {}
+	for i in 300:
+		var pick = pairs._pick("kitten", "kitten")
+		if not pick.is_empty():
+			cast_seen[pick[0]] = true
+	check(cast_seen.has("kitten_tussle") and cast_seen.has("mutual_groom"), "two kittens still get their own pairs")
+	var src_txt := FileAccess.get_file_as_string("res://pairs.gd")
+	check(src_txt.contains('"stretch" if ka.can_do("stretch")'), "play bow asks before stretching")
+
+	var c = spawn(kit_id)
+	var kitten = spawn("kitten")
+	check(absf(c.body_centre_px() - c.kit.body_centre_px) < 0.01 and c.body_centre_px() > 10.0, "a kit's body centre is measured (%.1f px)" % c.body_centre_px())
+	check(absf(c.head_top_px() - kitten.head_top_px()) < 30.0, "the kitten kit's head top is near the cast's 90 px (%.1f)" % c.head_top_px())
+	check(kitten.body_centre_px() == 36.0 and kitten.head_top_px() == 90.0, "the cast keeps its numbers")
+	c.free()
+	kitten.free()
+
+
 func rect_near(a: Rect2, b: Rect2, eps: float) -> bool:
 	return a.position.distance_to(b.position) <= eps and a.end.distance_to(b.end) <= eps
 
@@ -362,6 +408,7 @@ func _init() -> void:
 	faces_you(src)
 	upright(src)
 	blobs(src)
+	pairs_and_sizes()
 
 	# --- An edit makes new art: the rig and textures are keyed by rev.
 	var before := Customs.tex_key(kid)

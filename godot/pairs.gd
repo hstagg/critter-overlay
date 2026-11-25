@@ -32,6 +32,15 @@ const PAIRS := {
 	"hedgehog_defence": [0.8, [2.0, 3.5], 60.0, ["hedgehog"], ["kitten"], 70.0],
 	"panda_snuggle": [0.8, [3.0, 5.0], 90.0, ["panda"], [], 52.0],
 }
+# The generic pairs a homemade critter may join, and what each side must be
+# able to do (any one of): docs/custom-critters-build-plan.md P16. Pairs
+# naming species stay theirs; bump (in _bumps) needs nothing.
+const HOMEMADE := {
+	"sniff": [["nose_twitch", "listen"], ["look_at_cursor"]],
+	"stare_contest": [["look_at_cursor"], ["look_at_cursor"]],
+	"play_bow": [["stretch"], ["stretch"]],
+	"sit_together": [["nap"], ["nap"]],
+}
 const NEAR := 420.0               # px at zoom 1: close enough to notice each other
 const ROW := 140.0                # and this close up or down the screen
 const CHANCE := 0.12              # per close pair per second, times behaviour frequency
@@ -108,7 +117,7 @@ func _look_for_pairs(hosts: Array, zoom: float) -> void:
 				continue
 			if rng.randf() > CHANCE * frequency:
 				continue
-			var pick := _pick(x.species, y.species)
+			var pick := _pick(x.species, y.species, x.critter.idles, y.critter.idles)
 			if pick.is_empty():
 				continue
 			if pick[1]:
@@ -118,18 +127,27 @@ func _look_for_pairs(hosts: Array, zoom: float) -> void:
 			return
 
 
-func _pick(sa: String, sb: String) -> Array:
-	# [name, swapped] weighted among the interactions these two can do.
+func _pick(sa: String, sb: String, ia := [], ib := []) -> Array:
+	# [name, swapped] weighted among the interactions these two can do. With
+	# a homemade critter (ia, ib: each one's idles), only HOMEMADE pairs whose
+	# needs each side meets.
 	var names := []
 	var weights := []
 	var swaps := []
 	var total := 0.0
-	if sa.begins_with("custom:") or sb.begins_with("custom:"):
-		return []   # a homemade critter has no head or paws to sniff and groom with
+	var homemade := sa.begins_with("custom:") or sb.begins_with("custom:")
+	var can := func(idles: Array, any: Array) -> bool:
+		return any.any(func(b): return b in idles or b == "nap")
 	for n in PAIRS:
 		var d: Array = PAIRS[n]
 		var fits_ab: bool = (d[3].is_empty() or sa in d[3]) and (d[4].is_empty() or sb in d[4])
 		var fits_ba: bool = (d[3].is_empty() or sb in d[3]) and (d[4].is_empty() or sa in d[4])
+		if homemade:
+			if not HOMEMADE.has(n):
+				continue
+			var need: Array = HOMEMADE[n]
+			fits_ab = fits_ab and can.call(ia, need[0]) and can.call(ib, need[1])
+			fits_ba = fits_ba and can.call(ib, need[0]) and can.call(ia, need[1])
 		if not (fits_ab or fits_ba):
 			continue
 		names.append(n)
@@ -250,8 +268,9 @@ func _act(p: Pair) -> void:
 			ka.start_behaviour("look_at_cursor", p.length)
 			kb.start_behaviour("look_at_cursor", p.length)
 		"play_bow":
-			ka.start_behaviour("stretch", p.length)
-			kb.start_behaviour("stretch", p.length)
+			# Only a critter that can stretch bows; one that can't sits and looks.
+			ka.start_behaviour("stretch" if ka.can_do("stretch") else "sit_and_look", p.length)
+			kb.start_behaviour("stretch" if kb.can_do("stretch") else "sit_and_look", p.length)
 		"mutual_groom", "splash_play", "panda_snuggle":
 			# Each grooms if it can; one without groom art (the turtle, the
 			# unicorn) looks fondly at the other instead.

@@ -1736,7 +1736,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | B3 | Upright plan | done 2026-11-24 |
 | B4 | Blob plan | done 2026-11-24 |
 | B5 | Custom sounds | done 2026-11-24 (the card waits for A2) |
-| B6 | Pairs and host numbers | not started |
+| B6 | Pairs and host numbers | done 2026-11-24 |
 | C0 | Design: importing | not started |
 | C1 | Templates | not started |
 | C2 | SVG sanitiser and splitter | not started |
@@ -1840,3 +1840,9 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   write OGG. `custom.json` says `"sound": "own"` and the file is
   `sound.wav` or `sound.ogg`. Admin: *Imported sound plays on pop*. Not yet
   run on the VM (it has no audio device, so it can only check for errors).
+- 2026-11-24: B6 done. The play_bow fix is its own commit. `critter.gd`
+  gains `body_centre_px()` and `head_top_px()` (36 and 90 for the cast);
+  kit rigs return measured ones, and `host.gd` and `aura.gd` ask the
+  critter. The aura's crown lift is unchanged: homemade critters never
+  wear an aura. Pair checks live in `kit_test.gd`, since there is no
+  `pairs_test.gd`.

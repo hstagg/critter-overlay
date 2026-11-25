@@ -368,7 +368,7 @@ func tick(delta: float) -> void:
 	_dizzy_stars(delta)
 	if trail != null:
 		# The body's place on screen, and whether it is going anywhere.
-		var body: Vector2 = (foot if state in ["held", "sliding", "thrown"] else feet_on_screen()) - Vector2(0, 36.0 * zoom).rotated(spin.rotation)
+		var body: Vector2 = (foot if state in ["held", "sliding", "thrown"] else feet_on_screen()) - Vector2(0, critter.body_centre_px() * zoom).rotated(spin.rotation)
 		var moving: bool = state in ["sliding", "thrown"] or (state == "live" and critter.mode == "walk" and absf(critter.vx) > 5.0 * zoom)
 		trail.step(delta, body, moving)
 	_update_hole()
@@ -516,7 +516,7 @@ func knock(v: Vector2) -> void:
 
 func body_centre() -> Vector2:
 	var feet: Vector2 = foot if state in ["held", "sliding", "thrown"] else feet_on_screen()
-	return feet - Vector2(0, 36.0 * zoom)
+	return feet - Vector2(0, critter.body_centre_px() * zoom)
 
 
 func can_bump() -> bool:
@@ -644,7 +644,7 @@ func _make_aura() -> void:
 
 func _confetti() -> void:
 	# The confetti crown's shower, from just above the head.
-	var at := Vector2(size, size) * 0.5 + Vector2(0, foot_drop - 90.0 * zoom).rotated(spin.rotation)
+	var at := Vector2(size, size) * 0.5 + Vector2(0, foot_drop - critter.head_top_px() * zoom).rotated(spin.rotation)
 	var cols := [Color("#F590B4"), Color("#7FBCF5"), Color("#86D9B0"), Color("#FFCF5C"), Color("#C8A8FF")]
 	for i in 22:
 		var p := Particle.new()

@@ -209,6 +209,18 @@ static func forget(id: String) -> void:
 			_wear_textures.erase(k)
 
 
+func body_centre_px() -> float:
+	# How far above its feet its body's middle is, px at zoom 1: where host.gd
+	# spins and aura.gd glows about. The cast's; kit rigs measure their own.
+	return 36.0
+
+
+func head_top_px() -> float:
+	# How far above its feet the top of its head is, px at zoom 1 (the
+	# confetti crown's shower starts here). The cast's; kit rigs measure theirs.
+	return 90.0
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and _counted:
 		load(CUSTOMS).release(species, Time.get_ticks_msec() / 1000.0)

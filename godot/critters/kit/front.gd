@@ -36,6 +36,14 @@ func _define() -> void:
 	gs = Gaits.state(kit.gait, kit.mid, kit.feet)
 
 
+func body_centre_px() -> float:
+	return kit.body_centre_px
+
+
+func head_top_px() -> float:
+	return kit.head_top_px
+
+
 func _load_textures() -> void:
 	var key := art_key()
 	if _textures.has(key):
