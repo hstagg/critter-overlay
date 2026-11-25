@@ -373,7 +373,7 @@ plan script calls the gait chosen in `kit.json` from its `_advance_gait`,
 | waddle | `duckling.gd` (rock about FEET, tail counter-wag) | distance | always |
 | plod | `turtle.gd` `_gait_speed` and sway | distance | always |
 | scurry | `hedgehog.gd` `_gait_speed` | distance | always |
-| dart | `squirrel.gd` `tick` dart and freeze | time | frozen |
+| dart | `squirrel.gd` `tick` dart and freeze | distance | always (squirrel has no `_settled`) |
 | slide | `otter.gd` (frozen gait, legs tucked) | distance | always |
 | bounce (legged) | `unicorn.gd` torso_dy | distance | always |
 | sway | `panda.gd` | distance | always |
@@ -1730,7 +1730,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | A1 | Rasteriser spike | done 2026-11-24 |
 | A2 | Studio gate, My critters page, widgets | not started |
 | A3 | Store schema 2 | done 2026-11-24 |
-| A4 | Gaits | not started |
+| A4 | Gaits | done 2026-11-24 |
 | B1 | Side-on plan + kit data layer | not started |
 | B2 | Faces-you plan | not started |
 | B3 | Upright plan | not started |
@@ -1784,3 +1784,10 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   in `customs.gd`, not `main.gd`, so static code can ask it. `economy_test`
   and `save_test` fail on this PC on `main` as well (JSON parse of the save);
   not touched here.
+- 2026-11-24: A4 done. `gaits.gd` takes a state dictionary per critter
+  (`Gaits.state()`: the gait, its counters, and the `mid` and `feet` pins a
+  hop pitches and a waddle rocks about). `gaits_test.gd` drives each species
+  beside a kitten running the gait and compares pose, speed, phase, lift,
+  squash, legs and the dart and slide draws. The dart row of 4.5 was wrong
+  (squirrel walks by distance and is always settled) and is fixed. The new
+  gaits are `blob_bounce`, `float` and `slither`.
