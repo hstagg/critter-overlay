@@ -1733,7 +1733,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | A4 | Gaits | done 2026-11-24 |
 | B1 | Side-on plan + kit data layer | done 2026-11-24 |
 | B2 | Faces-you plan | done 2026-11-24 |
-| B3 | Upright plan | not started |
+| B3 | Upright plan | done 2026-11-24 |
 | B4 | Blob plan | not started |
 | B5 | Custom sounds | not started |
 | B6 | Pairs and host numbers | not started |
@@ -1821,3 +1821,8 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   `_build_head_extras`, `_on_pose` and `_apply_extras` so they are optional.
   Seen on the VM: the otter kit beside the otter, and the one-face kit
   plodding with its front face.
+- 2026-11-24: B3 done. Pins are `neck-sit` (4.3's `neck`), `neck-walk`,
+  `hip`, `hip-far` and the wing and tuft pins, with the duckling's numbers
+  as defaults. The duckling's beak is drawn on its head in the fixture, and
+  `beak-in` is its `mouth-open`. Groom counts a wing as "groom paws" for
+  this plan (the fluff-up). Seen on the VM beside the duckling.

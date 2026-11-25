@@ -460,7 +460,9 @@ func kit_test(which: String) -> void:
 	# walks in and another sits.
 	var Fixtures = load("res://critters/kit/fixtures.gd")
 	var src := "user://admin_kits/" + which
-	if which in ["otter", "oneface"]:
+	if which in ["duckling", "upright"]:
+		Fixtures.duckling_kit(src, which == "upright", "waddle" if which == "duckling" else "hop")
+	elif which in ["otter", "oneface"]:
 		Fixtures.otter_kit(src, which == "oneface", "slide" if which == "otter" else "plod")
 	else:
 		Fixtures.kitten_kit(src, which == "bare", "hop" if which == "hop" else "trot")
@@ -470,7 +472,7 @@ func kit_test(which: String) -> void:
 		return
 	spawn(id, "common")
 	spawn(id, "common", "", "", 1, "sit")
-	if which in ["kitten", "otter"]:
+	if which in ["kitten", "otter", "duckling"]:
 		spawn(which, "common")
 
 

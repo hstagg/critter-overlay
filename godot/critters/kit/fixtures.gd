@@ -100,6 +100,45 @@ static func otter_kit(dest: String, one_face := false, gait := "slide") -> Strin
 	return dest
 
 
+# --- The duckling as an upright kit (B3) -------------------------------------
+
+const DUCKLING := "res://art/duckling/"
+const DUCKLING_SHIFT := Vector2(0, -8)   # duckling.gd's BASE (150, 270) onto (150, 262)
+const DUCKLING_PINS := {
+	"head": [150, 196], "neck-sit": [150, 196], "neck-walk": [126, 196], "neck-loaf": [150, 220],
+	"hip": [154, 244], "hip-far": [182, 244], "leg-near": [156, 244], "leg-far": [156, 244],
+	"wing-l": [108, 206], "wing-r": [192, 206], "wing-side": [154, 208], "tuft": [150, 60],
+	"eyes": [150, 132], "mouth-open": [150, 156], "tail": [230, 208], "tail-walk": [230, 208],
+}
+# A kit part -> the duckling's files that make it (its beak is drawn on the head).
+const DUCKLING_PARTS := {
+	"body": ["body"], "foot-l": ["foot-l"], "foot-r": ["foot-r"], "walk-body": ["walk-body"],
+	"head": ["head", "beak-low", "beak"], "eyes": ["eyes"], "eyes-closed": ["eyes-closed"],
+	"leg-near": ["leg-near"], "leg-far": ["leg-far"], "wing-l": ["wing-l"], "wing-r": ["wing-r"],
+	"wing-side": ["wing-side"], "loaf-body": ["loaf-body"], "tuft": ["tuft"], "tail": ["tail"],
+	"mouth-open": ["beak-in"],
+}
+const UPRIGHT_BARE := ["body", "head", "eyes", "leg-near", "wing-l"]
+
+
+static func duckling_kit(dest: String, bare := false, gait := "waddle") -> String:
+	# The duckling, or a bare upright kit (body, head, eyes, one leg, one wing).
+	DirAccess.make_dir_recursive_absolute(dest.path_join("parts"))
+	for part in (UPRIGHT_BARE if bare else DUCKLING_PARTS.keys()):
+		var f := FileAccess.open(dest.path_join("parts/%s.svg" % part), FileAccess.WRITE)
+		f.store_string(joined(DUCKLING_PARTS[part], DUCKLING, DUCKLING_SHIFT))
+		f.close()
+	var pins := {}
+	for k in DUCKLING_PINS:
+		pins[k] = [DUCKLING_PINS[k][0] + DUCKLING_SHIFT.x, DUCKLING_PINS[k][1] + DUCKLING_SHIFT.y]
+	_json(dest.path_join("custom.json"), {"schema": 2, "kind": "kit", "rev": 1,
+		"name": "Bare upright kit" if bare else "Duckling kit", "from": "test", "size": 1.0, "speed": 1.0,
+		"visits": 1, "enabled": true, "sound": "duck", "pop": ["#F8E650", "#FFC832", "#F0F5DC"], "seen": {}})
+	_json(dest.path_join("kit.json"), {"schema": 1, "plan": "upright", "gait": gait, "faces": "left",
+		"pins": pins, "made_with": "svg"})
+	return dest
+
+
 static func _json(path: String, d: Dictionary) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(d, "\t"))

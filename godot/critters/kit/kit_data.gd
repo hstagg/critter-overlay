@@ -65,6 +65,17 @@ const PLANS := {
 		"speed": Vector2(40.0, 62.0),
 		"legged": true,
 	},
+	"upright": {
+		"rig": "res://critters/kit/upright.gd",
+		"required": ["body", "head", "eyes", "leg-near"],
+		"optional": ["leg-far", "walk-body", "wing-l", "wing-r", "wing-side", "loaf-body", "tuft",
+			"tail", "eyes-closed", "mouth-open", "head-front", "back-extra", "front-extra",
+			"foot-l", "foot-r"],
+		"pins": ["neck-sit", "hip", "eyes"],
+		"gaits": ["waddle", "hop"],
+		"speed": Vector2(35.0, 58.0),
+		"legged": true,
+	},
 }
 
 static var _rigs := {}         # tex key ("custom:<id>@<rev>") -> rig
@@ -199,6 +210,12 @@ static func pins(kit: Dictionary) -> Dictionary:
 	var def := func(k: String, v: Vector2) -> void:
 		if not p.has(k):
 			p[k] = v
+	if str(kit.get("plan", "")) == "upright":
+		# One pair of legs under a body facing you (duckling.gd's numbers).
+		def.call("neck-walk", p.get("neck-sit", Vector2(126, 196)))
+		def.call("hip", Vector2(154, 244))
+		def.call("hip-front", p["hip"])
+		def.call("hip-back", p.get("hip-far", p["hip"] + Vector2(28, 0)))
 	def.call("neck-walk", Vector2(112, 198))
 	def.call("hip-front", Vector2(118, 224))
 	def.call("hip-back", Vector2(196, 224))
@@ -222,6 +239,10 @@ static func pins(kit: Dictionary) -> Dictionary:
 	def.call("mouth-open", p["eyes"] + Vector2(0, 28))
 	def.call("nose", p["eyes"] + Vector2(0, 18))
 	def.call("wing", p["neck-walk"].lerp(p["hip-back"], 0.5))
+	def.call("wing-l", p["neck-sit"] + Vector2(-42, 10))
+	def.call("wing-r", Vector2(2.0 * p["neck-sit"].x - p["wing-l"].x, p["wing-l"].y))
+	def.call("wing-side", p["neck-sit"] + Vector2(4, 12))
+	def.call("tuft", p["neck-sit"] + Vector2(0, -136))
 	def.call("ear-l", p["head"] + Vector2(-20, -60))
 	def.call("ear-r", p["ear-l"] + Vector2(FAR_EAR_SHIFT, 0))
 	p["warnings"] = warn
@@ -256,6 +277,7 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			imgs[part] = img
 	var auto := {}
 	var front := str(kit.get("plan", "")) == "front"
+	var upright := str(kit.get("plan", "")) == "upright"
 	var pivots := {"walk-body": BASE}
 	var head_pivot: Vector2 = P["head"]
 	pivots["head"] = head_pivot
@@ -278,10 +300,22 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 
 	# Legs, back to front: far front, far back, near front, near back (a trot:
 	# near front steps with far back). A far leg not drawn is the near one,
-	# darker, a little further back.
+	# darker, a little further back. Upright: one near and one far leg.
 	var walk_legs := []
 	var leg_pins := {}
-	for side in ["front", "back"]:
+	if upright:
+		var hip: Vector2 = P["hip"]
+		var art: Vector2 = P.get("leg-near", hip)
+		var far_hip: Vector2 = P.get("hip-far", hip + Vector2(28, 0))
+		pivots["leg-near"] = art
+		if imgs.has("leg-far"):
+			pivots["leg-far"] = P.get("leg-far", art)
+		else:
+			imgs["leg-far"] = tinted(imgs["leg-near"], FAR_TINT)
+			pivots["leg-far"] = art
+			auto["leg-far"] = "tint"
+		walk_legs = [["leg-far", far_hip, 1, false], ["leg-near", hip, 0, true]]
+	for side in ([] if upright else ["front", "back"]):
 		var near: String = "leg-" + side
 		var far: String = near + "-far"
 		var hip: Vector2 = P["hip-" + side]
@@ -295,12 +329,13 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 			auto[far] = "tint"
 		pivots[far] = leg_pins[far][1]
 		leg_pins[near] = [hip, art]
-	walk_legs = [
-		["leg-front-far", leg_pins["leg-front-far"][0], 1, true],
-		["leg-back-far", leg_pins["leg-back-far"][0], 0, false],
-		["leg-front", leg_pins["leg-front"][0], 0, true],
-		["leg-back", leg_pins["leg-back"][0], 1, false],
-	]
+	if not upright:
+		walk_legs = [
+			["leg-front-far", leg_pins["leg-front-far"][0], 1, true],
+			["leg-back-far", leg_pins["leg-back-far"][0], 0, false],
+			["leg-front", leg_pins["leg-front"][0], 0, true],
+			["leg-back", leg_pins["leg-back"][0], 1, false],
+		]
 
 	# Ears: the far one (ear-r) not drawn is the near one, darker and back.
 	var ear_parts := []
@@ -331,7 +366,31 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	var head_at := {"walk": P["neck-walk"]}
 	var tail_at := {}
 	var sit_parts := []
-	if front:
+	if upright:
+		# Stands facing you; walks on its walking body, or the same body.
+		for part in ["body", "foot-l", "foot-r"]:
+			if imgs.has(part):
+				pivots[part] = BASE
+				sit_parts.append(part)
+		head_at["sit"] = P["neck-sit"]
+		if not imgs.has("walk-body"):
+			imgs["walk-body"] = imgs["body"]
+			auto["walk-body"] = "body"
+		if imgs.has("wing-l"):
+			pivots["wing-l"] = P["wing-l"]
+			if not imgs.has("wing-r"):
+				imgs["wing-r"] = mirrored(imgs["wing-l"], P["neck-sit"].x)
+				auto["wing-r"] = "mirror"
+			pivots["wing-r"] = P["wing-r"]
+			if not imgs.has("wing-side"):
+				imgs["wing-side"] = imgs["wing-l"]
+				auto["wing-side"] = "wing-l"
+				pivots["wing-side"] = P["wing-l"]
+			else:
+				pivots["wing-side"] = P["wing-side"]
+		if imgs.has("tuft"):
+			pivots["tuft"] = P["tuft"]
+	elif front:
 		# Sits facing you (required), walks side-on: the walking face is
 		# head-side when drawn, else the front face (as the panda's).
 		for part in ["foot-l", "foot-r", "body", "paws"]:
@@ -357,8 +416,8 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		auto["body"] = "walk"
 		head_at["sit"] = P["neck-walk"]
 	# Napping not drawn: the pose it was drawn in, melted onto the ground.
-	var melt_from := "body" if front else "walk-body"
-	var melt_neck: Vector2 = P["neck-sit"] if front else P["neck-walk"]
+	var melt_from := "body" if front or upright else "walk-body"
+	var melt_neck: Vector2 = P["neck-sit"] if front or upright else P["neck-walk"]
 	var wb := bounds(imgs[melt_from])
 	var bottom := wb.end.y if wb.size.y > 0 else GROUND
 	var melt := func(v: Vector2) -> Vector2:
@@ -379,6 +438,8 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		tail_at["sit"] = P["tail-sit"] if imgs.has("body") else P["tail-walk"]
 		if front:
 			tail_at["sit"] = P["tail-sit"]
+		if upright:
+			tail_at.erase("sit")   # duckling.gd: the tail shows only walking
 		if auto.has("loaf-body"):
 			tail_at["loaf"] = melt.call(P["tail-walk"])
 
@@ -397,8 +458,8 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	r["wear_nap_shift"] = head_at["loaf"] - P["neck-sit"]
 	r["mid"] = (P["hip-front"] + P["hip-back"]) * 0.5 - Vector2(0, 10)
 	r["feet"] = Vector2(BASE.x, GROUND)
-	r["leg_len"] = maxf(8.0, GROUND - P["hip-front"].y)
-	r["stride_deg"] = 18.0
+	r["leg_len"] = maxf(8.0, GROUND - (P["hip"] if upright else P["hip-front"]).y)
+	r["stride_deg"] = 26.0 if upright else 18.0
 	r["leg_lift"] = 6.0 * r["leg_len"] / 38.0
 	r["hit_bounds"] = hit_bounds(r)
 	var walk_hit: Rect2 = r["hit_bounds"]["walk"].grow(-HIT_PAD)
@@ -419,9 +480,9 @@ static func _placed(r: Dictionary, pose: String) -> Array:
 	var body_parts := []
 	match pose:
 		"walk":
-			body_parts = ["walk-body", "back-extra", "front-extra", "wing"]
+			body_parts = ["walk-body", "back-extra", "front-extra", "wing", "wing-side"]
 		"sit":
-			body_parts = r.sit_parts if not r.sit_parts.is_empty() else ["walk-body", "back-extra", "front-extra", "wing"]
+			body_parts = r.sit_parts + ["wing-l", "wing-r"] if not r.sit_parts.is_empty() else ["walk-body", "back-extra", "front-extra", "wing"]
 		"loaf":
 			body_parts = ["loaf-body"]
 		"stand":
@@ -430,7 +491,7 @@ static func _placed(r: Dictionary, pose: String) -> Array:
 		if imgs.has(part):
 			# Sprites in the body sit at BASE - pivot; the wing turns on a
 			# pivot node, which leaves its art where it was drawn.
-			out.append([imgs[part], Vector2.ZERO if part == "wing" else BASE - pv[part]])
+			out.append([imgs[part], Vector2.ZERO if part in ["wing", "wing-side", "wing-l", "wing-r"] else BASE - pv[part]])
 	if pose == "walk" or (pose == "sit" and r.sit_parts.is_empty()):
 		for spec in r.walk_legs:
 			if imgs.has(spec[0]):
