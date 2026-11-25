@@ -1,0 +1,235 @@
+<!doctype html>
+<!--
+  Mock Windows desktops for marketing clips, rendered by tools/desk/render.py
+  through headless Edge. Every name, number and message on them is invented.
+  No Microsoft logos: the start button is a plain glyph.
+
+  Query parameters:
+    scene  spreadsheet | code | inbox | chat | study | cosy | blank
+    theme  light | dark            wall  bloom | dusk | mint | night | sand
+    tb     taskbar height in px (default 48)
+    clock  "14:32"                 date  "25/11/2026"
+    hide   comma-separated element ids to leave out (states for typing)
+    mode   desk (default) | toast, with title= and body= for a notification
+-->
+<html><head><meta charset="utf-8"><style>
+:root { --tb: 48px; --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --win: #f3f3f3; --pane: #ffffff; --ink: #1b1b1f; --sub: #5f6068; --line: #e3e3e8; --accent: #2f6fd8;
+  --bar: rgba(238, 240, 246, 0.86); --shadow: 0 10px 34px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.14); }
+.dark { --win: #202024; --pane: #1a1a1e; --ink: #ececf1; --sub: #9a9aa6; --line: #34343c; --accent: #6aa0ff;
+  --bar: rgba(30, 30, 36, 0.88); --shadow: 0 10px 34px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.3); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font); color: var(--ink); font-size: 13px; }
+#desk { position: absolute; inset: 0; }
+/* wallpapers: original gradient scenes */
+.bloom { background: radial-gradient(60% 70% at 70% 60%, #7aa7ff 0%, transparent 60%), radial-gradient(50% 60% at 30% 70%, #b48cff 0%, transparent 62%), radial-gradient(70% 60% at 50% 20%, #9fd3ff 0%, transparent 70%), linear-gradient(160deg, #20306e, #4a3d8f 55%, #1d2350); }
+.dusk { background: radial-gradient(60% 50% at 50% 85%, #ffb38a 0%, transparent 70%), radial-gradient(70% 60% at 20% 30%, #c97bb6 0%, transparent 70%), linear-gradient(180deg, #3b2a5c, #a2577a 60%, #f0a07c); }
+.mint { background: radial-gradient(60% 60% at 25% 75%, #9fe3c9 0%, transparent 65%), radial-gradient(50% 50% at 80% 25%, #bde6ff 0%, transparent 65%), linear-gradient(135deg, #e7f6f0, #cfe9f3); }
+.sand { background: radial-gradient(70% 60% at 70% 70%, #f6d8b8 0%, transparent 70%), radial-gradient(60% 50% at 20% 20%, #f3e6d6 0%, transparent 70%), linear-gradient(160deg, #efe4d6, #e2c9b0); }
+.night { background: radial-gradient(40% 30% at 78% 22%, rgba(255,236,190,.55) 0%, transparent 60%), radial-gradient(80% 50% at 50% 110%, #3a2f6b 0%, transparent 70%), linear-gradient(180deg, #0f1430, #1e1f4a 60%, #2c2558); }
+.night::before { content: ""; position: absolute; inset: 0; background-image:
+  radial-gradient(1.4px 1.4px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 33% 9%, #fff 50%, transparent 51%),
+  radial-gradient(1.6px 1.6px at 57% 26%, #fff 50%, transparent 51%), radial-gradient(1.1px 1.1px at 66% 12%, #fff 50%, transparent 51%),
+  radial-gradient(1.3px 1.3px at 88% 40%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 21% 41%, #fff 50%, transparent 51%),
+  radial-gradient(1.5px 1.5px at 45% 48%, #fff 50%, transparent 51%), radial-gradient(1.1px 1.1px at 92% 8%, #fff 50%, transparent 51%); opacity: .8; }
+/* taskbar */
+#tb { position: absolute; left: 0; right: 0; bottom: 0; height: var(--tb); background: var(--bar); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; }
+.dark #tb { border-top-color: rgba(255,255,255,.08); }
+#tb .apps { display: flex; gap: 4px; }
+.ic { width: calc(var(--tb) - 8px); height: calc(var(--tb) - 8px); border-radius: 6px; display: grid; place-items: center; font-size: calc(var(--tb) * .46); position: relative; }
+.ic.on { background: rgba(255,255,255,.55); }
+.dark .ic.on { background: rgba(255,255,255,.1); }
+.ic.on::after { content: ""; position: absolute; bottom: 2px; width: 16px; height: 3px; border-radius: 2px; background: var(--accent); }
+.ic.run::after { content: ""; position: absolute; bottom: 2px; width: 6px; height: 3px; border-radius: 2px; background: var(--sub); }
+.start { font-size: calc(var(--tb) * .5); color: var(--accent); }
+.search { height: calc(var(--tb) - 14px); width: 180px; border-radius: 99px; background: rgba(255,255,255,.7); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--sub); margin-right: 6px; }
+.dark .search { background: rgba(255,255,255,.08); }
+#tray { position: absolute; right: 10px; top: 0; bottom: 0; display: flex; align-items: center; gap: 12px; font-size: 12px; }
+#tray .clock { text-align: right; line-height: 1.25; }
+#tray .sym { font-size: 14px; opacity: .85; }
+/* windows */
+.win { position: absolute; background: var(--win); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; border: 1px solid rgba(0,0,0,.08); display: flex; flex-direction: column; }
+.dark .win { border-color: rgba(255,255,255,.06); }
+.title { height: 32px; flex: none; display: flex; align-items: center; padding-left: 12px; gap: 8px; font-size: 12px; color: var(--ink); }
+.title .t { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.title .ctl { display: flex; height: 100%; }
+.title .ctl span { width: 46px; display: grid; place-items: center; font-size: 11px; color: var(--sub); }
+.body { flex: 1; background: var(--pane); position: relative; overflow: hidden; }
+/* spreadsheet */
+.ribbon { height: 34px; display: flex; gap: 16px; align-items: center; padding: 0 12px; color: var(--sub); border-bottom: 1px solid var(--line); background: var(--win); font-size: 12px; }
+.fx { height: 26px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--sub); }
+table.grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.grid td, .grid th { border: 1px solid var(--line); height: 22px; padding: 0 6px; white-space: nowrap; }
+.grid th { background: var(--win); color: var(--sub); font-weight: 400; text-align: center; }
+.grid td.n { text-align: right; } .grid td.h { font-weight: 600; } .grid td.sel { outline: 2px solid #1f8a4c; outline-offset: -2px; }
+.chart { position: absolute; border: 1px solid var(--line); background: var(--pane); border-radius: 4px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.bars { display: flex; align-items: flex-end; gap: 10px; height: 120px; padding-top: 8px; }
+.bars div { flex: 1; border-radius: 3px 3px 0 0; background: #3c9a63; }
+.bars div:nth-child(2n) { background: #8cc9a3; }
+/* code editor */
+.code { display: flex; height: 100%; font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+.act { width: 44px; background: var(--win); display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 12px; color: var(--sub); font-size: 18px; }
+.tree { width: 190px; background: var(--win); padding: 8px 0; font-family: var(--font); font-size: 12px; color: var(--sub); border-right: 1px solid var(--line); }
+.tree div { padding: 3px 14px; white-space: nowrap; } .tree .cur { background: rgba(106,160,255,.16); color: var(--ink); }
+.ed { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.tabs { height: 34px; display: flex; background: var(--win); font-family: var(--font); font-size: 12px; }
+.tabs div { padding: 9px 16px; color: var(--sub); border-right: 1px solid var(--line); } .tabs .cur { background: var(--pane); color: var(--ink); }
+.lines { flex: 1; padding: 8px 0; line-height: 19px; white-space: pre; overflow: hidden; }
+.ln { display: inline-block; width: 44px; text-align: right; padding-right: 16px; color: #5b5b66; }
+.k { color: #c586c0; } .f { color: #dcdcaa; } .s { color: #ce9178; } .c { color: #6a9955; } .v { color: #9cdcfe; } .ty { color: #4ec9b0; } .num { color: #b5cea8; }
+.term { height: 30%; border-top: 1px solid var(--line); padding: 6px 12px; line-height: 18px; white-space: pre; color: #c8c8d0; background: #17171a; }
+/* mail and chat */
+.cols { display: flex; height: 100%; }
+.nav { width: 180px; background: var(--win); padding: 10px 8px; font-size: 12.5px; color: var(--sub); }
+.nav div { padding: 6px 10px; border-radius: 4px; } .nav .cur { background: rgba(47,111,216,.12); color: var(--ink); font-weight: 600; }
+.list { width: 330px; border-right: 1px solid var(--line); overflow: hidden; }
+.mail { padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.mail .who { font-weight: 600; display: flex; justify-content: space-between; } .mail .who span { font-weight: 400; color: var(--sub); font-size: 11px; }
+.mail .sub { color: var(--ink); margin-top: 2px; } .mail .pre { color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail.unread { border-left: 3px solid var(--accent); } .mail.cur { background: rgba(47,111,216,.08); }
+.read { flex: 1; padding: 22px 28px; line-height: 1.6; }
+.read h2 { font-size: 18px; font-weight: 600; margin-bottom: 10px; } .read .meta { color: var(--sub); margin-bottom: 18px; }
+.av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; flex: none; }
+.msgs { flex: 1; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px; }
+.msg { display: flex; gap: 10px; } .msg b { margin-right: 8px; } .msg i { color: var(--sub); font-style: normal; font-size: 11px; }
+.compose { position: absolute; left: 20px; right: 20px; bottom: 14px; height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; color: var(--sub); background: var(--pane); }
+/* documents */
+.doc { padding: 28px 40px; line-height: 1.7; font-size: 13.5px; }
+.doc h1 { font-size: 22px; margin-bottom: 6px; } .doc h3 { font-size: 15px; margin: 16px 0 4px; } .doc li { margin-left: 18px; }
+.doc .hl { background: #fff1a8; } .dark .doc .hl { background: #5c4f12; }
+.slide { margin: 18px; background: #fff; color: #222; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.12); padding: 26px; aspect-ratio: 16/9; }
+.slide h2 { font-size: 20px; margin-bottom: 14px; } .flow { display: flex; gap: 12px; align-items: center; margin-top: 18px; }
+.flow div { border: 2px solid #4f7fd8; border-radius: 8px; padding: 10px 12px; font-size: 12px; } .flow span { color: #4f7fd8; font-size: 18px; }
+.widget { position: absolute; background: var(--bar); backdrop-filter: blur(16px); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px; }
+.sticky { position: absolute; background: #fff4a8; color: #3a3418; padding: 14px; width: 180px; box-shadow: 0 6px 16px rgba(0,0,0,.18); font-family: "Segoe Print", "Segoe UI"; font-size: 13px; line-height: 1.5; transform: rotate(-2deg); }
+.player .cover { width: 100%; aspect-ratio: 1; border-radius: 8px; background: linear-gradient(135deg, #ff9fb5, #8a7bff 60%, #4ad1c8); margin-bottom: 12px; }
+.bar { height: 4px; border-radius: 2px; background: var(--line); position: relative; margin: 10px 0 6px; } .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--accent); }
+.todo div { padding: 6px 0; display: flex; gap: 10px; align-items: center; } .todo .box { width: 14px; height: 14px; border: 1.5px solid var(--sub); border-radius: 3px; }
+.todo .done { color: var(--sub); text-decoration: line-through; } .todo .done .box { background: var(--accent); border-color: var(--accent); }
+/* toast */
+.toast { position: absolute; inset: 0; background: var(--win); border-radius: 8px; border: 1px solid rgba(0,0,0,.08); padding: 14px 16px; display: flex; gap: 12px; }
+.toast .ti { font-weight: 600; margin-bottom: 3px; } .toast .tb { color: var(--sub); line-height: 1.45; }
+</style></head><body><div id="desk"></div><script>
+const q = new URLSearchParams(location.search);
+const P = (k, d) => q.get(k) || d;
+const theme = P("theme", "light"), scene = P("scene", "blank");
+document.body.className = theme;
+document.documentElement.style.setProperty("--tb", P("tb", "48") + "px");
+const W = innerWidth, H = innerHeight - parseInt(P("tb", "48"));
+const desk = document.getElementById("desk");
+
+if (P("mode", "desk") === "toast") {
+  desk.innerHTML = `<div class="toast"><div style="font-size:26px">${P("icon", "💬")}</div><div><div class="ti">${P("title", "")}</div><div class="tb">${P("body", "")}</div></div></div>`;
+} else if (P("mode", "desk") === "room") {
+  // A desk seen by a phone held upright: wall and shelf, a monitor whose
+  // screen is the rectangle sx, sy, sw, sh (filled by phone.py), keyboard, mug.
+  const sx = +P("sx", 70), sy = +P("sy", 640), sw = +P("sw", 940), sh = +P("sh", 587), b = 16;
+  const deskTop = sy + sh + b + 150;
+  desk.style.cssText = `background:radial-gradient(70% 40% at 85% 8%, rgba(255,214,160,.55), transparent 70%), linear-gradient(180deg, ${P("wall", "#d8c8b8")}, #b9a592 ${deskTop}px, #6f4a2f ${deskTop}px, #5a3a24)`;
+  const books = ["#c9776a", "#6f8fb3", "#e2c06a", "#7aa98a", "#b48cc2", "#d99a6c"].map((c, i) => `<div style="position:absolute;left:${130 + i * 34}px;bottom:0;width:28px;height:${90 + (i * 37) % 40}px;background:${c};border-radius:3px"></div>`).join("");
+  desk.innerHTML = `
+    <div style="position:absolute;left:90px;top:300px;width:560px;height:14px;background:#8b6a4f;border-radius:3px;box-shadow:0 8px 14px rgba(0,0,0,.18)"></div>
+    <div style="position:absolute;left:90px;top:170px;width:560px;height:130px">${books}<div style="position:absolute;left:400px;bottom:0;font-size:96px;line-height:1">🪴</div></div>
+    <div style="position:absolute;left:700px;top:120px;width:250px;height:180px;background:#f4ede4;border:10px solid #3c2f26;box-shadow:0 10px 20px rgba(0,0,0,.2);background-image:radial-gradient(circle at 35% 45%, #e9a58a 0 36px, transparent 37px), radial-gradient(circle at 65% 60%, #8fb6c9 0 46px, transparent 47px)"></div>
+    <div style="position:absolute;left:${sx - b}px;top:${sy - b}px;width:${sw + 2 * b}px;height:${sh + 2 * b + 10}px;background:#121214;border-radius:14px;box-shadow:0 24px 40px rgba(0,0,0,.35)"></div>
+    <div style="position:absolute;left:${sx + sw / 2 - 40}px;top:${sy + sh + b + 10}px;width:80px;height:140px;background:linear-gradient(90deg,#2a2a2e,#46464c,#2a2a2e)"></div>
+    <div style="position:absolute;left:${sx + sw / 2 - 170}px;top:${deskTop - 18}px;width:340px;height:36px;background:#2f2f34;border-radius:50%"></div>
+    <div style="position:absolute;left:170px;top:${deskTop + 110}px;width:720px;height:150px;border-radius:14px;background:#e9e6e2;box-shadow:0 10px 18px rgba(0,0,0,.3);background-image:repeating-linear-gradient(90deg, transparent 0 4px, rgba(0,0,0,.08) 4px 6px, transparent 6px 46px), repeating-linear-gradient(180deg, transparent 0 4px, rgba(0,0,0,.08) 4px 6px, transparent 6px 36px)"></div>
+    <div style="position:absolute;left:930px;top:${deskTop + 150}px;width:70px;height:110px;border-radius:35px;background:#e9e6e2;box-shadow:0 8px 14px rgba(0,0,0,.3)"></div>
+    <div style="position:absolute;left:24px;top:${deskTop + 40}px;font-size:118px;line-height:1">☕</div>
+    <div style="position:absolute;left:${sx}px;top:${sy}px;width:${sw}px;height:${sh}px;background:#000"></div>`;
+} else {
+  desk.className = P("wall", theme === "dark" ? "night" : "bloom");
+  build();
+}
+
+function win(id, x, y, w, h, icon, title, body) {
+  return `<div class="win" id="${id}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="title"><span>${icon}</span><span class="t">${title}</span><span class="ctl"><span>&#x2014;</span><span>&#x25A2;</span><span>&#x2715;</span></span></div><div class="body">${body}</div></div>`;
+}
+function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+function build() {
+  const r = rnd(42), m = 14, x = Math.round(W * 0.04), y = Math.round(H * 0.05);
+  let h = "", apps = ["📁", "🌐"];
+  if (scene === "spreadsheet") {
+    apps.push("📊"); const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "", "Total"];
+    let rows = `<tr><th></th>${"ABCDEFGHIJK".split("").map(c => `<th style="width:${c === "A" ? 90 : 82}px">${c}</th>`).join("")}</tr>`;
+    rows += `<tr><th>1</th><td class="h">Month</td><td class="h">Revenue</td><td class="h">Costs</td><td class="h">Margin</td><td class="h">Orders</td><td class="h">Avg order</td><td class="h">Returns</td><td class="h">Target</td><td class="h">vs target</td><td></td><td></td></tr>`;
+    const tot = {rev: 0, cost: 0, ord: 0, ret: 0, tgt: 0};
+    months.forEach((mo, i) => {
+      if (!mo) { rows += `<tr><th>${i + 2}</th>${"<td></td>".repeat(11)}</tr>`; return; }
+      const f = n => n.toLocaleString("en-GB");
+      if (mo === "Total") {
+        rows += `<tr><th>${i + 2}</th><td class="h">Total</td><td class="n h">£${f(tot.rev)}</td><td class="n h">£${f(tot.cost)}</td><td class="n h">${Math.round((1 - tot.cost / tot.rev) * 100)}%</td><td class="n h">${f(tot.ord)}</td><td class="n h">£${(tot.rev / tot.ord).toFixed(2)}</td><td class="n h">${tot.ret}</td><td class="n h">£${f(tot.tgt)}</td><td class="n h">${((tot.rev / tot.tgt - 1) * 100).toFixed(1)}%</td><td></td><td></td></tr>`;
+        return;
+      }
+      const rev = Math.round(38000 + r() * 21000), cost = Math.round(rev * (0.55 + r() * 0.15)), ord = Math.round(rev / (52 + r() * 18));
+      const ret = Math.round(r() * 40), tgt = Math.round(rev / 1000) * 1000 + Math.round(r() * 6000 - 2000);
+      Object.assign(tot, {rev: tot.rev + rev, cost: tot.cost + cost, ord: tot.ord + ord, ret: tot.ret + ret, tgt: tot.tgt + tgt});
+      rows += `<tr><th>${i + 2}</th><td class="${mo === "Total" ? "h" : ""}">${mo}</td><td class="n">£${f(rev)}</td><td class="n">£${f(cost)}</td><td class="n${i === 8 ? " sel" : ""}">${Math.round((1 - cost / rev) * 100)}%</td><td class="n">${f(ord)}</td><td class="n">£${(rev / ord).toFixed(2)}</td><td class="n">${ret}</td><td class="n">£${f(tgt)}</td><td class="n">${((rev / tgt - 1) * 100).toFixed(1)}%</td><td></td><td></td></tr>`;
+    });
+    for (let i = 16; i < 40; i++) rows += `<tr><th>${i}</th>${"<td></td>".repeat(11)}</tr>`;
+    const body = `<div class="ribbon"><b style="color:#1f8a4c">File</b><span>Home</span><span>Insert</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div><div class="fx"><b>E10</b><span>fx</span><span>=1-D10/C10</span></div><table class="grid">${rows}</table><div class="chart" style="right:24px;top:96px;width:300px"><b style="font-size:12px">Revenue by month</b><div class="bars">${Array.from({length: 9}, () => `<div style="height:${40 + r() * 60}%"></div>`).join("")}</div></div>`;
+    h += win("sheet", x, y, Math.round(W * 0.78), Math.round(H * 0.86), "📊", "Q3 budget review - Sheets", body);
+    h += `<div class="sticky" style="right:${Math.round(W * 0.04)}px;top:${Math.round(H * 0.3)}px">call supplier re: invoice 1042<br>send deck by 4pm<br>water plants!</div>`;
+  } else if (scene === "code") {
+    apps.push("💻"); const L = [
+      `<span class="k">import</span> { <span class="v">Invoice</span>, <span class="v">LineItem</span> } <span class="k">from</span> <span class="s">"./types"</span>;`, ``,
+      `<span class="c">// Totals for one invoice, rounded per line like the ledger does.</span>`,
+      `<span class="k">export function</span> <span class="f">invoiceTotal</span>(<span class="v">inv</span>: <span class="ty">Invoice</span>): <span class="ty">number</span> {`,
+      `  <span class="k">let</span> <span class="v">sum</span> = <span class="num">0</span>;`,
+      `  <span class="k">for</span> (<span class="k">const</span> <span class="v">item</span> <span class="k">of</span> <span class="v">inv</span>.<span class="v">items</span>) {`,
+      `    <span class="v">sum</span> += <span class="f">lineTotal</span>(<span class="v">item</span>);`, `  }`,
+      `  <span class="k">return</span> <span class="f">round2</span>(<span class="v">sum</span> * (<span class="num">1</span> + <span class="v">inv</span>.<span class="v">taxRate</span>));`, `}`, ``,
+      `<span class="k">function</span> <span class="f">lineTotal</span>(<span class="v">item</span>: <span class="ty">LineItem</span>): <span class="ty">number</span> {`,
+      `  <span class="k">const</span> <span class="v">gross</span> = <span class="v">item</span>.<span class="v">qty</span> * <span class="v">item</span>.<span class="v">unitPrice</span>;`,
+      `  <span class="k">return</span> <span class="f">round2</span>(<span class="v">gross</span> - (<span class="v">item</span>.<span class="v">discount</span> ?? <span class="num">0</span>));`, `}`, ``,
+      `<span class="k">export function</span> <span class="f">round2</span>(<span class="v">n</span>: <span class="ty">number</span>) {`,
+      `  <span class="k">return</span> <span class="ty">Math</span>.<span class="f">round</span>(<span class="v">n</span> * <span class="num">100</span>) / <span class="num">100</span>;`, `}`, ``,
+      `<span class="c">// TODO: currency per customer, not per account</span>`, `<span id="typed"><span class="k">export const</span> <span class="v">DEFAULT_TAX</span> = <span class="num">0.2</span>;</span>`];
+    const body = `<div class="code"><div class="act">⧉<br>⌕<br>⎇<br>▷</div><div class="tree"><div>▾ billing</div><div>&nbsp;&nbsp;▾ src</div><div class="cur">&nbsp;&nbsp;&nbsp;&nbsp;invoice.ts</div><div>&nbsp;&nbsp;&nbsp;&nbsp;types.ts</div><div>&nbsp;&nbsp;&nbsp;&nbsp;format.ts</div><div>&nbsp;&nbsp;▸ test</div><div>&nbsp;&nbsp;package.json</div><div>&nbsp;&nbsp;README.md</div></div><div class="ed"><div class="tabs"><div class="cur">invoice.ts</div><div>types.ts</div><div>invoice.test.ts</div></div><div class="lines">${L.map((l, i) => `<span class="ln">${i + 1}</span>${l}`).join("\n")}</div><div class="term">PS C:\\work\\billing&gt; npm test\n\n PASS  test/invoice.test.ts\n  ✓ totals a plain invoice (3 ms)\n  ✓ rounds each line (1 ms)\n\nTests:  2 passed, 2 total</div></div></div>`;
+    h += win("editor", x, y, Math.round(W * 0.8), Math.round(H * 0.88), "💻", "invoice.ts - billing - Code", body);
+  } else if (scene === "inbox") {
+    apps.push("✉️"); const mails = [["Priya Shah", "09:41", "Re: Thursday's planning session", "Works for me. Can we push it to 2pm so..."], ["Facilities", "09:12", "Heating maintenance on Friday", "The second floor will be cold between..."], ["Tom Becker", "Yesterday", "Invoice 1042 query", "Quick one on the line for delivery..."], ["Ana Lima", "Yesterday", "Deck v3 (comments inline)", "Left a few notes on slides 4 and 9..."], ["IT Service Desk", "Mon", "Password expires in 5 days", "Your password will expire on..."], ["Sam Okoro", "Mon", "Lunch?", "New place opened by the station..."], ["Weekly digest", "Sun", "Your week in review", "You had 14 meetings this week..."], ["Grace Wu", "Fri", "Re: Q3 numbers", "Thanks, the margin column looks right now."]];
+    const list = mails.map((m, i) => `<div class="mail ${i < 2 ? "unread" : ""} ${i === 0 ? "cur" : ""}"><div class="who">${m[0]}<span>${m[1]}</span></div><div class="sub">${m[2]}</div><div class="pre">${m[3]}</div></div>`).join("");
+    const body = `<div class="cols"><div class="nav"><div class="cur">Inbox&nbsp;&nbsp;2</div><div>Drafts</div><div>Sent</div><div>Archive</div><div>Junk</div></div><div class="list">${list}</div><div class="read"><h2>Re: Thursday's planning session</h2><div class="meta">Priya Shah, to you and 3 others, 09:41</div><p>Works for me. Can we push it to 2pm so the Leeds team can join? I'll bring the updated timeline.</p><br><p>Also, does anyone know who has the projector adapter?</p><br><p>Priya</p></div></div>`;
+    h += win("mail", x, y, Math.round(W * 0.84), Math.round(H * 0.86), "✉️", "Inbox - Mail", body);
+  } else if (scene === "chat") {
+    apps.push("💬"); const ppl = [["MJ", "#7a5cd6", "Mia J", "10:02", "morning all, standup in 5"], ["RK", "#d6825c", "Raj K", "10:03", "running 2 mins late, start without me"], ["EL", "#2f9e7a", "Ellie L", "10:15", "has anyone got the link to the new brand guidelines?"], ["MJ", "#7a5cd6", "Mia J", "10:16", "pinned it in #design"], ["DO", "#c2477a", "Dan O", "10:31", "is it just me or is it very quiet today"], ["EL", "#2f9e7a", "Ellie L", "10:32", "it's the calm before the 3pm review"]];
+    const msgs = ppl.map(p => `<div class="msg"><div class="av" style="background:${p[1]}">${p[0]}</div><div><b>${p[2]}</b><i>${p[3]}</i><div>${p[4]}</div></div></div>`).join("");
+    const body = `<div class="cols"><div class="nav"><div style="font-weight:600;color:var(--ink)">Team</div><div class="cur"># general</div><div># design</div><div># random</div><div># launches</div><br><div>Direct messages</div><div>Mia J</div><div>Raj K</div></div><div style="flex:1;position:relative"><div class="msgs">${msgs}</div><div class="compose"><span id="typed">ok, I'll bring the numbers</span></div></div></div>`;
+    h += win("chat", x, y, Math.round(W * 0.72), Math.round(H * 0.84), "💬", "# general - Team chat", body);
+    h += `<div class="sticky" style="right:${Math.round(W * 0.05)}px;top:${Math.round(H * 0.12)}px">3pm review<br>- bring numbers<br>- coffee first</div>`;
+  } else if (scene === "study") {
+    apps.push("📝", "📕"); const notes = `<div class="doc"><h1>Cell biology: week 6</h1><div style="color:var(--sub)">Lecture notes, Tuesday</div><h3>Membrane transport</h3><ul><li>Passive: diffusion, facilitated diffusion, osmosis</li><li>Active transport needs ATP, moves <span class="hl">against the gradient</span></li><li>Sodium-potassium pump: 3 Na⁺ out, 2 K⁺ in</li></ul><h3>Questions for the seminar</h3><ul><li>Why does the pump matter for nerve signals?</li><li id="typed">What happens if ATP runs out?</li></ul></div>`;
+    h += win("notes", x, y, Math.round(W * 0.46), Math.round(H * 0.84), "📝", "Week 6 notes - Notes", notes);
+    const slide = `<div class="slide"><h2>Active transport</h2><div style="color:#555">Moving molecules up a concentration gradient</div><div class="flow"><div>ATP binds</div><span>→</span><div>pump changes shape</div><span>→</span><div>3 Na⁺ out</div><span>→</span><div>2 K⁺ in</div></div></div><div style="text-align:center;color:var(--sub)">12 / 38</div>`;
+    h += win("pdf", Math.round(W * 0.52), Math.round(H * 0.1), Math.round(W * 0.44), Math.round(H * 0.6), "📕", "lecture-06.pdf", slide);
+    h += `<div class="widget" style="right:${Math.round(W * 0.06)}px;bottom:${Math.round(H * 0.06)}px;width:200px;text-align:center"><div style="color:var(--sub)">Focus</div><div style="font-size:38px;font-weight:600;font-variant-numeric:tabular-nums">18:42</div><div class="bar"><i style="width:25%"></i></div></div>`;
+  } else if (scene === "cosy") {
+    apps.push("🎵", "📝"); h += `<div class="win" id="player" style="left:${Math.round(W * 0.06)}px;top:${Math.round(H * 0.1)}px;width:260px;height:auto"><div class="title"><span>🎵</span><span class="t">lofi radio</span><span class="ctl"><span>&#x2014;</span><span>&#x2715;</span></span></div><div class="body player" style="padding:16px"><div class="cover"></div><b>rainy window</b><div style="color:var(--sub)">late study mix</div><div class="bar"><i style="width:38%"></i></div><div style="display:flex;justify-content:space-between;color:var(--sub);font-size:11px"><span>1:42</span><span>4:30</span></div><div style="text-align:center;font-size:18px;margin-top:8px;letter-spacing:22px">⏮⏸⏭</div></div></div>`;
+    h += `<div class="win" id="todo" style="left:${Math.round(W * 0.36)}px;top:${Math.round(H * 0.16)}px;width:300px;height:auto"><div class="title"><span>📝</span><span class="t">tonight</span><span class="ctl"><span>&#x2014;</span><span>&#x2715;</span></span></div><div class="body todo" style="padding:12px 18px"><div class="done"><span class="box"></span>finish essay intro</div><div class="done"><span class="box"></span>reply to the group chat</div><div><span class="box"></span>edit photos from saturday</div><div><span class="box"></span>tea</div><div><span class="box"></span>bed before midnight (lol)</div></div></div>`;
+    h += `<div class="widget" style="right:${Math.round(W * 0.07)}px;top:${Math.round(H * 0.12)}px;width:180px;text-align:center;color:var(--ink)"><div style="font-size:42px;font-weight:300">${P("clock", "22:14")}</div><div style="color:var(--sub)">light rain, 9°</div></div>`;
+  }
+  const clock = P("clock", scene === "cosy" ? "22:14" : "14:32"), date = P("date", "25/11/2026");
+  const on = apps.length - 1;
+  h += `<div id="tb"><div class="apps"><div class="ic start">✦</div><div class="search">⌕ Search</div>${apps.map((a, i) => `<div class="ic ${i === on ? "on" : i > 1 ? "run" : ""}">${a}</div>`).join("")}</div><div id="tray"><span class="sym">⌃</span><span class="sym" title="Critter Overlay">🐾</span><span class="sym">📶</span><span class="sym">🔊</span><span class="sym">🔋</span><div class="clock">${clock}<br>${date}</div></div></div>`;
+  desk.innerHTML = h;
+  for (const id of P("hide", "").split(",").filter(Boolean)) {
+    const el = document.getElementById(id); if (el) el.style.visibility = "hidden";
+  }
+}
+const want = P("boxes", "").split(",").filter(Boolean);
+if (want.length) {
+  const b = {};
+  for (const id of want) { const el = document.getElementById(id); if (el) { const r = el.getBoundingClientRect(); b[id] = [r.left, r.top, r.width, r.height]; } }
+  // Read back by desk.py from a screenshot: row 4*i+k is a black bar as long as
+  // value k (x, y, w, h) of the i-th id, on white.
+  document.body.innerHTML = ""; document.body.style.background = "#fff";
+  want.forEach((id, i) => (b[id] || [0, 0, 0, 0]).forEach((v, k) => {
+    const d = document.createElement("div");
+    d.style.cssText = `position:absolute;left:0;top:${4 * i + k}px;height:1px;width:${Math.round(v)}px;background:#000`;
+    document.body.appendChild(d);
+  }));
+}
+</script></body></html>
