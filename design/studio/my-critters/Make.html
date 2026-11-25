@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Make a critter</title>
+<link rel="stylesheet" href="./critter.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="win th-light" style="width: 1100px; height: 1080px; position: relative; overflow: hidden">
+
+<div aria-hidden="true" style="position: absolute; inset: 0; display: flex">
+<div style="width: 232px; background: var(--side)"></div>
+<div style="flex: 1; padding: 62px 40px"><div class="h1">My critters</div><p class="sub">Every critter you have made or been given.</p></div>
+</div>
+<div aria-hidden="true" style="position: absolute; inset: 0; background: var(--scrim)"></div>
+
+<div role="dialog" aria-modal="true" aria-labelledby="mk-title" class="card" style="position: absolute; left: 150px; top: 56px; width: 800px; padding: 26px 28px 24px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 4px 0 var(--lip); border-color: var(--outline)">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px">
+<div><h2 id="mk-title" class="h1" style="font-size: 28px">Make a critter</h2><p class="sub" style="font-size: 14.5px">Pick by what you have. Every way ends the same: a critter that visits your desk with the rest.</p></div>
+<a href="Main.html" class="ib" aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+
+<button class="card way" style="grid-row: span 2; border-color: var(--outline); box-shadow: 0 3px 0 var(--lip); padding: 0; overflow: hidden; gap: 0">
+<div class="well" style="height: 168px; width: 100%; background: var(--w-lilac); padding-bottom: 8px; position: relative"><img src="art/shapes-critter.svg" width="150" height="156" alt=""><span class="pill" style="position: absolute; top: 12px; left: 12px; background: var(--raised); color: var(--acc-ink); border: 2px solid var(--outline)">No drawing app? Start here</span></div>
+<div style="padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 12px"><span class="wayic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="4"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M4 20l4-7 4 7z"/></svg></span><span class="wt">Build from shapes</span></div>
+<span class="wd">Put a critter together from circles, ovals, hearts and other shapes, right here. Pick its colours, eyes and how it walks.</span>
+<span class="facts"><span class="fact">Walks, sits and naps</span><span class="fact">Nothing to install</span></span>
+</div>
+</button>
+
+<button class="card way">
+<div style="display: flex; align-items: center; gap: 12px"><span class="wayic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></span><span class="wt">Draw in your own app</span></div>
+<span class="wd">Get a template, draw each body part on its own layer, then bring the file back.</span>
+<span class="facts"><span class="fact">Procreate, Krita, Photoshop and more</span><span class="fact">Walks, sits and naps</span></span>
+</button>
+
+<button class="card way">
+<div style="display: flex; align-items: center; gap: 12px"><span class="wayic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M8 5v14M16 5v14M3.5 9.5h4.5M3.5 14.5h4.5M16 9.5h4.5M16 14.5h4.5"/></svg></span><span class="wt">Bring an animation</span></div>
+<span class="wd">A GIF, an animated PNG or a folder of frames. It plays exactly as you drew it.</span>
+<span class="facts"><span class="fact">Plays your frames</span><span class="fact">Pixel art welcome</span></span>
+</button>
+
+<button class="card way" style="grid-column: span 2; flex-direction: row; align-items: center; gap: 16px">
+<span class="wayic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/></svg></span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 4px"><span class="wt">Use a picture</span><span class="wd">One picture of a critter, with the background taken out. It slides along as it is. The quickest way.</span></span>
+<span class="facts" style="flex-shrink: 0"><span class="fact">PNG, JPG or WebP</span><span class="fact">Slides along</span></span>
+</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 12px; color: var(--ink3); font-weight: 800; font-size: 13px"><span style="flex: 1; height: 2px; background: var(--div)"></span>Got one from someone?<span style="flex: 1; height: 2px; background: var(--div)"></span></div>
+
+<div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 18px; background: var(--ground)">
+<span class="wayic" style="width: 40px; height: 40px; border-radius: 13px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/></svg></span>
+<label for="mk-code" style="font-weight: 800; font-size: 14.5px; white-space: nowrap">Got a code or a file?</label>
+<input id="mk-code" class="field" placeholder="Paste a critter code, it starts CRIT1-" style="flex: 1; min-width: 0; font-weight: 700; font-size: 13.5px">
+<button class="btn bs sm">Add</button>
+<button class="btn bq sm" style="color: var(--acc-ink)">Open a .critter file</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1100,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themeClass: this.props.dark ? 'th-dark' : 'th-light' };
+}
+}
+</script>
+</body>
+</html>
