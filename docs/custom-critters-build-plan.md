@@ -1745,7 +1745,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | C5 | Drop a file to import | not started |
 | R1 | **Release 3.2.0** | not started |
 | D0 | Design: the Studio window | not started |
-| D1 | Shape model and SVG writer | not started |
+| D1 | Shape model and SVG writer | done 2026-11-24 |
 | D2 | Studio window shell | not started |
 | D3 | Shape tools | not started |
 | D4 | Colour and style | not started |
@@ -1877,3 +1877,10 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
   alone, since the cast's own feet sit a little into it. The part cache is
   now keyed by file content (MD5), and PNG parts shrink through mipmaps,
   because Lanczos left faint pixels that widened the hit boxes.
+- 2026-11-24: D1 done. The writer makes the closed-eye arcs and the blush;
+  far legs, the other ear, sitting and napping are left to `kit_data.gd`'s
+  fallbacks (made from the rasterised parts), not written as SVG. If the
+  Studio's preview shows those stand-ins looking soft at large sizes, write
+  them as SVG then. Suggested pins: the neck is the centre of the area where
+  the head and body shapes really overlap (not their boxes); the tail root
+  is the point on the tail's centre line nearest the body.
