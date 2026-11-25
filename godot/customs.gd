@@ -70,6 +70,8 @@ const MAX_FILE := 15 * 1024 * 1024
 const MAX_SOURCE_SIDE := 4096
 const MAX_FRAMES := 16
 const EXTENSIONS := ["png", "jpg", "jpeg", "webp"]
+const MAX_SOUND_BYTES := 500 * 1024
+const MAX_SOUND_S := 2.0
 const SOUNDS := ["kitten", "rabbit", "duck", "hedgehog", "turtle", "squirrel", "otter", "panda"]
 const IDLES := ["sit_and_look", "nap", "wake_up", "look_at_cursor", "shake_off"]
 const PREVIEW := "custom:_preview"   # the importer's picture before it is kept; never arrives
@@ -79,6 +81,7 @@ static var all := {}             # "custom:<id>" -> its custom.json, plus "_dir"
 static var _frames := {}         # tex_key() -> Array[ImageTexture], loaded on first spawn
 static var ways := {}            # way (WAYS) -> true when it is on in this build
 static var _refs := {}           # "custom:<id>" -> how many critters draw it now
+static var _sounds := {}         # "custom:<id>" -> its own AudioStream, loaded on first play
 static var _idle := {}           # "custom:<id>" -> when the last one stopped (s)
 
 
@@ -174,13 +177,15 @@ static func _row(d: Dictionary) -> Dictionary:
 	if pop.is_empty():
 		pop = [Color8(240, 190, 140), Color8(255, 220, 180), Color8(250, 160, 170)]
 	var sound: String = d.get("sound", "kitten")
+	if sound == "own" and own_sound_path(d) != "":
+		sound = "custom:" + str(d["_dir"]).get_file()   # main.gd plays it through sound_stream()
 	var idles := IDLES
 	var gait := "a bob and a lean"
 	if kind(d) == "kit":
 		var k: Dictionary = d.get("_kit", {})
 		idles = idles_for(k, KitData.drawn(str(d["_dir"]), k))
 		gait = str(k.get("gait", "trot")).replace("_", " ")
-	return {"gait": gait, "script": load(rig_path(d)), "sound": sound if sound in SOUNDS else "kitten",
+	return {"gait": gait, "script": load(rig_path(d)), "sound": sound if sound in SOUNDS or is_custom(sound) else "kitten",
 		"pop": pop, "idles": idles, "rarity_max": "common", "special": false, "custom": true,
 		"name": str(d.get("name", "Homemade critter"))}
 
@@ -258,6 +263,78 @@ static func make_thumb(img: Image, folder: String) -> void:
 	if k < 1.0:
 		t.resize(maxi(1, roundi(t.get_width() * k)), maxi(1, roundi(t.get_height() * k)), Image.INTERPOLATE_LANCZOS)
 	t.save_png(folder.path_join("thumb.png"))
+
+
+# --- Its own sound (plan B5) ----------------------------------------------------
+
+static func own_sound_path(d: Dictionary) -> String:
+	for ext in ["wav", "ogg"]:
+		var p := str(d.get("_dir", "")).path_join("sound." + ext)
+		if FileAccess.file_exists(p):
+			return p
+	return ""
+
+
+static func _decode_sound(path: String) -> AudioStream:
+	match path.get_extension().to_lower():
+		"wav":
+			return AudioStreamWAV.load_from_file(path)
+		"ogg":
+			return AudioStreamOggVorbis.load_from_file(path)
+	return null
+
+
+static func check_sound(path: String) -> String:
+	# Why a sound file can't be used, or "" if it can.
+	if not path.get_extension().to_lower() in ["wav", "ogg"]:
+		return "Use a WAV or OGG sound."
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return "That file can't be opened."
+	if f.get_length() > MAX_SOUND_BYTES:
+		return "That sound is over 500 KB."
+	f.close()
+	var st := _decode_sound(path)
+	if st == null:
+		return "That sound can't be read."
+	if st.get_length() > MAX_SOUND_S + 0.05:
+		return "Keep it to 2 seconds (that one is %.1f)." % st.get_length()
+	return ""
+
+
+static func set_sound(id: String, path: String) -> String:
+	# Gives a critter its own sound from a WAV or OGG. A WAV is decoded and
+	# written again (nothing but the samples is kept); an OGG is kept as it
+	# is once it has decoded, since Godot can't write one. Returns why not,
+	# or "".
+	var why := check_sound(path)
+	if why != "":
+		return why
+	var d: Dictionary = all[id]
+	var old := own_sound_path(d)
+	if old != "":
+		DirAccess.remove_absolute(old)
+	var dest := str(d["_dir"]).path_join("sound." + path.get_extension().to_lower())
+	if dest.ends_with(".wav"):
+		_decode_sound(path).save_to_wav(dest)
+	else:
+		DirAccess.copy_absolute(path, dest)
+	_sounds.erase(id)
+	all[id]["sound"] = "own"
+	save(id)
+	return ""
+
+
+static func sound_stream(id: String) -> AudioStream:
+	# A critter's own sound, or null.
+	if _sounds.has(id):
+		return _sounds[id]
+	if not all.has(id):
+		return null
+	var p := own_sound_path(all[id])
+	var st := _decode_sound(p) if p != "" else null
+	_sounds[id] = st
+	return st
 
 
 # --- Textures in use ----------------------------------------------------------

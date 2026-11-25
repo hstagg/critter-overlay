@@ -260,6 +260,8 @@ func run(action: String, chosen := "kitten") -> void:
 			carry_test()
 		"kit":
 			kit_test(arg)
+		"own_sound":
+			own_sound()
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -451,6 +453,31 @@ func carry_test() -> void:
 	var n := Customs.carry_over(root, {})
 	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in System and the Collection." % n)
 	main.open_settings("system")
+
+
+func own_sound() -> void:
+	# A made-up two-note chirp as a WAV, given to the first homemade critter
+	# (a test one if there are none), played now; it walks in to be popped.
+	if Customs.ids(true).is_empty():
+		Customs.add("Test critter", [test_picture(false)], {"faces": "left"})
+	var id: String = Customs.ids(true)[0]
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = 22050
+	var data := PackedByteArray()
+	data.resize(22050)   # 0.5 s
+	for i in 11025:
+		var hz := 880.0 if i < 5500 else 1320.0
+		data.encode_s16(i * 2, int(9000.0 * sin(i * TAU * hz / 22050.0) * (1.0 - float(i % 5500) / 5500.0)))
+	w.data = data
+	var path := "user://admin_test_sound.wav"
+	w.save_to_wav(path)
+	var why := Customs.set_sound(id, path)
+	if why != "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Homemade sound", why)
+		return
+	main._play(id)
+	spawn(id, "common")
 
 
 func kit_test(which: String) -> void:
