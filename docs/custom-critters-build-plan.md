@@ -941,6 +941,34 @@ developer.*
   worst case.
 - **Done when:** the results table is pasted into this doc under A1, and P6's
   choice (polygons while dragging, or SVG throughout) is recorded.
+- **Results (2026-11-24, Godot 4.7, `tools/studio_spike.gd`).** Median of
+  15 rasterisations of one two-pass layer, in ms. "PC" is this PC (Iris Xe;
+  ThorVG rasterises on the CPU, so the GPU does not matter). "VM" is the test
+  VM (i5-10210U, virtualised), the worst case.
+
+  | Shapes | clipPath | PC x0.75 | PC x1.2 | VM x0.75 | VM x1.2 |
+  |---|---|---|---|---|---|
+  | 10 | no | 0.33 | 0.44 | 1.06 | 1.87 |
+  | 10 | yes | 0.44 | 0.66 | 1.20 | 1.79 |
+  | 40 | no | 1.10 | 1.78 | 3.42 | 4.37 |
+  | 40 | yes | 1.61 | 2.12 | 4.15 | 5.63 |
+  | 60 | no | 1.66 | 2.13 | 4.57 | 5.50 |
+  | 60 | yes | 2.21 | 3.36 | 8.44 | 8.30 |
+
+  - **P6 decided: SVG throughout.** A 40-shape layer is under 2 ms on this PC
+    and under 6 ms on the VM. The canvas re-rasterises only the layer being
+    edited, at most once a frame. The shape model still makes polygons, for
+    hit-testing only.
+  - **P5 confirmed:** with one stroke per shape, an outline shows inside the
+    silhouette; with the two-pass layer it doesn't, the outer edge keeps a
+    4-unit outline, and `clipPath` markings stay inside the union.
+  - **P8, what ThorVG draws:** `clipPath`, `mask`, linear and radial
+    gradients, round joins and caps, `opacity`, `fill-rule` evenodd,
+    `feGaussianBlur`, `<image>` with a PNG data URI (`href` and
+    `xlink:href`), `<use>`, transforms, `style` attributes and `<style>`
+    classes. **Not drawn:** `<text>` (no fonts), so the importer still says
+    "Convert text to paths". Blur is drawn, so the sanitiser (C2) may keep
+    `feGaussianBlur` and drop only other filter primitives.
 
 **A2. Studio gate, My critters page and widgets.** (P19, P20)
 - **Files:** `main.gd`, `gui/settings_window.gd`, `gui/settings_pages.gd`,
@@ -1698,8 +1726,8 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 
 | Step | What | Status |
 |---|---|---|
-| A0 | Design: My critters and Make a critter | not started |
-| A1 | Rasteriser spike | not started |
+| A0 | Design: My critters and Make a critter | waiting for a session with the developer |
+| A1 | Rasteriser spike | done 2026-11-24 |
 | A2 | Studio gate, My critters page, widgets | not started |
 | A3 | Store schema 2 | not started |
 | A4 | Gaits | not started |
@@ -1747,3 +1775,6 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 - 2026-11-23: no mock-ups for the tester and no file-sent betas: milestones go
   live as normal updates (decision 7 changed, section 9). Design sessions A0,
   C0 and D0 added, and P26 (one My critters home for every kind). Decision 11.
+- 2026-11-24: A1 done: SVG throughout (P6), two-pass outlines confirmed (P5),
+  ThorVG feature list recorded (P8). A0 needs the developer, so the steps that
+  don't touch the UI (A3, A4, B1 on) run first; A2 waits for A0.
