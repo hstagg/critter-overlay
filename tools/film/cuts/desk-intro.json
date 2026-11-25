@@ -1,0 +1,26 @@
+{
+  "fps": 30,
+  "ss": 2,
+  "desk": {
+    "scene": "{scene}",
+    "theme": "{theme}",
+    "motion": [
+      {"kind": "cursor", "path": [[0, 0.42, 0.40], [1.0, 0.47, 0.46], [2.4, 0.62, 0.50], [5.5, 0.58, 0.55], [8.0, 0.35, 0.42]], "clicks": [1.1, 5.6]},
+      {"kind": "toast", "t": 0.7, "dur": 2.6, "title": "{toast_title}", "body": "{toast_body}", "icon": "{toast_icon}"}
+    ]
+  },
+  "surround": [16, 14, 24],
+  "from": {"on": "t:{start}", "lead": 0},
+  "length": 11,
+  "camera": {"mode": "all", "tight": 0.85, "intro": {"tight": "full", "hold": 2.4}, "ease": 0.045,
+             "push": [{"at": 8.0, "tight": "full", "hold": 9}]},
+  "titles": [
+    {"t": 0.1, "dur": 2.6, "text": "{hook}", "pos": "top", "size": 74},
+    {"t": 8.9, "dur": 2.1, "text": "Critter Overlay\nfree for Windows", "pos": "top", "size": 70}
+  ],
+  "sfx": [
+    {"at": 2.4, "sound": "whoosh", "gain": 0.25},
+    {"at": 9.0, "sound": "motif", "gain": 0.7}
+  ],
+  "music": {"file": "{music}", "gain": 0.42, "start": 0, "fade": 1.0}
+}

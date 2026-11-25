@@ -14,6 +14,8 @@ Events (the "on" field anywhere below):
   arrive                           a critter appears
   t:SECONDS                        a fixed moment in the capture
 Add "nth": 1 to use the second occurrence, and "offset": -0.3 to shift it.
+Pushes and sfx also take "at": OUTPUT_SECONDS in place of "on", for cuts
+that should work the same on any take.
 
 The cut (JSON, every key optional):
   "fps": 30                         output rate; capture at --fixed-fps 60 for
@@ -34,12 +36,16 @@ The cut (JSON, every key optional):
   black from t, lifting over the last 0.2 s (pair it with a flash)
   "overlays": [{"t": 6.5, "dur": 3, "image": "row.png", "y": 1450, "w": 900}]
                                     an image popped in like a title (t output s)
+  Titles and cards stay inside the feeds' safe area: the bottom 480 px sit
+  under TikTok's and Reels' caption and the right 180 px under their buttons.
   "titles": [{"t": 0.0, "dur": 2.5, "text": "...", "pos": "top"|"bottom"|"centre",
-              "size": 84}]       (t in output seconds)
+              "size": 84, "plate": false}]  (t in output seconds; plate puts the
+                                    text on a dark rounded plate, for busy screens)
   "cards": [{"on": "...", "delay": 0.4, "dur": 3, "name": "Sea otter",
              "sub": "Rare  ·  1 in 25", "tier": "rare"}]
   "sfx": [{"on": "pair_act", "sound": "sparkle"|"pop"|"whoosh"|"boing"|
-           "bloop"|"chime"|"game:otter"|"file:name.wav", "gain": 0.8}]
+           "bloop"|"chime"|"motif"|"game:otter"|"file:name.wav", "gain": 0.8}]
+                                    motif is the brand's four-note signature
   "music": {"file": "bed.mp3", "gain": 0.5, "drop": 29.2, "at": 2.2, "fade": 1.0}
                                     drop/at line a moment of the track up with an
                                     output second (or give "start" in the track)
@@ -47,6 +53,20 @@ Sound and music file names are looked up in --sounds DIR (licensed files stay
 out of this public repo). --music FILE --drop S overrides the cut's music.
   "backdrop": "studio" | "image.png"   studio is a soft brand-coloured set for
                                     close-ups; default is the mock work screen
+  "desk": {"scene": "spreadsheet", "theme": "light", "wall": "bloom",
+           "clock": "14:32", "motion": [...]}
+                                    a mock Windows desktop from tools/desk
+                                    (scenes, wallpapers and motion are listed
+                                    there), drawn at "ss" times the screen
+                                    (default 2) so it stays sharp close up
+  "look": {"kind": "phone", "wall": "#d8c8b8", "zoom": [[0, 1.0], [11, 1.12]]}
+                                    the desktop on a monitor filmed by a phone
+                                    (tools/desk/phone.py); the camera block is
+                                    then ignored
+  "camera" also takes "tight": "full" (the whole desktop across the frame,
+  with "surround" [r, g, b] above and below, room for titles), "intro":
+  {"tight": "full", "hold": 1.8} to open on the whole desktop and then ease
+  to "tight", and "ease" (0.12 default; lower is a slower push)
 
 Needs Pillow, numpy and ffmpeg on PATH.
 """
@@ -65,6 +85,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parents[1] / "desk"))
 from compose import load_frames, mock_backdrop, paste_premultiplied  # noqa: E402
 
 W, H = 1080, 1920
@@ -199,6 +220,15 @@ def star5(d, cx, cy, r, fill, rot=0.0):
     d.polygon(pts, fill=fill)
 
 
+def scale_premultiplied(im, s):
+    """Resize a premultiplied RGBA window grab without premultiplying it again."""
+    if s == 1:
+        return im
+    pm = Image.frombuffer("RGBa", im.size, im.tobytes(), "raw", "RGBa", 0, 1)
+    pm = pm.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
+    return Image.frombuffer("RGBA", pm.size, pm.tobytes(), "raw", "RGBA", 0, 1)
+
+
 def studio_backdrop(sw, sh, rng):
     """A soft lavender set with out-of-focus lights: reads well at any zoom."""
     yy, xx = np.mgrid[0:sh, 0:sw].astype(np.float32)
@@ -233,6 +263,14 @@ def text_img(text, size, fill=(255, 255, 255), stroke=(45, 30, 60), sw=None):
     ImageDraw.Draw(im).multiline_text((10 - box[0], 10 - box[1]), text, font=f, fill=fill, stroke_width=sw,
                                       stroke_fill=stroke, align="center", spacing=size // 6)
     return im
+
+
+def plate(im, pad=34, fill=(28, 22, 40, 205)):
+    """A title on a soft dark plate, readable over a busy desktop."""
+    out = Image.new("RGBA", (im.width + pad * 2, im.height + pad))
+    ImageDraw.Draw(out).rounded_rectangle([0, 0, out.width - 1, out.height - 1], 34, fill=fill)
+    out.alpha_composite(im, (pad, pad // 2))
+    return out
 
 
 def card_img(name, sub, tier):
@@ -346,6 +384,17 @@ def synth(name, rng):
         out = sum(np.sin(2 * np.pi * f * x) * env(len(x), 0.003, d) * g
                   for f, d, g in [(1046.5, 0.5, 0.4), (1568, 0.4, 0.25), (2093, 0.3, 0.18), (3136, 0.2, 0.08)])
         return out
+    if name == "motif":
+        # The signature: the same four bell notes (G5 C6 E6 G6) on every reveal,
+        # so the brand has a sound people come to know.
+        out = np.zeros(int(1.6 * SR))
+        for k, f in enumerate([783.99, 1046.5, 1318.5, 1568.0]):
+            x = t(1.2)
+            s = sum(np.sin(2 * np.pi * f * r * x) * env(len(x), 0.002, d) * g
+                    for r, d, g in [(1, 0.45, 0.5), (2.76, 0.12, 0.18), (5.4, 0.05, 0.07)])
+            st = int(k * 0.085 * SR)
+            out[st:st + len(s)] += s * (0.8 + 0.07 * k)
+        return out * 0.5
     if name == "pop":
         x = t(0.18)
         f = 900 * np.exp(-x * 18) + 280
@@ -423,6 +472,8 @@ def main():
     ap.add_argument("--cut", type=Path)
     ap.add_argument("--fps-in", type=float, default=0, help="capture rate; read from the log when 0")
     ap.add_argument("--events", action="store_true", help="list the capture's events and stop")
+    ap.add_argument("--busiest", type=float, metavar="SECONDS",
+                    help="print the capture second where the liveliest stretch this long starts, and stop")
     ap.add_argument("--sounds", type=Path, default=Path("."), help="folder for file: sounds and music")
     ap.add_argument("--music", help="music file, overriding the cut's")
     ap.add_argument("--var", action="append", default=[], help="NAME=VALUE, filling {NAME} in the cut")
@@ -449,8 +500,10 @@ def main():
 
     head, frames = load_frames(a.capture)
     sx, sy, sw, sh = head["screen"]
-    # The capture rate is in the log: t steps by one fixed frame each line.
-    fps_in = a.fps_in or (round(1.0 / (frames[2]["t"] - frames[1]["t"])) if len(frames) > 2 else 30.0)
+    # The capture rate is in the log: t steps by one fixed frame each line
+    # (the median step, since the first frames can step unevenly while windows open).
+    steps = sorted(b["t"] - a_["t"] for a_, b in zip(frames, frames[1:]))
+    fps_in = a.fps_in or (round(1.0 / steps[len(steps) // 2]) if steps else 30.0)
     # Critter windows in one capture share a size; centres need it.
     first = next((w for fr in frames for w in fr["wins"] if "id" in w), None)
     wsz = Image.open(a.capture / first["png"]).width if first else 240
@@ -461,6 +514,15 @@ def main():
     if a.events:
         for e in events:
             print(f"{e['t']:6.2f}  {e['kind']:10} {e['name']}")
+        return
+    if a.busiest:
+        # liveliness per frame: critters on screen and moving or acting, pairs count double
+        live = [sum(1 for w in fr["wins"] if w.get("x", -30000) > -1000 and w.get("mode") in ("walk", "act", "hop", "run"))
+                + 2 * len(fr.get("pairs", [])) for fr in frames]
+        n = int(a.busiest * fps_in)
+        first = next((i for i, fr in enumerate(frames) if any(w.get("x", -30000) > -1000 for w in fr["wins"])), 0) + int(fps_in)
+        best = max(range(first, max(first + 1, len(frames) - n)), key=lambda i: sum(live[i:i + n]))
+        print(f"{best / fps_in:.2f}")
         return
 
     fps = cut.get("fps", 30)
@@ -475,18 +537,42 @@ def main():
     out_at = lambda t_src: to_out(src, t_src) / fps  # noqa: E731
 
     bd = cut.get("backdrop", "")
-    back = (studio_backdrop(sw, sh, rng) if bd == "studio"
-            else Image.open(bd).convert("RGB").resize((sw, sh)) if bd
-            else mock_backdrop(sw, sh, [head["area"][0] - sx, head["area"][1] - sy, head["area"][2], head["area"][3]]))
+    desk = None
+    look = cut.get("look", {})
+    phone = None
+    if cut.get("desk"):
+        from desk import Desk
+        ss = cut.get("ss", 1 if look.get("kind") == "phone" else 2)
+        taskbar = sh - (head["area"][1] - sy + head["area"][3])
+        desk = Desk(cut["desk"], (sw, sh), taskbar=max(0, taskbar), ss=ss)
+        back = desk.base
+    else:
+        ss = cut.get("ss", 1)
+        back = (studio_backdrop(sw, sh, rng) if bd == "studio"
+                else Image.open(bd).convert("RGB") if bd
+                else mock_backdrop(sw, sh, [head["area"][0] - sx, head["area"][1] - sy, head["area"][2], head["area"][3]]))
+        back = back.resize((round(sw * ss), round(sh * ss)), Image.LANCZOS) if back.size != (round(sw * ss), round(sh * ss)) else back
     back_px = np.asarray(back, dtype=np.float32)
+    SW, SH = back_px.shape[1], back_px.shape[0]
+    if look.get("kind") == "phone":
+        from phone import PhoneLook
+        phone = PhoneLook((sw, sh), wall=look.get("wall", "#d8c8b8"))
+        zkeys = look.get("zoom", [[0, 1.0], [99, 1.0]])
+        phone_zoom = lambda t_: float(np.interp(t_, [k[0] for k in zkeys], [k[1] for k in zkeys]))  # noqa: E731
+    surround = np.array(cut.get("surround", [14, 12, 20]), dtype=np.float32)
 
     cam_cfg = cut.get("camera", {})
-    base_tight = cam_cfg.get("tight", 0.55)
+    full_t = sw * 16 / 9 / sh                     # tight at which the whole width fits
+    tval = lambda v: full_t if v == "full" else float(v)  # noqa: E731
+    base_tight = tval(cam_cfg.get("tight", 0.55))
+    intro = cam_cfg.get("intro")
+    ease = cam_cfg.get("ease", 0.12)
     pushes = []
     for p in cam_cfg.get("push", []):
-        e = pick(events, p)
+        e = {"t": None} if "at" in p else pick(events, p)
         if e:
-            pushes.append((out_at(e["t"]), p.get("hold", 2.0), p.get("tight", 0.38)))
+            t0 = p["at"] if "at" in p else out_at(e["t"])
+            pushes.append((t0, p.get("hold", 2.0), tval(p.get("tight", 0.38))))
 
     bursts, flashes, spots, darks = [], [], [], []
     for f in cut.get("fx", []):
@@ -521,7 +607,8 @@ def main():
         if e:
             t0 = (out_at(e["t"]) if e["t"] is not None else c.get("t", 0)) + c.get("delay", 0.0)
             cards.append((t0, c.get("dur", 3.0), card_img(c["name"], c.get("sub", ""), c.get("tier", "common"))))
-    titles = [(ti.get("t", 0), ti.get("dur", 2.5), ti.get("pos", "top"), text_img(ti["text"], ti.get("size", 84)))
+    titles = [(ti.get("t", 0), ti.get("dur", 2.5), ti.get("pos", "top"),
+               plate(text_img(ti["text"], ti.get("size", 84))) if ti.get("plate") else text_img(ti["text"], ti.get("size", 84)))
               for ti in cut.get("titles", [])]
     for o in cut.get("overlays", []):
         im = Image.open(o["image"]).convert("RGBA")
@@ -543,7 +630,7 @@ def main():
 
     mode = cam_cfg.get("mode", "pair")
     cam = None
-    tight = base_tight
+    tight = tval(intro["tight"]) if intro else base_tight
     for i, ts in enumerate(src):
         t_out = i / fps
         fi = ts * fps_in
@@ -579,24 +666,49 @@ def main():
                 subj = tuple(np.mean(pts, axis=0))
         subj = subj or (sw / 2, sh / 2)
         want_t = base_tight
+        if intro and t_out < intro.get("hold", 1.5):
+            want_t = tval(intro["tight"])
         for t0, hold, tt in pushes:
             if t0 <= t_out <= t0 + hold:
                 want_t = tt
         cam = subj if cam is None else (cam[0] + (subj[0] - cam[0]) * 0.08, cam[1] + (subj[1] - cam[1]) * 0.08)
-        want_t = min(1.0, max(want_t, fit))
-        tight += (want_t - tight) * 0.12
+        want_t = min(full_t, max(want_t, fit))
+        tight += (want_t - tight) * ease
         ch = sh * tight
         cw = ch * 9 / 16
-        left = min(max(cam[0] - cw / 2, 0), sw - cw)
-        top = min(max(cam[1] - ch * 0.6, 0), sh - ch)
+        # wider or taller than the screen: centre it, with surround around it
+        left = (sw - cw) / 2 if cw >= sw else min(max(cam[0] - cw / 2, 0), sw - cw)
+        top = (sh - ch) / 2 if ch >= sh else min(max(cam[1] - ch * 0.6, 0), sh - ch)
 
-        # composite only the crop, from the nearest capture frame
-        x0, y0, x1, y1 = int(left), int(top), int(math.ceil(left + cw)), int(math.ceil(top + ch))
+        # composite only the screen inside the crop, at ss, from the nearest capture frame
+        L, T, CW, CH = (0, 0, SW, SH) if phone else (left * ss, top * ss, cw * ss, ch * ss)
+        x0, y0 = max(0, int(L)), max(0, int(T))
+        x1, y1 = min(SW, int(math.ceil(L + CW))), min(SH, int(math.ceil(T + CH)))
         buf = back_px[y0:y1, x0:x1].copy()
+        if desk and (desk.toasts or desk.types):
+            img = Image.fromarray(np.clip(buf, 0, 255).astype(np.uint8))
+            desk.layers_below(img, t_out, (x0, y0))
+            buf = np.asarray(img, dtype=np.float32).copy()
         for w in fr["wins"]:
-            im = Image.open(a.capture / w["png"]).convert("RGBA")
-            paste_premultiplied(buf, im, w["x"] - sx - x0, w["y"] - sy - y0)
-        frame = Image.fromarray(np.clip(buf, 0, 255).astype(np.uint8)).resize((W, H), Image.LANCZOS, box=(left - x0, top - y0, left - x0 + cw, top - y0 + ch))
+            im = scale_premultiplied(Image.open(a.capture / w["png"]).convert("RGBA"), ss)
+            paste_premultiplied(buf, im, round((w["x"] - sx) * ss) - x0, round((w["y"] - sy) * ss) - y0)
+        shot = Image.fromarray(np.clip(buf, 0, 255).astype(np.uint8))
+        if desk:
+            desk.layers_above(shot, t_out, (x0, y0))
+        if phone:
+            z = phone_zoom(t_out)
+            frame = phone.frame(shot, t_out, z, focus=(cam[0] / sw, cam[1] / sh))
+            rx, ry, rw, _ = phone.rect
+            cw = W / (z * rw / sw)                    # so effects land near the right place
+            left = -(W / 2 + z * (rx - W / 2)) / (z * rw / sw)
+            top = -(H / 2 + z * (ry - H / 2)) / (z * rw / sw)
+        elif x0 <= L and y0 <= T and x1 >= L + CW and y1 >= T + CH:
+            frame = shot.resize((W, H), Image.LANCZOS, box=(L - x0, T - y0, L - x0 + CW, T - y0 + CH))
+        else:
+            k = W / CW
+            frame = Image.new("RGB", (W, H), tuple(int(v) for v in surround))
+            dw, dh = max(1, round((x1 - x0) * k)), max(1, round((y1 - y0) * k))
+            frame.paste(shot.resize((dw, dh), Image.LANCZOS), (round((x0 - L) * k), round((y0 - T) * k)))
         scale = W / cw
 
         px = np.asarray(frame, dtype=np.float32)
@@ -607,7 +719,8 @@ def main():
                 d2 = ((xx - cx) ** 2 + (yy - cy) ** 2) / (330.0 ** 2)
                 dim = 1 - 0.62 * k * np.clip(d2 - 0.6, 0, 1)[..., None]
                 px = px * dim
-        px = px * vign
+        if not phone:
+            px = px * vign
         frame = Image.fromarray(np.clip(px, 0, 255).astype(np.uint8)).convert("RGBA")
 
         over = Image.new("RGBA", (W, H))
@@ -635,7 +748,7 @@ def main():
             t_im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.LANCZOS)
             if k_out < 1:
                 t_im.putalpha(t_im.getchannel("A").point(lambda v: int(v * k_out)))
-            y = (pos if isinstance(pos, int) else {"top": 260, "bottom": H - 360, "centre": H // 2, "card": H - 300}[pos]) - t_im.height // 2
+            y = (pos if isinstance(pos, int) else {"top": 260, "bottom": H - 560, "centre": H // 2, "card": H - 600}[pos]) - t_im.height // 2
             frame.alpha_composite(t_im, ((W - t_im.width) // 2, max(0, y)))
         enc.stdin.write(frame.convert("RGB").tobytes())
     enc.stdin.close()
@@ -644,6 +757,9 @@ def main():
 
     cues = []
     for s in cut.get("sfx", []):
+        if "at" in s:
+            cues.append((s["at"], s["sound"], s.get("gain", 0.8)))
+            continue
         e = pick(events, s)
         if e:
             cues.append((max(0.0, out_at(e["t"]) + s.get("delay", 0.0)), s["sound"], s.get("gain", 0.8)))
