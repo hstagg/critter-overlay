@@ -1,0 +1,23 @@
+{
+  "fps": 30,
+  "desk": {
+    "scene": "{scene}",
+    "theme": "{theme}",
+    "motion": [
+      {"kind": "cursor", "path": [[0, 0.30, 0.45], [2.0, 0.36, 0.52], [5.0, 0.55, 0.40], [8.0, 0.50, 0.48]], "clicks": [5.1]},
+      {"kind": "toast", "t": 2.2, "dur": 3.0, "title": "{toast_title}", "body": "{toast_body}", "icon": "{toast_icon}"}
+    ]
+  },
+  "look": {"kind": "phone", "zoom": [[0, 1.0], [11, 1.16]]},
+  "from": {"on": "t:{start}", "lead": 0},
+  "length": 11,
+  "titles": [
+    {"t": 0.1, "dur": 3.2, "text": "{hook}", "pos": "top", "size": 64, "plate": true},
+    {"t": 8.6, "dur": 2.4, "text": "Critter Overlay\nfree for Windows", "pos": "top", "size": 62, "plate": true}
+  ],
+  "sfx": [
+    {"at": 1.2, "sound": "game:{sound}", "gain": 0.55},
+    {"at": 5.4, "sound": "game:{sound}", "gain": 0.45},
+    {"at": 9.0, "sound": "motif", "gain": 0.7}
+  ]
+}

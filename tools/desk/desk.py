@@ -53,14 +53,24 @@ def edge():
     sys.exit("Edge (msedge.exe) not found")
 
 
-def _run_edge(params, size, ss, extra):
+def _run_edge(params, size, ss, extra, profile):
     url = PAGE.as_uri() + "?" + urllib.parse.urlencode(params)
-    profile = CACHE / "edge-profile"
-    profile.mkdir(parents=True, exist_ok=True)
     cmd = [edge(), "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
            "--disable-extensions", f"--user-data-dir={profile}", f"--force-device-scale-factor={ss}",
            f"--window-size={size[0]},{size[1]}", "--virtual-time-budget=1500", *extra, url]
     return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+
+
+def _stop_edge(profile):
+    """End any Edge still running on this render's profile. A headless Edge can
+    linger after writing its file, and a later launch on the same profile is
+    handed to it and never writes anything."""
+    subprocess.run(["powershell", "-NoProfile", "-Command",
+                    "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | "
+                    f"Where-Object {{ $_.CommandLine -like '*{profile.name}*' }} | "
+                    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"],
+                   capture_output=True, timeout=60)
+    shutil.rmtree(profile, ignore_errors=True)
 
 
 def render(params, size, ss=2):
@@ -71,15 +81,20 @@ def render(params, size, ss=2):
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp = out.with_suffix(".part.png")
         tmp.unlink(missing_ok=True)
-        _run_edge(params, size, ss, [f"--screenshot={tmp}"])
-        # msedge.exe's launcher returns before the browser writes the file
-        last, deadline = -1, time.time() + 60
-        while time.time() < deadline:
-            n = tmp.stat().st_size if tmp.exists() else -1
-            if n > 0 and n == last:
-                break
-            last = n
-            time.sleep(0.5)
+        profile = CACHE / "profiles" / f"p{os.getpid()}-{key}"    # a fresh profile per render
+        profile.mkdir(parents=True, exist_ok=True)
+        try:
+            _run_edge(params, size, ss, [f"--screenshot={tmp}"], profile)
+            # msedge.exe's launcher returns before the browser writes the file
+            last, deadline = -1, time.time() + 60
+            while time.time() < deadline:
+                n = tmp.stat().st_size if tmp.exists() else -1
+                if n > 0 and n == last:
+                    break
+                last = n
+                time.sleep(0.5)
+        finally:
+            _stop_edge(profile)
         if not tmp.exists():
             sys.exit(f"Edge did not write {tmp}")
         tmp.replace(out)
