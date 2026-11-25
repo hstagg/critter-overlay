@@ -697,7 +697,7 @@ def main():
             desk.layers_above(shot, t_out, (x0, y0))
         if phone:
             z = phone_zoom(t_out)
-            frame = phone.frame(shot, t_out, z)
+            frame = phone.frame(shot, t_out, z, focus=(cam[0] / sw, cam[1] / sh))
             rx, ry, rw, _ = phone.rect
             cw = W / (z * rw / sw)                    # so effects land near the right place
             left = -(W / 2 + z * (rx - W / 2)) / (z * rw / sw)

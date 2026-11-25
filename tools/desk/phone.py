@@ -57,7 +57,9 @@ class PhoneLook:
         self.vign = (v[..., None] * np.array([1.03, 1.0, 0.95], np.float32)).astype(np.float32)   # a touch warm
         self.i = 0
 
-    def frame(self, shot, t, zoom=1.0):
+    def frame(self, shot, t, zoom=1.0, focus=None):
+        """focus: the subject as (x, y) fractions of the screen; the closer the
+        zoom, the more the phone centres on it, as a person filming would."""
         room = self.room.copy()
         bx, by, bw, bh = self.screen_box
         scr = shot.resize((bw, bh), Image.LANCZOS)
@@ -69,6 +71,12 @@ class PhoneLook:
         cy = room.height / 2 - 30 + 5 * math.sin(2 * math.pi * 0.23 * t + 2) + 2.5 * math.sin(2 * math.pi * 1.1 * t)
         rot = math.radians(0.6 + 0.25 * math.sin(2 * math.pi * 0.17 * t))
         hw, hh = W / 2 / zoom, H / 2 / zoom
+        if focus:
+            k = min(1.0, max(0.0, (zoom - 1) / 0.7))
+            rx, ry, rw, rh = self.rect
+            fx, fy = (rx + focus[0] * rw) * MARGIN, (ry + focus[1] * rh) * MARGIN
+            cx = min(max(cx + (fx - cx) * k, hw + 20), room.width - hw - 20)
+            cy = min(max(cy + (fy - cy) * k, hh + 20), room.height - hh - 20)
         quad = [(-hw + 16, -hh + 20), (hw - 8, -hh - 4), (hw + 4, hh + 6), (-hw - 12, hh - 14)]   # slight yaw and tilt
         c, s = math.cos(rot), math.sin(rot)
         src = [(cx + x * c - y * s, cy + x * s + y * c) for x, y in quad]

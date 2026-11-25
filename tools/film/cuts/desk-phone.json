@@ -8,7 +8,8 @@
       {"kind": "toast", "t": 2.2, "dur": 3.0, "title": "{toast_title}", "body": "{toast_body}", "icon": "{toast_icon}"}
     ]
   },
-  "look": {"kind": "phone", "zoom": [[0, 1.0], [11, 1.16]]},
+  "look": {"kind": "phone", "zoom": [[0, 1.0], [2.8, 1.0], [4.8, 1.9], [8.0, 1.9], [9.4, 1.05]]},
+  "camera": {"mode": "follow"},
   "from": {"on": "t:{start}", "lead": 0},
   "length": 11,
   "titles": [
