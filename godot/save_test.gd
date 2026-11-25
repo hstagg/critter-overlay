@@ -6,6 +6,8 @@ extends SceneTree
 const SaveFile := preload("res://save_file.gd")
 const Economy := preload("res://economy.gd")
 const Settings := preload("res://settings.gd")
+# Not there: the developer's own Economy.INFINITE_FLAG mustn't change what loads.
+const NO_FLAG := "user://save_test_no_infinite_flag"
 
 var fails := 0
 var checks := 0
@@ -71,6 +73,7 @@ func _init() -> void:
 	put(ep, "{\"berries\": 500,")
 	var e = Economy.new()
 	e.save_path = ep
+	e.infinite_flag = NO_FLAG
 	e.load_save()
 	check(e.berries == 0 and corrupt_copies(ep).size() == 1, "a damaged economy save is kept aside")
 	e.free()
@@ -79,6 +82,7 @@ func _init() -> void:
 	put(ep, JSON.stringify({"version": 2, "berries": "lots", "collection": [], "owned": {}, "worn": [], "bond": 5, "day": 7}))
 	e = Economy.new()
 	e.save_path = ep
+	e.infinite_flag = NO_FLAG
 	e.load_save()
 	check(e.berries == 0 and e.collection == {} and e.owned == [] and e.worn == {} and e.bond == {}, "wrong-typed fields load as defaults")
 	e.free()
@@ -88,6 +92,7 @@ func _init() -> void:
 	put(ep, newer)
 	e = Economy.new()
 	e.save_path = ep
+	e.infinite_flag = NO_FLAG
 	e.load_save()
 	e.berries += 50
 	e.save()
@@ -98,6 +103,7 @@ func _init() -> void:
 	clean()
 	e = Economy.new()
 	e.save_path = ep
+	e.infinite_flag = NO_FLAG
 	e.tick(3600.0, true)
 	check(e.day_focus_min <= Economy.MAX_TICK_S / 60.0 + 0.0001, "an hour-long frame counts at most %.1f s (got %.2f min)" % [Economy.MAX_TICK_S, e.day_focus_min])
 	check(e.next_gift == 0, "and opens no gifts")
@@ -127,6 +133,7 @@ func _init() -> void:
 	clean()
 	e = Economy.new()
 	e.save_path = ep
+	e.infinite_flag = NO_FLAG
 	e.berries = 400
 	e.collection = {"kitten:common": {"first": 1, "count": 3}}
 	e.v2_custom_seen = {"custom:x": {"rare": 1}}
