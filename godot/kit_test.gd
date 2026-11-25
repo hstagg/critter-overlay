@@ -60,6 +60,70 @@ func shown(n: Node) -> bool:
 	return true
 
 
+func faces_you(src: String) -> void:
+	# B2: the otter as a faces-you kit, and a kit with one face.
+	Fixtures.otter_kit(src.path_join("otter_front"))
+	Fixtures.otter_kit(src.path_join("one_face"), true, "plod")
+	var oid := Customs.add_folder(src.path_join("otter_front"))
+	check(oid != "", "the otter kit loads")
+	if oid == "":
+		return
+	var d: Dictionary = Customs.all[oid]
+	var r := KitData.build(str(d["_dir"]), d["_kit"])
+	var otter = spawn("otter")
+	var shift := Fixtures.OTTER_SHIFT
+	check(absf(r.leg_len - otter.leg_len) <= 2.0, "otter kit: leg length within 2 of the otter's (%.1f vs %.1f)" % [r.leg_len, otter.leg_len])
+	check(r.head_at.sit == otter.head_at.sit + shift and r.head_at.walk == otter.head_at.walk + shift, "otter kit: the head sits and walks where the otter's does")
+	check(r.side_pivot == otter.side_pivot + shift, "otter kit: the side face's neck is the otter's")
+	# The clothes shift is the neck's move until F1 measures the two heads (P15).
+	check(r.wear_walk_shift == r.head_at.walk - r.head_at.sit, "otter kit: clothes move with the neck for now")
+	for pose in ["walk", "sit"]:
+		var got: Rect2 = r.hit_bounds[pose]
+		var want: Rect2 = otter.hit_bounds[pose]
+		want.position += shift
+		# The otter's boxes have hand-set slack and its walk has a tail of its
+		# own (tail-side); a kit's box is what it draws, so it sits inside.
+		var share := got.get_area() / want.get_area()
+		check(want.grow(6.0).encloses(got) and share > 0.6, "otter kit: %s hit box inside the otter's and most of it (%s vs %s, %.2f)" % [pose, got, want, share])
+	check(r.two_faces and r.auto.is_empty(), "otter kit: two faces, nothing filled in (%s)" % str(r.auto))
+	otter.free()
+	var oidles: Array = Species.row(oid)["idles"]
+	check("groom" in oidles and "yawn" in oidles and not "hunt" in oidles and not "chase_tail" in oidles, "otter kit's moves (%s)" % ", ".join(oidles))
+
+	var fid := Customs.add_folder(src.path_join("one_face"))
+	check(fid != "", "the one-face kit loads")
+	var fd: Dictionary = Customs.all[fid]
+	var fr := KitData.build(str(fd["_dir"]), fd["_kit"])
+	check(fr.auto.get("head-side") == "front face" and fr.auto.get("ear-r") == "mirror" and fr.auto.get("loaf-body") == "melt", "one-face kit: front face walking, mirrored ear, melted nap (%s)" % str(fr.auto))
+	for id in [oid, fid]:
+		var c = spawn(id)
+		var name: String = Customs.all[id]["name"]
+		c.vx = c.facing * c.cruise
+		var x0: float = c.position.x
+		for i in 240:
+			c.tick(1.0 / 30.0)
+			if c.mode != "walk":
+				c._go_walk()
+		check(absf(c.position.x - x0) > 5.0, "%s walks" % name)
+		var face: Array = c.front_parts.filter(func(n): return n != c.mouth_open)   # the mouth opens only to yawn
+		var front_shown: bool = face.all(func(n): return n.visible)
+		if id == fid:
+			check(c.head_side == null and front_shown, "%s keeps its front face while walking" % name)
+		else:
+			check(c.head_side.visible and not front_shown, "%s walks with its side face" % name)
+		c._go_sit()
+		c.tick(0.1)
+		check(face.all(func(n): return n.visible) and c.sit_body.visible, "%s sits facing you" % name)
+		c._go_loaf(5.0)
+		c.tick(0.1)
+		check(c.loaf_body != null and shown(c.loaf_body), "%s naps with a body" % name)
+		c._go_sit()
+		c.blink_left = c.blink_len * 0.5
+		c.tick(0.0)
+		check(c.eyes.scale.y < 0.5 or (c.eyes_shut != null and c.eyes_shut.visible), "%s blinks" % name)
+		c.free()
+
+
 func rect_near(a: Rect2, b: Rect2, eps: float) -> bool:
 	return a.position.distance_to(b.position) <= eps and a.end.distance_to(b.end) <= eps
 
@@ -186,6 +250,8 @@ func _init() -> void:
 			c.tick(1.0 / 30.0)
 		check(c.act == "shake_off", "%s shakes off" % name)
 		c.free()
+
+	faces_you(src)
 
 	# --- An edit makes new art: the rig and textures are keyed by rev.
 	var before := Customs.tex_key(kid)

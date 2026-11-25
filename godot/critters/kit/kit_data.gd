@@ -53,6 +53,18 @@ const PLANS := {
 		"speed": Vector2(38.0, 62.0),
 		"legged": true,
 	},
+	"front": {
+		"rig": "res://critters/kit/front.gd",
+		"required": ["body", "head", "eyes", "walk-body", "leg-front", "leg-back"],
+		"optional": ["head-side", "eye-side", "eye-side-closed", "eyes-closed", "loaf-body",
+			"loaf-eyes", "loaf-eyes-closed", "ear-l", "ear-r", "foot-l", "foot-r", "paws", "tail",
+			"mouth-open", "nose", "head-front", "wing", "back-extra", "front-extra",
+			"leg-front-far", "leg-back-far", "groom-paws", "scratch-foot", "stand-body"],
+		"pins": ["neck-sit", "neck-walk", "hip-front", "hip-back", "eyes"],
+		"gaits": ["trot", "plod", "scurry", "dart", "slide", "bounce", "sway"],
+		"speed": Vector2(40.0, 62.0),
+		"legged": true,
+	},
 }
 
 static var _rigs := {}         # tex key ("custom:<id>@<rev>") -> rig
@@ -149,6 +161,19 @@ static func squashed(img: Image, k: float) -> Image:
 	return out
 
 
+static func mirrored(img: Image, about_x: float) -> Image:
+	# Flipped left to right about x = about_x (SVG units).
+	var out := Image.create(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8)
+	var c := about_x * PART_SCALE
+	for y in img.get_height():
+		for x in img.get_width():
+			var px := img.get_pixel(x, y)
+			var to := roundi(2.0 * c - x - 1)
+			if px.a > 0.0 and to >= 0 and to < out.get_width():
+				out.set_pixel(to, y, px)
+	return out
+
+
 static func bounds(img: Image) -> Rect2:
 	# The drawn area in SVG units, or an empty rect.
 	if img == null:
@@ -187,8 +212,10 @@ static func pins(kit: Dictionary) -> Dictionary:
 		if p.has(hip) and p[hip].y <= p["neck-walk"].y:
 			p[hip] = Vector2(p[hip].x, p["neck-walk"].y + 1.0)
 			warn.append("%s was above the neck" % hip)
-	def.call("head", p["neck-walk"])
 	def.call("neck-sit", p["neck-walk"])
+	# The head is drawn where it sits in the plan's one required pose.
+	def.call("head", p["neck-sit"] if str(kit.get("plan", "")) == "front" else p["neck-walk"])
+	def.call("eye-side", p["neck-walk"] + Vector2(-30, -40))
 	def.call("tail-walk", p.get("tail", Vector2(226, 192)))
 	def.call("tail", p["tail-walk"])
 	def.call("tail-sit", p["tail"])
@@ -228,6 +255,7 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		if img != null:
 			imgs[part] = img
 	var auto := {}
+	var front := str(kit.get("plan", "")) == "front"
 	var pivots := {"walk-body": BASE}
 	var head_pivot: Vector2 = P["head"]
 	pivots["head"] = head_pivot
@@ -279,13 +307,18 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	if imgs.has("ear-l"):
 		pivots["ear-l"] = P["ear-l"]
 		ear_parts.append("ear-l")
-		if not imgs.has("ear-r"):
+		if not imgs.has("ear-r") and front:
+			# Facing you: the other ear is this one mirrored about the face.
+			imgs["ear-r"] = mirrored(imgs["ear-l"], head_pivot.x)
+			auto["ear-r"] = "mirror"
+			pivots["ear-r"] = Vector2(2.0 * head_pivot.x - P["ear-l"].x, P["ear-l"].y)
+		elif not imgs.has("ear-r"):
 			imgs["ear-r"] = tinted(imgs["ear-l"], FAR_TINT, FAR_EAR_SHIFT)
 			auto["ear-r"] = "tint"
 			pivots["ear-r"] = P["ear-l"] + Vector2(FAR_EAR_SHIFT, 0)
 		else:
 			pivots["ear-r"] = P["ear-r"]
-		if auto.has("ear-r"):
+		if auto.get("ear-r", "") == "tint":
 			ear_parts.insert(0, "ear-r")   # the made-up far ear goes behind
 		else:
 			ear_parts.append("ear-r")
@@ -295,18 +328,38 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 
 	# Poses. Sitting not drawn: the walking body with its legs at rest.
 	# Napping not drawn: the walking body melted onto the ground (P3).
-	var walk_body: Image = imgs["walk-body"]
-	var wb := bounds(walk_body)
 	var head_at := {"walk": P["neck-walk"]}
 	var tail_at := {}
 	var sit_parts := []
-	if imgs.has("body"):
+	if front:
+		# Sits facing you (required), walks side-on: the walking face is
+		# head-side when drawn, else the front face (as the panda's).
+		for part in ["foot-l", "foot-r", "body", "paws"]:
+			if imgs.has(part):
+				pivots[part] = BASE
+				sit_parts.append(part)
+		head_at["sit"] = P["neck-sit"]
+		if imgs.has("head-side"):
+			pivots["head-side"] = P["neck-walk"]
+			for part in ["eye-side", "eye-side-closed"]:
+				if imgs.has("eye-side") and imgs.has(part):
+					pivots[part] = P["eye-side"]
+		else:
+			auto["head-side"] = "front face"
+		if imgs.has("loaf-eyes") and imgs.has("loaf-eyes-closed"):
+			pivots["loaf-eyes"] = P.get("loaf-eyes", BASE)
+			pivots["loaf-eyes-closed"] = pivots["loaf-eyes"]
+	elif imgs.has("body"):
 		pivots["body"] = BASE
 		sit_parts = ["body"]
 		head_at["sit"] = P["neck-sit"]
 	else:
 		auto["body"] = "walk"
 		head_at["sit"] = P["neck-walk"]
+	# Napping not drawn: the pose it was drawn in, melted onto the ground.
+	var melt_from := "body" if front else "walk-body"
+	var melt_neck: Vector2 = P["neck-sit"] if front else P["neck-walk"]
+	var wb := bounds(imgs[melt_from])
 	var bottom := wb.end.y if wb.size.y > 0 else GROUND
 	var melt := func(v: Vector2) -> Vector2:
 		return Vector2(v.x, GROUND + MELT * (v.y - bottom))
@@ -314,16 +367,18 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		pivots["loaf-body"] = BASE
 		head_at["loaf"] = P.get("neck-loaf", P["neck-walk"] + Vector2(0, 20))
 	else:
-		imgs["loaf-body"] = squashed(walk_body, MELT)
+		imgs["loaf-body"] = squashed(imgs[melt_from], MELT)
 		pivots["loaf-body"] = Vector2(BASE.x, MELT * bottom)
 		auto["loaf-body"] = "melt"
-		head_at["loaf"] = melt.call(P["neck-walk"])
+		head_at["loaf"] = melt.call(melt_neck)
 	if imgs.has("stand-body"):
 		head_at["stand"] = P.get("neck-stand", P["neck-sit"])
 	if imgs.has("tail"):
 		pivots["tail"] = P["tail"]
 		tail_at["walk"] = P["tail-walk"]
 		tail_at["sit"] = P["tail-sit"] if imgs.has("body") else P["tail-walk"]
+		if front:
+			tail_at["sit"] = P["tail-sit"]
 		if auto.has("loaf-body"):
 			tail_at["loaf"] = melt.call(P["tail-walk"])
 
@@ -335,6 +390,11 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 		"front_hip": P["hip-front"], "back_hip": P["hip-back"],
 		"gait": str(kit.get("gait", "trot")) if str(kit.get("gait", "trot")) in pl.gaits else "trot",
 	}
+	r["side_pivot"] = P["neck-walk"]
+	r["two_faces"] = imgs.has("head-side")
+	r["wear_neck"] = P["neck-sit"]
+	r["wear_walk_shift"] = P["neck-walk"] - P["neck-sit"]
+	r["wear_nap_shift"] = head_at["loaf"] - P["neck-sit"]
 	r["mid"] = (P["hip-front"] + P["hip-back"]) * 0.5 - Vector2(0, 10)
 	r["feet"] = Vector2(BASE.x, GROUND)
 	r["leg_len"] = maxf(8.0, GROUND - P["hip-front"].y)
@@ -361,7 +421,7 @@ static func _placed(r: Dictionary, pose: String) -> Array:
 		"walk":
 			body_parts = ["walk-body", "back-extra", "front-extra", "wing"]
 		"sit":
-			body_parts = ["body"] if not r.sit_parts.is_empty() else ["walk-body", "back-extra", "front-extra", "wing"]
+			body_parts = r.sit_parts if not r.sit_parts.is_empty() else ["walk-body", "back-extra", "front-extra", "wing"]
 		"loaf":
 			body_parts = ["loaf-body"]
 		"stand":
@@ -377,9 +437,13 @@ static func _placed(r: Dictionary, pose: String) -> Array:
 				out.append([imgs[spec[0]], spec[1] - pv[spec[0]]])
 	if r.head_at.has(pose):
 		var off: Vector2 = r.head_at[pose] - r.head_pivot
-		for part in ["head", "eyes", "head-front"] + r.ear_parts:
-			if imgs.has(part):
-				out.append([imgs[part], off])
+		if pose == "walk" and r.get("two_faces", false):
+			# Walking shows the side face, drawn where it sits.
+			out.append([imgs["head-side"], r.head_at[pose] - pv["head-side"]])
+		else:
+			for part in ["head", "eyes", "head-front"] + r.ear_parts:
+				if imgs.has(part):
+					out.append([imgs[part], off])
 	if r.tail_at.has(pose) and imgs.has("tail"):
 		out.append([imgs["tail"], r.tail_at[pose] - pv["tail"]])
 	return out
