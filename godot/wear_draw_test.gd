@@ -10,6 +10,8 @@ extends SceneTree
 ## - A kitten kit wears a hat drawn from its own head, never a species-only
 ##   item, a hood hides its ears, a dye recolours it, and the textures go
 ##   when the kit is forgotten. A faces-you kit's hat moves between faces.
+## - On a tiny head every item is sized to the head: none covers the eyes
+##   unless it does on the kitten, and none is wider for its head.
 ## - The Admin contact sheet renders (when admin.gd is there).
 ## Run: godot --headless --path godot --script res://wear_draw_test.gd
 ## With WEAR_DIFF set, every file whose text differs is printed both ways.
@@ -38,6 +40,9 @@ const SPECIES := {
 	"unicorn": {"cx": 150, "cy": 130, "rx": 64, "ry": 56, "eye_y": 132, "eye_dx": 26, "eye_r": 14, "chin": 183, "gap": [132, 168], "side": 0.9},
 	"golden_kitten": {"cx": 150, "cy": 122, "rx": 92, "ry": 74, "eye_y": 124, "eye_dx": 38, "eye_r": 18, "chin": 196, "gap": [122, 178], "side": 1.0},
 }
+
+# A head about 0.3 the kitten's size (admin.gd AWKWARD_HEADS.tiny).
+const TINY_HEAD := {"cx": 150.0, "cy": 205.0, "rx": 26.0, "ry": 22.0, "eye_y": 207.0, "eye_dx": 10.0, "eye_r": 5.0, "chin": 227.0, "top": 183.0, "side": 0.8}
 
 var fails := 0
 var checks := 0
@@ -219,6 +224,39 @@ func front_kit_wears(src: String) -> void:
 	c.free()
 
 
+func small_heads() -> void:
+	# On a head much smaller than the kitten's, every item kits can wear keeps
+	# to the head as it does on the kitten: one that leaves the kitten's eyes
+	# clear leaves these clear too, and it is no wider for its head (with 2 px
+	# for rounding: the smallest clips are 7 px across on it).
+	var kitten: Dictionary = SPECIES.kitten
+	for id in WearDraw.IDS:
+		if not Wear.for_kits(id):
+			continue
+		var big := _drawn(Wear.svg_for_kit(id, kitten))
+		var small := _drawn(Wear.svg_for_kit(id, TINY_HEAD))
+		if not _covers_eyes(big, kitten):
+			check(not _covers_eyes(small, TINY_HEAD), "%s leaves a tiny head's eyes clear" % id)
+		var wide_big: float = big.get_used_rect().size.x / (2.0 * kitten.rx)
+		var wide_small: float = small.get_used_rect().size.x / (2.0 * TINY_HEAD.rx)
+		check(wide_small <= wide_big * 1.1 + 2.0 / (2.0 * TINY_HEAD.rx), "%s is no wider for a tiny head than for the kitten's (%.2f vs %.2f head widths)" % [id, wide_small, wide_big])
+
+
+func _drawn(text: String) -> Image:
+	var img := Image.new()
+	img.load_svg_from_string(text, 1.0)
+	img.convert(Image.FORMAT_RGBA8)
+	return img
+
+
+func _covers_eyes(img: Image, m: Dictionary) -> bool:
+	# Whether either eye's centre is under the item (the frame's top is y -120).
+	for s in [-1, 1]:
+		if img.get_pixel(int(m.cx + s * m.eye_dx), int(m.eye_y + 120)).a > 0.5:
+			return true
+	return false
+
+
 func contact_sheet() -> void:
 	# The Admin contact sheet (admin.gd, admin build only) renders: every
 	# kit item on four heads. Whether they fit is for the developer to judge.
@@ -241,6 +279,7 @@ func contact_sheet() -> void:
 
 func _init() -> void:
 	parity()
+	small_heads()
 	contact_sheet()
 	world = World.new()
 	get_root().add_child(world)

@@ -1758,7 +1758,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | E3 | Frame importer | not started |
 | R3 | **Release 3.4.0** | not started |
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
-| F2 | Clothes drawn at runtime | done 2026-11-24 (the contact sheet waits for review) |
+| F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
 | F3 | Clothes on frame critters | not started |
 | G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
 | G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |

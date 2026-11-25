@@ -95,7 +95,35 @@ static func svg_for_kit(id: String, metrics: Dictionary, dye := "") -> String:
 	# item kits can't wear.
 	if not for_kits(id):
 		return ""
-	return _dyed(WearDraw.draw(id, metrics), id, dye)
+	return _dyed(_drawn_to_size(id, metrics), id, dye)
+
+
+# The kitten's head size, √(rx·ry) of design/wear/build.py SPECIES; the items
+# are drawn for heads about this size.
+const KIT_REF_HEAD := 82.5
+
+
+static func _drawn_to_size(id: String, m: Dictionary) -> String:
+	# The items have fixed sizes, so on a head smaller than the kitten's they
+	# cover its face. For such a head the item is drawn on a copy enlarged to
+	# the kitten's size about the head's centre, then scaled back down whole.
+	# Larger heads are drawn as they are (wear_draw.gd places items on them).
+	var s := sqrt(float(m.rx) * float(m.ry)) / KIT_REF_HEAD
+	if s >= 1.0:
+		return WearDraw.draw(id, m)
+	var cx := float(m.cx)
+	var cy := float(m.cy)
+	var big := m.duplicate()
+	for k in ["rx", "ry", "eye_dx", "eye_r"]:
+		big[k] = float(m[k]) / s
+	for k in ["eye_y", "chin", "top"]:
+		if m.has(k):
+			big[k] = cy + (float(m[k]) - cy) / s
+	var text := WearDraw.draw(id, big)
+	var open := text.find(">") + 1
+	var close := text.rfind("</svg>")
+	var g := '<g transform="translate(%.3f %.3f) scale(%.4f) translate(%.3f %.3f)">' % [cx, cy, s, -cx, -cy]
+	return text.substr(0, open) + g + text.substr(open, close - open) + "</g></svg>"
 
 
 static func _dyed(text: String, id: String, dye: String) -> String:
