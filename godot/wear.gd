@@ -8,12 +8,20 @@ extends RefCounted
 ## that species has been met, and are drawn only for critters whose design
 ## is final (design decision, 2026-10-06).
 ##
+## Homemade kit critters ("custom:<id>") have no shipped files: their clothes
+## are drawn at runtime from their own head (wear_draw.gd, the port of
+## build.py; docs/custom-critters-build-plan.md, P14 and F2). They never get
+## species-only items or FITS_BADLY ones, and a hood hides KIT_HOOD_HIDES.
+## Frame critters wear nothing yet (F3).
+##
 ## Prices are by hours of focus, a wide spread (game design rules, D28): at
 ## about 115 berries a steady focus hour (tools/economy_sim.py; fewer in a
 ## first session), small 50 is about half an hour, medium 250 a couple of
 ## hours, large 1,500 a working day or two, a showpiece 8,000 about 70 hours
 ## and a perk 20,000 about 175: something to buy straight away, and goals
 ## that take weeks.
+
+const WearDraw := preload("res://wear_draw.gd")
 
 const PRICES := {"small": 50, "medium": 250, "large": 1500, "showpiece": 8000, "perk": 20000}   # D28 (2026-10-26)
 
@@ -45,6 +53,13 @@ const DYE_PRICE := 50
 const TREAT_PRICE := 40
 const SLOTS := ["neck", "face", "head"]   # drawn in this order, head on top
 
+# Items hidden from homemade critters because they look wrong on some heads,
+# filled in from the contact sheet (Admin, "Make the clothes contact sheet").
+const FITS_BADLY: Array = []
+# A homemade critter's parts a hood hides (P14): its ears, the tuft, and
+# anything drawn over the head.
+const KIT_HOOD_HIDES := ["ear-l", "ear-r", "tuft", "head-front"]
+
 # id: [name, slot, tier, (only this species)], written by design/wear/build.py.
 static var ITEMS: Dictionary = _load()
 
@@ -71,10 +86,56 @@ static func dyeable(id: String) -> bool:
 
 static func svg(id: String, species: String, dye := "") -> String:
 	# The item's art for this species, in a dye's colour if given.
-	var text := FileAccess.get_file_as_string("res://art/wear/%s/%s.svg" % [id, species])
+	return _dyed(FileAccess.get_file_as_string("res://art/wear/%s/%s.svg" % [id, species]), id, dye)
+
+
+static func svg_for_kit(id: String, metrics: Dictionary, dye := "") -> String:
+	# The item drawn for a homemade critter's head (kit_data.gd head_metrics(),
+	# in the head drawing's frame), in a dye's colour if given; "" for an
+	# item kits can't wear.
+	if not for_kits(id):
+		return ""
+	return _dyed(_drawn_to_size(id, metrics), id, dye)
+
+
+# The kitten's head size, √(rx·ry) of design/wear/build.py SPECIES; the items
+# are drawn for heads about this size.
+const KIT_REF_HEAD := 82.5
+
+
+static func _drawn_to_size(id: String, m: Dictionary) -> String:
+	# The items have fixed sizes, so on a head smaller than the kitten's they
+	# cover its face. For such a head the item is drawn on a copy enlarged to
+	# the kitten's size about the head's centre, then scaled back down whole.
+	# Larger heads are drawn as they are (wear_draw.gd places items on them).
+	var s := sqrt(float(m.rx) * float(m.ry)) / KIT_REF_HEAD
+	if s >= 1.0:
+		return WearDraw.draw(id, m)
+	var cx := float(m.cx)
+	var cy := float(m.cy)
+	var big := m.duplicate()
+	for k in ["rx", "ry", "eye_dx", "eye_r"]:
+		big[k] = float(m[k]) / s
+	for k in ["eye_y", "chin", "top"]:
+		if m.has(k):
+			big[k] = cy + (float(m[k]) - cy) / s
+	var text := WearDraw.draw(id, big)
+	var open := text.find(">") + 1
+	var close := text.rfind("</svg>")
+	var g := '<g transform="translate(%.3f %.3f) scale(%.4f) translate(%.3f %.3f)">' % [cx, cy, s, -cx, -cy]
+	return text.substr(0, open) + g + text.substr(open, close - open) + "</g></svg>"
+
+
+static func _dyed(text: String, id: String, dye: String) -> String:
 	if dye != "" and DYES.has(dye) and MAINS.has(id):
 		text = text.replacen(MAINS[id], DYES[dye][1])
 	return text
+
+
+static func for_kits(id: String) -> bool:
+	# Whether homemade critters may wear an item: not one species' own, not
+	# on FITS_BADLY.
+	return has(id) and only(id) == "" and not id in FITS_BADLY and id in WearDraw.IDS
 
 
 static func _load_hides() -> Dictionary:
@@ -83,7 +144,11 @@ static func _load_hides() -> Dictionary:
 
 
 static func hides(id: String, species: String) -> Array:
-	# Parts of the wearer hidden while it is on (a hood hides the ears).
+	# Parts of the wearer hidden while it is on (a hood hides the ears). For
+	# a homemade critter, the hoods (the items that hide ears on some species)
+	# hide KIT_HOOD_HIDES.
+	if species.begins_with("custom:"):
+		return KIT_HOOD_HIDES if HIDES.has(id) and for_kits(id) else []
 	return HIDES.get(id, {}).get(species, [])
 
 
@@ -136,6 +201,11 @@ static func luck_mult(items: Array) -> float:
 
 
 static func fits(id: String, species: String) -> bool:
+	# Whether this species can wear the item (and so be offered it). A
+	# homemade critter can if it is a kit critter and the item is for kits.
+	if species.begins_with("custom:"):
+		var d: Dictionary = load("res://customs.gd").all.get(species, {})
+		return str(d.get("kind", "")) == "kit" and for_kits(id)
 	return FileAccess.file_exists("res://art/wear/%s/%s.svg" % [id, species])
 
 

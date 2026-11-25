@@ -67,6 +67,8 @@ func checks() -> Array:
 		out.append(["Clothes", "wear:" + s, "%s's own clothes" % Collection.species_name(s),
 			"%s, walking and sitting. Do they sit right and follow the head?" % ", ".join(own.map(func(i): return Wear.item_name(i))), "wear:%s:%s" % [s, ",".join(own)]])
 	out.append(["Clothes", "hoods", "Hoods hide ears", "Frog hood on kittens, bear hood on rabbits (their ears poke through), dino hood on hedgehogs.", "hoods"])
+	out.append(["Clothes", "kit_dress", "The kitten kit tries on everything", "The kitten kit sits and puts on each item homemade critters can wear, one every 1.5 s: each sits on its own head as on the kitten's, hoods hide its ears, and no species' own item comes.", "dress_kit"])
+	out.append(["Clothes", "kit_sheet", "Clothes fit homemade heads (contact sheet reviewed)", "Writes wear_contact_sheet.png (and a .txt naming each item) in Open folder and opens it: every item homemade critters can wear on the kitten's head, then on a wide, a tall and a tiny head. Anything that looks wrong goes on FITS_BADLY in wear.gd.", "wear_sheet"])
 	out.append(["Clothes", "wardrobe", "The launch wardrobe, all 84", "On the clothes canvas: mark any to redo.", "url:" + CANVAS])
 	for p in Pairs.PAIRS:
 		out.append(["Together", "pair:" + p, "Pair: %s" % p.replace("_", " "), "Two critters, the interaction forced once.", "pair:" + p])
@@ -279,6 +281,8 @@ func _events_card() -> Control:
 			["Throw one", func(): A().throw()], ["A present", func(): A().present()],
 			["Climb up", func(): A().climb(sp)], ["Climb down", func(): A().climb(sp, true)],
 			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries],
+			["Dress the kitten kit in everything", func(): A().dress_kit_all()],
+			["Make the clothes contact sheet", func(): A().wear_sheet()],
 			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)

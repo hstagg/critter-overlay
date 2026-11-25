@@ -65,7 +65,7 @@ func wear(items: Array, dyes: Dictionary = {}) -> void:
 	super(items, dyes)
 	if head_side == null:
 		return   # not built yet
-	var ids := worn.filter(func(id): return FileAccess.file_exists("res://art/wear/%s/%s.svg" % [id, species]))
+	var ids := worn.filter(func(id): return _wears(id))
 	for i in mini(ids.size(), _wear_nodes.size()):
 		_wear_nodes[i].set_meta("slot", Wear.slot(ids[i]))
 		_wear_nodes[i].set_meta("at", _wear_nodes[i].position)

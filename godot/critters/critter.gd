@@ -29,7 +29,7 @@ const CUSTOMS := "res://customs.gd"   # loaded, not preloaded: customs.gd -> spe
 
 static var _textures := {}     # art_key() -> part -> texture
 static var zoom := 1.0         # draws everything bigger, for close-up demo captures
-static var _wear_textures := {}   # "wear:item:species" -> texture
+static var _wear_textures := {}   # "wear:item:species:dye" (a kit's: "wear:item:species:art_key:dye") -> texture
 
 # --- Species shape: set by each species in _define() ----------------------------
 var species := ""
@@ -274,23 +274,26 @@ func wear(items: Array, dyes: Dictionary = {}) -> void:
 	if head == null:
 		return
 	# A hood hides the wearer's own ears (or the duckling's tuft).
-	var hidden: Array = []
-	for id in worn:
-		hidden.append_array(Wear.hides(id, species))
+	var hidden := _hidden_by_wear()
 	for e in ears:
-		e.visible = not "ears" in hidden
-	var tuft_node = get("tuft")
-	if tuft_node is Node2D:
-		tuft_node.visible = not "tuft" in hidden
+		e.visible = not _hidden_by(e, hidden)
+	for part in ["tuft", "head_front"]:
+		var node = get(part)
+		if node is Node2D:
+			node.visible = not _hidden_by(node, hidden)
+	var m := _wear_head()
 	for id in worn:
-		var path := "res://art/wear/%s/%s.svg" % [id, species]
-		if not FileAccess.file_exists(path):
+		if not _wears(id):
 			continue
 		var dye: String = dyes.get(id, "")
 		var key := "wear:%s:%s:%s" % [id, species, dye]
+		if not m.is_empty():
+			# Drawn from this critter's head, per art rev; forget() finds it
+			# by the ":<species>:" in it.
+			key = "wear:%s:%s:%s:%s" % [id, species, art_key(), dye]
 		if not _wear_textures.has(key):
 			var img := Image.new()
-			img.load_svg_from_string(Wear.svg(id, species, dye), PART_SCALE)
+			img.load_svg_from_string(Wear.svg(id, species, dye) if m.is_empty() else Wear.svg_for_kit(id, m, dye), PART_SCALE)
 			img.generate_mipmaps()
 			_wear_textures[key] = ImageTexture.create_from_image(img)
 		var s := Sprite2D.new()
@@ -301,6 +304,41 @@ func wear(items: Array, dyes: Dictionary = {}) -> void:
 		head.add_child(s)
 		_sprites.append(s)
 		_wear_nodes.append(s)
+
+
+func _wear_head() -> Dictionary:
+	# The head metrics this critter's clothes are drawn from at runtime
+	# (wear_draw.gd), or {} to use the shipped art/wear/<item>/<species>.svg.
+	# The kit rigs return their kit's (kit_data.gd head_metrics()).
+	return {}
+
+
+func _wears(id: String) -> bool:
+	# Whether there is art of the item for this critter.
+	if not _wear_head().is_empty():
+		return Wear.for_kits(id)
+	return FileAccess.file_exists("res://art/wear/%s/%s.svg" % [id, species])
+
+
+func _hidden_by_wear() -> Array:
+	# Parts the clothes on hide (wear.gd hides()).
+	var hidden: Array = []
+	for id in worn:
+		hidden.append_array(Wear.hides(id, species))
+	return hidden
+
+
+func _hidden_by(n: Node, hidden: Array) -> bool:
+	# Whether one of the head's parts is under the clothes: "ears" (the
+	# cast's) or a kit's own part names (wear.gd KIT_HOOD_HIDES).
+	var i := ears.find(n)
+	if i >= 0:
+		return "ears" in hidden or (i < ear_parts.size() and ear_parts[i] in hidden)
+	if n == get("tuft"):
+		return "tuft" in hidden
+	if n == get("head_front"):
+		return "head-front" in hidden
+	return false
 
 
 func _has(part: String) -> bool:

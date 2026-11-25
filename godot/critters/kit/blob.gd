@@ -33,6 +33,11 @@ func head_top_px() -> float:
 	return kit.head_top_px
 
 
+func _wear_head() -> Dictionary:
+	# Clothes are drawn from the kit's own head (F2).
+	return kit.head
+
+
 func _load_textures() -> void:
 	var key := art_key()
 	if _textures.has(key):
