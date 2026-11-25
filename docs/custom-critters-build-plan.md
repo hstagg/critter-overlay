@@ -1757,7 +1757,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | E2 | Frame formats | done 2026-11-24 |
 | E3 | Frame importer | not started |
 | R3 | **Release 3.4.0** | not started |
-| F1 | Head metrics | not started |
+| F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
 | F2 | Clothes drawn at runtime | not started |
 | F3 | Clothes on frame critters | not started |
 | G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
@@ -1938,3 +1938,13 @@ step left needs the developer, or a design that needs them:
   test.
 - **Decision 8** (the tester's app) still decides which real-app files the
   tests get.
+- 2026-11-24: F1 done. One method for every kit, builder or drawn: the head
+  ellipse has the spread of the head drawing's solid pixels (thin whiskers
+  barely move it), the crown and chin are its top and bottom, and the eyes
+  are the two biggest blobs in the eyes drawing. For the kitten kit every
+  number is within 4 units of `build.py`'s. A faces-you critter's clothes
+  shift between faces is the crown's move: the otter kit's is within 10 of
+  the otter's hand-set one. `kit_import.gd` stores the metrics in
+  `kit.json`. The "Where's its head?" adjustment comes with C0's screens.
+  `gap` (unused by any item) and a fitted `side` stand in for build.py's
+  hand-set ones.

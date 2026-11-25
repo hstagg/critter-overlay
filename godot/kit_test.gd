@@ -75,8 +75,8 @@ func faces_you(src: String) -> void:
 	check(absf(r.leg_len - otter.leg_len) <= 2.0, "otter kit: leg length within 2 of the otter's (%.1f vs %.1f)" % [r.leg_len, otter.leg_len])
 	check(r.head_at.sit == otter.head_at.sit + shift and r.head_at.walk == otter.head_at.walk + shift, "otter kit: the head sits and walks where the otter's does")
 	check(r.side_pivot == otter.side_pivot + shift, "otter kit: the side face's neck is the otter's")
-	# The clothes shift is the neck's move until F1 measures the two heads (P15).
-	check(r.wear_walk_shift == r.head_at.walk - r.head_at.sit, "otter kit: clothes move with the neck for now")
+	# F1: the clothes shift between faces is the crown's move (P15).
+	check(r.wear_walk_shift.distance_to(otter.wear_walk_shift) <= 10.0, "otter kit: clothes move to the side face about as far as the otter's (%s vs %s)" % [r.wear_walk_shift, otter.wear_walk_shift])
 	for pose in ["walk", "sit"]:
 		var got: Rect2 = r.hit_bounds[pose]
 		var want: Rect2 = otter.hit_bounds[pose]
@@ -316,6 +316,11 @@ func _init() -> void:
 	check(r.head_at.walk == kitten.head_at.walk and r.head_at.sit == kitten.head_at.sit and r.head_at.loaf == kitten.head_at.loaf, "the head sits where the kitten's does")
 	check(r.tail_at.walk == kitten.tail_at.walk and r.tail_at.sit == kitten.tail_at.sit, "and the tail")
 	check(absf(r.ground_dy) <= 2.0, "the kitten kit stands on the ground (%.1f off)" % r.ground_dy)
+	# F1: the head's metrics match design/wear/build.py's for the kitten
+	# (cx 150, cy 122, rx 92, ry 74, eye_y 124, eye_dx 38, eye_r 18, chin 196).
+	var want_head := {"cx": 150.0, "cy": 122.0, "rx": 92.0, "ry": 74.0, "eye_y": 124.0, "eye_dx": 38.0, "eye_r": 18.0, "chin": 196.0}
+	for k in want_head:
+		check(absf(float(r.head[k]) - want_head[k]) <= 4.0, "kitten kit head %s within 4 of build.py's (%.1f vs %.1f)" % [k, r.head[k], want_head[k]])
 	check(r.auto.is_empty() or r.auto.keys() == [], "nothing filled in for the kitten kit (%s)" % str(r.auto))
 	var kidles: Array = Species.row(kid)["idles"]
 	for b in ["sit_and_look", "nap", "stretch", "yawn", "sneeze", "ear_flick", "tail_swish", "chase_tail", "hunt", "scratch", "shake_off"]:

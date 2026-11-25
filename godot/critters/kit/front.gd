@@ -30,8 +30,9 @@ func _define() -> void:
 	KitData.apply(self, kit)
 	side_pivot = kit.side_pivot
 	wear_neck = kit.wear_neck
-	wear_crown = kit.wear_neck - Vector2(0, 100)
+	wear_crown = kit.wear_crown
 	wear_walk_shift = kit.wear_walk_shift
+	wear_side_scale = kit.get("wear_side_scale", 0.8)
 	wear_nap_shift = kit.wear_nap_shift
 	gs = Gaits.state(kit.gait, kit.mid, kit.feet)
 
