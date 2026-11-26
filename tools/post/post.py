@@ -1,315 +1,211 @@
-"""The posting queue: staged clips, captions and a schedule, with a review gate.
+"""Ships a finished post to TikTok, Instagram Reels and YouTube Shorts, scheduled.
 
-Each post is one Markdown file in the queue folder: the clip, the time, the
-platforms and the hashtags at the top, the caption below, and two tick boxes.
-Nothing is published until "- [x] approve" is ticked by a person, the post's
-time has come, and the run is live; a run is a dry run (it prints and logs
-exactly what it would send) unless --live is given AND the platform is listed
-in the config's "live". So the review step can be done from any editor or
-phone that syncs the folder, and a dry run can never post.
+A post is a JSON spec: the clip, and per platform the words that go with it
+(more keys may be there; ship reads these):
 
-Platforms, all through their official APIs on accounts the owner authorised:
-  youtube    Data API resumable upload (a Short: vertical, under 3 minutes).
-             Uploads from an unaudited Google Cloud project stay private.
-  instagram  Instagram API with Instagram Login, resumable Reels upload.
-  tiktok     Content Posting API, upload to the inbox (drafts): the owner
-             finishes the post in the TikTok app, pasting the caption. Direct
-             posting is forced private until TikTok audits the app.
+    {"post": "2026-11-27-desk-kittens", "clip": "C:/.../clip.mp4",
+     "platforms": {"tiktok": {"caption": "...", "hashtags": ["#desktoppet"]},
+                   "instagram": {"caption": "...", "hashtags": []},
+                   "youtube": {"title": "...", "description": "...", "tags": []}}}
+
+Nobody reviews a post by hand: an automated QA gate does, and writes its
+verdict to <clip>.qa.json beside the clip. `ship` refuses a post unless that
+record says "pass": true for the same post and is newer than the clip.
+
+Two locks keep a run from posting by accident. A platform is really sent only
+when the run has --live AND the config lists the platform in "live";
+everything else is a dry run, which prints what it would send and touches no
+network. Emptying "live" stops all posting.
+
+Routes, all official or partner APIs on accounts the owner connected:
+  tiktok     Zernio (zernio.com), a TikTok partner. A public video, scheduled
+             on Zernio's side.
+  instagram  Zernio. A Reel (a single video is one), scheduled on Zernio's side.
+  youtube    YouTube Data API resumable upload, private with status.publishAt,
+             so YouTube makes it public at the time.
 
 Usage:
-  python tools/post/post.py stage CLIP --title T --caption C [--hashtags "#a #b"]
-      [--when "2026-10-27 18:00" | --when auto] [--platforms youtube,instagram]
-  python tools/post/post.py list          the schedule
-  python tools/post/post.py check         every queued clip against the limits
-  python tools/post/post.py publish [--live] [--now]
-  python tools/post/post.py auth google|tiktok|instagram
+  python tools/post/post.py ship SPEC.json [--tiktok WHEN] [--instagram WHEN]
+      [--youtube WHEN] [--live]
+  python tools/post/post.py status tiktok|instagram|youtube ID
+  python tools/post/post.py accounts       the accounts connected in Zernio
+  python tools/post/post.py auth google    sign in for YouTube and Gmail
 
-One Google sign-in covers YouTube (uploads, statistics, analytics and replies
-to comments) and Gmail (tools/gmail/), from one
-Google Cloud project: its Desktop OAuth client's JSON is named in the config
-as "google": {"client_file": ...}; "auth youtube" is the same as "auth google".
+WHEN is ISO 8601 (2026-11-27T18:00+00:00); without an offset it is this
+computer's local time. It must be in the future. ship prints one JSON line per
+platform: post, platform, id (the Zernio post id, or the YouTube video id),
+scheduled, and status ("scheduled", "dry_run", "refused" or "failed") with an
+error when there is one. It exits 1 if any platform was refused or failed.
 
-The config (default ~/critter-post/config.json, or --config) names the queue
-folder and the API apps; tokens live beside it in tokens.json. Neither belongs
-in this repo. Stdlib only; ffprobe on PATH for the clip checks.
+The config (default ~/critter-post/config.json, or --config) holds the Zernio
+key and the Google client; tokens live beside it in tokens.json. Neither
+belongs in this repo. Stdlib only.
 """
 
 import argparse
 import base64
 import datetime as dt
-import getpass
 import hashlib
 import http.server
 import json
-import re
 import secrets
-import shutil
-import subprocess
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import webbrowser
 from pathlib import Path
 
 PLATFORMS = ("tiktok", "instagram", "youtube")
+ZERNIO_PLATFORMS = ("tiktok", "instagram")
 GOOGLE = ("google", "youtube", "gmail")     # one sign-in, one token, kept as "google"
 GOOGLE_SCOPES = ("https://www.googleapis.com/auth/youtube.upload",
                  "https://www.googleapis.com/auth/youtube.force-ssl",      # read the channel, reply to comments
                  "https://www.googleapis.com/auth/yt-analytics.readonly",  # views, watch time, retention
                  "https://www.googleapis.com/auth/gmail.modify")
 DEFAULT_CONFIG = Path.home() / "critter-post" / "config.json"
-FIELDS = ("when", "title", "clip", "platforms", "hashtags", "posted")
-APPROVE, BIN = "- [x] approve", "- [x] bin"
+ZERNIO_API = "https://zernio.com/api/v1"
 
-# What each platform takes (checked before anything is sent).
+# What each platform takes, checked before anything is sent (the QA gate checks the clip).
 LIMITS = {
-    "youtube": {"seconds": 180, "caption": 5000, "title": 100},
-    "instagram": {"seconds": 900, "caption": 2200, "hashtags": 30},
-    "tiktok": {"seconds": 600, "caption": 2200},
+    "youtube": {"caption": 5000, "title": 100},
+    "instagram": {"caption": 2200, "hashtags": 30},
+    "tiktok": {"caption": 2200},
+}
+
+# TikTok's direct-post settings, sent with every TikTok post. The config's
+# "zernio": {"tiktok": {...}} overrides any of them. The two confirmations
+# stand for TikTok's preview-and-consent step, which the QA gate replaces.
+TIKTOK = {
+    "privacy_level": "PUBLIC_TO_EVERYONE",
+    "allow_comment": True,
+    "allow_duet": True,
+    "allow_stitch": True,
+    "commercial_content_type": "brand_organic",   # the account promoting its own app ("Your brand")
+    "content_preview_confirmed": True,
+    "express_consent_given": True,
 }
 
 
-# ---------------------------------------------------------------- the queue
+# ---------------------------------------------------------------- the post
 
-class Post:
-    """One queue file. Front-matter keys the tool does not know are kept."""
-
-    def __init__(self, path):
-        self.path = Path(path)
-        text = self.path.read_text(encoding="utf-8")
-        m = re.match(r"---\n(.*?)\n---\n?(.*)", text, re.S)
-        if not m:
-            raise ValueError(f"{self.path.name}: no front matter")
-        self.front = {}
-        for line in m.group(1).splitlines():
-            if ": " in line or line.endswith(":"):
-                k, _, v = line.partition(":")
-                v = v.strip()
-                self.front[k.strip()] = json.loads(v) if v.startswith('"') else v
-        self.body = m.group(2)
-
-    def get(self, key):
-        return self.front.get(key, "")
-
-    @property
-    def when(self):
-        return dt.datetime.strptime(self.get("when"), "%Y-%m-%d %H:%M")
-
-    @property
-    def platforms(self):
-        return [p.strip() for p in self.get("platforms").split(",") if p.strip()]
-
-    @property
-    def posted(self):
-        """{platform: id} from 'posted: youtube=abc, tiktok=draft:123'."""
-        return dict(p.strip().split("=", 1) for p in self.get("posted").split(",") if "=" in p)
-
-    @property
-    def caption(self):
-        m = re.search(r"## Caption\n(.*?)(?=\n## |\Z)", self.body, re.S)
-        return m.group(1).strip() if m else ""
-
-    @property
-    def approved(self):
-        return APPROVE in self.body and not self.binned
-
-    @property
-    def binned(self):
-        return BIN in self.body
-
-    def full_caption(self):
-        return f"{self.caption}\n\n{self.get('hashtags')}".strip()
-
-    def mark_posted(self, platform, ident):
-        done = self.posted
-        done[platform] = ident
-        self.front["posted"] = ", ".join(f"{k}={v}" for k, v in done.items())
-        self.save()
-
-    def log(self, line):
-        stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-        if "\n## Log\n" not in self.body:
-            self.body = self.body.rstrip() + "\n\n## Log\n"
-        self.body = self.body.rstrip() + f"\n- {stamp} {line}\n"
-        self.save()
-
-    def save(self):
-        write(self.path, self.front, self.body)
+def words(spec, plat):
+    """The text as it goes out: the caption then the hashtags, or YouTube's description."""
+    p = spec["platforms"][plat]
+    if plat == "youtube":
+        return p.get("description", "")
+    return f"{p.get('caption', '')}\n\n{' '.join(p.get('hashtags', []))}".strip()
 
 
-def write(path, front, body):
-    """Front matter as key: value lines, quoting what YAML would misread (# is a comment)."""
-    quote = lambda v: json.dumps(v) if re.search(r"#|: |\\|^[\"'\[{&*!|>%@`]", v) else v
-    lines = "\n".join(f"{k}: {quote(str(v))}" for k, v in front.items())
-    path.write_text(f"---\n{lines}\n---\n{body}", encoding="utf-8")
+def problems(spec, plat):
+    p = spec.get("platforms", {}).get(plat)
+    if p is None:
+        return [f"the spec has no {plat} entry"]
+    lim, out = LIMITS[plat], []
+    if plat == "youtube":
+        if not p.get("title"):
+            out.append("no title")
+        elif len(p["title"]) > lim["title"]:
+            out.append(f"title over {lim['title']} characters")
+    elif not p.get("caption"):
+        out.append("no caption")
+    if len(words(spec, plat)) > lim["caption"]:
+        out.append(f"caption over {lim['caption']} characters")
+    if len(p.get("hashtags", [])) > lim.get("hashtags", 10 ** 9):
+        out.append(f"over {lim['hashtags']} hashtags")
+    return out
 
 
-def load_queue(cfg):
-    folder = Path(cfg["queue"])
-    posts = []
-    for f in sorted(folder.glob("*.md")):
-        try:
-            posts.append(Post(f))
-        except ValueError:
-            pass  # a README or note in the same folder
-    return sorted((p for p in posts if p.get("when")), key=lambda p: p.when)
+def qa_refusal(spec):
+    """Why the QA gate's record does not let this post out, or None if it does."""
+    clip = Path(spec.get("clip", ""))
+    if not spec.get("clip") or not clip.is_file():
+        return f"no clip at {clip}"
+    qa = clip.with_suffix(".qa.json")
+    if not qa.is_file():
+        return f"no QA record ({qa.name}); run the QA gate first"
+    try:
+        rec = json.loads(qa.read_text(encoding="utf-8"))
+    except ValueError:
+        return f"{qa.name} is not JSON"
+    if rec.get("post") != spec.get("post"):
+        return f"{qa.name} is for {rec.get('post')!r}, not {spec.get('post')!r}"
+    if rec.get("pass") is not True:
+        return "the QA gate failed it: " + "; ".join(rec.get("fails", []))[:300]
+    if qa.stat().st_mtime < clip.stat().st_mtime:
+        return "the clip changed after the QA gate passed it; run the gate again"
+    return None
 
 
-def next_slot(cfg, posts):
-    """The next free time: every_days after the last post, at the slot time."""
-    hh, mm = map(int, cfg.get("slot", "18:00").split(":"))
-    now = dt.datetime.now()
-    day = max([p.when for p in posts if not p.binned] + [now - dt.timedelta(days=99)])
-    day = (day + dt.timedelta(days=cfg.get("every_days", 2))).replace(hour=hh, minute=mm)
-    while day <= now:
-        day += dt.timedelta(days=1)
-    return day
+def parse_when(text):
+    """An aware datetime; a time without an offset is this computer's local time."""
+    when = dt.datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    return when if when.tzinfo else when.astimezone()
 
 
-def stage(cfg, args):
-    clip = Path(args.clip).resolve()
-    if not clip.exists():
-        sys.exit(f"no clip at {clip}")
-    posts = load_queue(cfg)
-    when = next_slot(cfg, posts) if args.when == "auto" else \
-        dt.datetime.strptime(args.when, "%Y-%m-%d %H:%M")
-    slug = re.sub(r"[^a-z0-9]+", "-", args.title.lower()).strip("-")
-    path = Path(cfg["queue"]) / f"{when:%Y-%m-%d} {slug}.md"
-    if path.exists():
-        sys.exit(f"already queued: {path}")
-    front = dict(cfg.get("front", {}))
-    if cfg.get("summary_key"):
-        front[cfg["summary_key"]] = (f"{args.title}, due {when:%a %d %b %H:%M} on "
-                                     f"{', '.join(args.platforms.split(','))}; waiting for review.")
-    front.update(when=f"{when:%Y-%m-%d %H:%M}", title=args.title, clip=str(clip),
-                 platforms=args.platforms, hashtags=args.hashtags, posted="")
-    body = (f"\n# {args.title}\n\n## Caption\n{args.caption}\n\n## Review\n"
-            "Tick approve to let it go out at the time above; tick bin to drop it.\n\n"
-            "- [ ] approve\n- [ ] bin\n")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write(path, front, body)
-    print(f"staged {path}")
-    for problem in check_post(Post(path)):
-        print(f"  ! {problem}")
+def rfc3339_utc(when):
+    return when.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def show(cfg, _args):
-    for p in load_queue(cfg):
-        state = "binned" if p.binned else "approved" if p.approved else "waiting"
-        done = p.posted
-        plats = " ".join(f"{x}{'+' if x in done else ''}" for x in p.platforms)
-        print(f"{p.when:%a %d %b %H:%M}  {state:8}  {p.get('title')}  [{plats}]")
+def plan(spec, plat, when):
+    """One line saying what a live run would send."""
+    clip, p = Path(spec["clip"]).name, spec["platforms"][plat]
+    if plat == "youtube":
+        return (f"YouTube: upload {clip} as {json.dumps(p['title'])}, private until "
+                f"{rfc3339_utc(when)}, then public")
+    kind = "a Reel" if plat == "instagram" else "a public video"
+    return (f"Zernio: {clip} to {plat} as {kind} at {when.isoformat()}, "
+            f"{len(words(spec, plat))}-character caption")
 
 
-# ---------------------------------------------------------------- checks
-
-def probe(clip):
-    if not shutil.which("ffprobe"):
-        return None
-    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                          "stream=width,height:format=duration", "-of", "json", str(clip)],
-                         capture_output=True, text=True)
-    if out.returncode:
-        return None
-    info = json.loads(out.stdout)
-    s = info["streams"][0]
-    return s["width"], s["height"], float(info["format"]["duration"])
+def needs(cfg, plat):
+    """What a live send to this platform would still lack, or None."""
+    if plat in ZERNIO_PLATFORMS:
+        return None if cfg.get("zernio", {}).get("api_key") else "no zernio.api_key in the config"
+    return None if load_tokens(cfg).get("google") else "no Google token; run: post.py auth google"
 
 
-def check_post(p):
-    problems = []
-    clip = Path(p.get("clip"))
-    if not clip.exists():
-        return [f"clip missing: {clip}"]
-    if not p.caption:
-        problems.append("no caption")
-    for plat in p.platforms:
-        if plat not in PLATFORMS:
-            problems.append(f"unknown platform {plat}")
-    size = probe(clip)
-    if size:
-        w, h, secs = size
-        if abs(w / h - 9 / 16) > 0.01:
-            problems.append(f"not 9:16 ({w}x{h})")
-        for plat in p.platforms:
-            lim = LIMITS.get(plat, {})
-            if secs > lim.get("seconds", 1e9):
-                problems.append(f"{plat}: {secs:.0f} s is over {lim['seconds']} s")
-    for plat in p.platforms:
-        lim = LIMITS.get(plat, {})
-        if len(p.full_caption()) > lim.get("caption", 1e9):
-            problems.append(f"{plat}: caption over {lim['caption']} characters")
-        if len(p.get("hashtags").split()) > lim.get("hashtags", 1e9):
-            problems.append(f"{plat}: over {lim['hashtags']} hashtags")
-    if "youtube" in p.platforms and len(p.get("title")) + len(" #Shorts") > LIMITS["youtube"]["title"]:
-        problems.append("youtube: title too long")
-    return problems
+# ---------------------------------------------------------------- ship
 
-
-def check(cfg, _args):
-    bad = 0
-    for p in load_queue(cfg):
-        problems = check_post(p)
-        bad += bool(problems)
-        print(f"{'FIX ' if problems else 'ok  '} {p.path.name}")
-        for problem in problems:
-            print(f"     {problem}")
-    sys.exit(1 if bad else 0)
-
-
-# ---------------------------------------------------------------- publishing
-
-def publish(cfg, args):
-    if args.live and args.now:
-        sys.exit("--now is for dry runs only")
+def ship(cfg, args):
+    spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    times = {p: getattr(args, p) for p in PLATFORMS if getattr(args, p)}
+    if not times:
+        sys.exit("give a time for at least one platform: --tiktok, --instagram or --youtube")
     live_ok = set(cfg.get("live", [])) if args.live else set()
-    now = dt.datetime.now()
-    for p in load_queue(cfg):
-        if p.binned or (p.when > now and not args.now):
-            continue
-        todo = [x for x in p.platforms if x not in p.posted]
-        if not todo:
-            continue
-        if not p.approved:
-            print(f"skip {p.path.name}: due but not approved")
-            continue
-        problems = check_post(p)
-        if problems:
-            p.log("not sent: " + "; ".join(problems))
-            print(f"skip {p.path.name}: {'; '.join(problems)}")
-            continue
-        for plat in todo:
-            if plat not in live_ok:
-                plan = PLANS[plat](p)
-                p.log(f"dry run {plat}: {plan}")
-                print(f"dry run {plat}  {p.path.name}\n    {plan}")
-                continue
+    refusal = qa_refusal(spec)
+    now = dt.datetime.now(dt.timezone.utc)
+    media = {}        # the clip goes up to Zernio once, for both its platforms
+    failed = False
+    for plat, text in times.items():
+        res = {"post": spec.get("post"), "platform": plat, "id": None, "scheduled": None}
+        try:
+            when = parse_when(text)
+            res["scheduled"] = when.isoformat()
+        except ValueError:
+            when = None
+        why = refusal or ("not an ISO 8601 time: " + repr(text) if when is None else
+                          "the time is not in the future" if when <= now else
+                          "; ".join(problems(spec, plat)))
+        if why:
+            res.update(status="refused", error=why)
+        elif plat not in live_ok:
+            res.update(status="dry_run", plan=plan(spec, plat, when))
+            if needs(cfg, plat):
+                res["needs"] = needs(cfg, plat)
+        else:
             try:
-                ident = SENDERS[plat](cfg, p)
+                res.update(SENDERS[plat](cfg, spec, plat, when, media))
             except Exception as e:  # one platform failing must not stop the rest
-                p.log(f"{plat} failed: {e}")
-                print(f"{plat} failed {p.path.name}: {e}")
-                continue
-            p.mark_posted(plat, ident)
-            p.log(f"{plat} sent: {ident}")
-            print(f"{plat} sent {p.path.name}: {ident}")
+                res.update(status="failed", error=str(e)[:400])
+        failed |= res["status"] in ("refused", "failed")
+        print(json.dumps(res, ensure_ascii=False), flush=True)
+    return 1 if failed else 0
 
 
-def youtube_meta(p):
-    return {"snippet": {"title": f"{p.get('title')} #Shorts", "description": p.full_caption(),
-                        "tags": [t.lstrip("#") for t in p.get("hashtags").split()],
-                        "categoryId": "20"},
-            "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}}
-
-
-PLANS = {
-    "youtube": lambda p: f"upload {Path(p.get('clip')).name} as {json.dumps(youtube_meta(p)['snippet']['title'])}, public",
-    "instagram": lambda p: f"Reel {Path(p.get('clip')).name} with a {len(p.full_caption())}-character caption, published",
-    "tiktok": lambda p: f"upload {Path(p.get('clip')).name} to TikTok drafts; caption to paste: {json.dumps(p.full_caption())}",
-}
-
+# ---------------------------------------------------------------- HTTP and tokens
 
 def call(method, url, data=None, headers=None, form=False):
     headers = dict(headers or {})
@@ -356,85 +252,142 @@ def google_app(cfg):
     return app["client_id"], app["client_secret"]
 
 
-def fresh_token(cfg, plat):
-    """An access token, refreshed when it is near its expiry."""
-    plat = "google" if plat in GOOGLE else plat
-    tok = load_tokens(cfg).get(plat)
+def fresh_token(cfg, plat="google"):
+    """The Google access token (YouTube and Gmail), refreshed when it is near its expiry."""
+    tok = load_tokens(cfg).get("google")
     if not tok:
-        raise RuntimeError(f"no {plat} token; run: post.py auth {plat}")
+        raise RuntimeError("no Google token; run: post.py auth google")
     if time.time() < tok["saved"] + tok.get("expires_in", 3600) - 300:
         return tok["access_token"]
-    app = cfg.get(plat, {})
-    if plat == "google":
-        cid, secret = google_app(cfg)
-        _, new = call("POST", "https://oauth2.googleapis.com/token", form=True, data={
-            "client_id": cid, "client_secret": secret,
-            "refresh_token": tok["refresh_token"], "grant_type": "refresh_token"})
-        new.setdefault("refresh_token", tok["refresh_token"])
-        new["account"] = tok.get("account", "")
-    elif plat == "tiktok":
-        _, new = call("POST", "https://open.tiktokapis.com/v2/oauth/token/", form=True, data={
-            "client_key": app["client_key"], "client_secret": app["client_secret"],
-            "refresh_token": tok["refresh_token"], "grant_type": "refresh_token"})
-    else:  # instagram long-lived tokens last 60 days; renewed after 50
-        _, new = call("GET", "https://graph.instagram.com/refresh_access_token?" + urllib.parse.urlencode(
-            {"grant_type": "ig_refresh_token", "access_token": tok["access_token"]}))
-        new.update(user_id=tok["user_id"], expires_in=50 * 86400)
-    save_token(cfg, plat, new)
+    cid, secret = google_app(cfg)
+    _, new = call("POST", "https://oauth2.googleapis.com/token", form=True, data={
+        "client_id": cid, "client_secret": secret,
+        "refresh_token": tok["refresh_token"], "grant_type": "refresh_token"})
+    new.setdefault("refresh_token", tok["refresh_token"])
+    new["account"] = tok.get("account", "")
+    save_token(cfg, "google", new)
     return new["access_token"]
 
 
-def send_youtube(cfg, p):
-    clip = Path(p.get("clip"))
-    data = clip.read_bytes()
-    auth = {"Authorization": f"Bearer {fresh_token(cfg, 'youtube')}"}
+# ---------------------------------------------------------------- Zernio (TikTok, Instagram)
+
+def zernio(cfg, method, path, data=None, headers=None):
+    key = cfg.get("zernio", {}).get("api_key")
+    if not key:
+        raise RuntimeError("no zernio.api_key in the config")
+    return call(method, ZERNIO_API + path, data, {"Authorization": f"Bearer {key}", **(headers or {})})[1]
+
+
+def zernio_account(cfg, plat):
+    """The Zernio account id for a platform: the config's, or the one connected account."""
+    pinned = cfg.get("zernio", {}).get("accounts", {}).get(plat)
+    if pinned:
+        return pinned
+    found = [a for a in zernio(cfg, "GET", "/accounts").get("accounts", [])
+             if a.get("platform") == plat and a.get("isActive", True)]
+    if len(found) != 1:
+        raise RuntimeError(f"no {plat} account is connected in Zernio" if not found else
+                           f"{len(found)} {plat} accounts in Zernio; name one as zernio.accounts.{plat}")
+    return found[0]["_id"]
+
+
+def zernio_media(cfg, clip, media):
+    """Upload the clip to Zernio's storage once; its public URL goes in each post."""
+    if "url" not in media:
+        data = clip.read_bytes()
+        got = zernio(cfg, "POST", "/media/presign",
+                     {"filename": clip.name, "contentType": "video/mp4", "size": len(data)})
+        call("PUT", got["uploadUrl"], data, {"Content-Type": "video/mp4"})   # storage, not the API: no key
+        media["url"] = got["publicUrl"]
+    return media["url"]
+
+
+def send_zernio(cfg, spec, plat, when, media):
+    account = zernio_account(cfg, plat)
+    url = zernio_media(cfg, Path(spec["clip"]), media)
+    entry = {"platform": plat, "accountId": account}
+    body = {"content": words(spec, plat), "mediaItems": [{"type": "video", "url": url}],
+            "platforms": [entry], "scheduledFor": when.isoformat(),
+            "externalId": f"{spec['post']}:{plat}"}
+    extra = cfg.get("zernio", {}).get(plat, {})
+    if plat == "tiktok":
+        body["tiktokSettings"] = {**TIKTOK, **extra}
+    elif extra:
+        entry["platformSpecificData"] = extra
+    # The same post, platform and time always carry the same key, so a retry
+    # within Zernio's 24 hours returns the first post instead of a second one.
+    key = uuid.uuid5(uuid.NAMESPACE_URL, f"critter-overlay/{spec['post']}/{plat}/{when.isoformat()}")
+    got = zernio(cfg, "POST", "/posts", body, {"Idempotency-Key": str(key)}).get("post", {})
+    if got.get("status") in ("failed", "cancelled", "partial"):
+        err = next((p.get("errorMessage") for p in got.get("platforms", []) if p.get("errorMessage")), "")
+        raise RuntimeError(f"Zernio post {got.get('_id')} is {got['status']}: {err}")
+    if not got.get("_id"):
+        raise RuntimeError("Zernio returned no post id")
+    return {"id": got["_id"], "status": "scheduled"}
+
+
+# ---------------------------------------------------------------- YouTube
+
+def youtube_meta(spec, when):
+    p = spec["platforms"]["youtube"]
+    return {"snippet": {"title": p["title"], "description": p.get("description", ""),
+                        "tags": p.get("tags", []), "categoryId": "20"},
+            "status": {"privacyStatus": "private", "publishAt": rfc3339_utc(when),
+                       "selfDeclaredMadeForKids": False}}
+
+
+def send_youtube(cfg, spec, _plat, when, _media):
+    """Upload private with publishAt; YouTube makes it public at that time."""
+    data = Path(spec["clip"]).read_bytes()
+    auth = {"Authorization": f"Bearer {fresh_token(cfg)}"}
     hdrs, _ = call("POST", "https://www.googleapis.com/upload/youtube/v3/videos"
-                   "?uploadType=resumable&part=snippet,status", youtube_meta(p),
+                   "?uploadType=resumable&part=snippet,status", youtube_meta(spec, when),
                    {**auth, "X-Upload-Content-Type": "video/mp4",
                     "X-Upload-Content-Length": str(len(data))})
     _, video = call("PUT", hdrs["Location"], data, {**auth, "Content-Type": "video/mp4"})
-    return video["id"]
+    out = {"id": video["id"], "status": "scheduled", "url": f"https://youtube.com/shorts/{video['id']}"}
+    if not video.get("status", {}).get("publishAt"):
+        out["warning"] = "YouTube kept no publishAt; the video may stay private"
+    return out
 
 
-def send_instagram(cfg, p):
-    token = fresh_token(cfg, "instagram")
-    user = load_tokens(cfg)["instagram"]["user_id"]
-    graph = f"https://graph.instagram.com/{cfg.get('graph_version', 'v23.0')}"
-    data = Path(p.get("clip")).read_bytes()
-    _, box = call("POST", f"{graph}/{user}/media", form=True, data={
-        "media_type": "REELS", "upload_type": "resumable", "caption": p.full_caption(),
-        "access_token": token})
-    call("POST", box["uri"], data, {"Authorization": f"OAuth {token}", "offset": "0",
-                                    "file_size": str(len(data))})
-    for _ in range(60):  # Instagram processes the video before it can publish
-        _, st = call("GET", f"{graph}/{box['id']}?fields=status_code&access_token={token}")
-        if st.get("status_code") == "FINISHED":
-            break
-        if st.get("status_code") == "ERROR":
-            raise RuntimeError("Instagram could not process the video")
-        time.sleep(10)
+SENDERS = {"tiktok": send_zernio, "instagram": send_zernio, "youtube": send_youtube}
+
+
+# ---------------------------------------------------------------- status and accounts
+
+def status(cfg, args):
+    out = {"platform": args.platform, "id": args.id}
+    if args.platform == "youtube":
+        auth = {"Authorization": f"Bearer {fresh_token(cfg)}"}
+        _, got = call("GET", "https://www.googleapis.com/youtube/v3/videos?part=status,statistics&id="
+                      + urllib.parse.quote(args.id), headers=auth)
+        items = got.get("items", [])
+        if not items:
+            out["status"] = "not_found"
+        else:
+            st, stats = items[0].get("status", {}), items[0].get("statistics", {})
+            out.update(status=st.get("uploadStatus"), privacy=st.get("privacyStatus"),
+                       scheduled=st.get("publishAt"), url=f"https://youtube.com/shorts/{args.id}",
+                       analytics={k: int(v) for k, v in stats.items() if str(v).isdigit()})
     else:
-        raise RuntimeError("Instagram still processing after 10 minutes")
-    _, done = call("POST", f"{graph}/{user}/media_publish", form=True,
-                   data={"creation_id": box["id"], "access_token": token})
-    return done["id"]
+        got = zernio(cfg, "GET", "/posts/" + urllib.parse.quote(args.id)).get("post", {})
+        entry = next((p for p in got.get("platforms", []) if p.get("platform") == args.platform), {})
+        out.update(status=entry.get("status") or got.get("status"), post_status=got.get("status"),
+                   scheduled=got.get("scheduledFor"), platform_post_id=entry.get("platformPostId"),
+                   url=entry.get("platformPostUrl"), error=entry.get("errorMessage"))
+        if entry.get("status") == "published":
+            an = zernio(cfg, "GET", "/analytics?" + urllib.parse.urlencode({"postId": args.id}))
+            rec = next((a for a in an.get("platformAnalytics", []) if a.get("platform") == args.platform), an)
+            out["analytics"] = rec.get("analytics")
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
 
 
-def send_tiktok(cfg, p):
-    data = Path(p.get("clip")).read_bytes()
-    if len(data) > 64 * 1024 * 1024:
-        raise RuntimeError("over 64 MB; TikTok needs it in chunks")
-    auth = {"Authorization": f"Bearer {fresh_token(cfg, 'tiktok')}"}
-    _, init = call("POST", "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
-                   {"source_info": {"source": "FILE_UPLOAD", "video_size": len(data),
-                                    "chunk_size": len(data), "total_chunk_count": 1}}, auth)
-    call("PUT", init["data"]["upload_url"], data,
-         {"Content-Type": "video/mp4", "Content-Range": f"bytes 0-{len(data) - 1}/{len(data)}"})
-    print(f"    in TikTok drafts; paste this caption there:\n    {p.full_caption()}")
-    return "draft:" + init["data"]["publish_id"]
-
-
-SENDERS = {"youtube": send_youtube, "instagram": send_instagram, "tiktok": send_tiktok}
+def accounts(cfg, _args):
+    for a in zernio(cfg, "GET", "/accounts").get("accounts", []):
+        print(json.dumps({k: a.get(k) for k in ("_id", "platform", "username", "isActive")}))
+    return 0
 
 
 # ---------------------------------------------------------------- sign-in
@@ -463,62 +416,40 @@ def loopback_code(auth_url, port):
     return got
 
 
-def auth(cfg, args):
-    if args.platform in GOOGLE:
-        args.platform = "google"
-    app = cfg.get(args.platform, {})
-    port = app.get("port", cfg.get("youtube", {}).get("port", 8765))
+def auth(cfg, _args):
+    """One Google sign-in for YouTube and Gmail."""
+    port = cfg.get("google", {}).get("port", cfg.get("youtube", {}).get("port", 8765))
     redirect = f"http://127.0.0.1:{port}/"
     state = secrets.token_urlsafe(16)
     verifier = secrets.token_urlsafe(48)
-    if args.platform == "google":
-        cid, secret = google_app(cfg)
-        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-        got = loopback_code("https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
-            "client_id": cid, "redirect_uri": redirect, "response_type": "code",
-            "scope": " ".join(GOOGLE_SCOPES), "access_type": "offline",
-            "prompt": "consent select_account", "state": state, "code_challenge": challenge,
-            "code_challenge_method": "S256"}), port)
-        url, data = "https://oauth2.googleapis.com/token", {"client_id": cid, "client_secret": secret}
-    elif args.platform == "tiktok":
-        # TikTok's desktop flow wants the challenge as hex, not base64
-        challenge = hashlib.sha256(verifier.encode()).hexdigest()
-        got = loopback_code("https://www.tiktok.com/v2/auth/authorize/?" + urllib.parse.urlencode({
-            "client_key": app["client_key"], "redirect_uri": redirect, "response_type": "code",
-            "scope": "video.upload", "state": state, "code_challenge": challenge,
-            "code_challenge_method": "S256"}), port)
-        url, data = "https://open.tiktokapis.com/v2/oauth/token/", {
-            "client_key": app["client_key"], "client_secret": app["client_secret"]}
-    else:
-        print("Paste the long-lived token from the Meta app dashboard "
-              "(Instagram > API setup with Instagram login > Generate token).")
-        token = getpass.getpass("token: ").strip()
-        _, me = call("GET", "https://graph.instagram.com/me?fields=user_id,username&access_token=" + token)
-        save_token(cfg, "instagram", {"access_token": token, "user_id": me["user_id"],
-                                      "expires_in": 50 * 86400})
-        print(f"saved for @{me.get('username')}")
-        return
+    cid, secret = google_app(cfg)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    got = loopback_code("https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
+        "client_id": cid, "redirect_uri": redirect, "response_type": "code",
+        "scope": " ".join(GOOGLE_SCOPES), "access_type": "offline",
+        "prompt": "consent select_account", "state": state, "code_challenge": challenge,
+        "code_challenge_method": "S256"}), port)
     if got.get("state") != state:
         sys.exit("sign-in answer did not match; try again")
-    _, tok = call("POST", url, form=True, data={**data, "code": got["code"], "redirect_uri": redirect,
-                                                "grant_type": "authorization_code",
-                                                "code_verifier": verifier})
-    if args.platform == "google":
-        # Which account this is, so Gmail can refuse any other (tools/gmail/).
-        granted = tok.get("scope", "").split()
-        try:
-            _, me = call("GET", "https://gmail.googleapis.com/gmail/v1/users/me/profile",
-                         headers={"Authorization": f"Bearer {tok['access_token']}"})
-            tok["account"] = me.get("emailAddress", "")
-        except RuntimeError:
-            tok["account"] = ""
-        print(f"signed in as {tok['account'] or 'an account Gmail could not read'}; "
-              f"allowed: {', '.join(s.rsplit('/', 1)[-1] for s in granted) or 'nothing'}")
-        want = cfg.get("gmail", {}).get("account", "")
-        if want and tok["account"].lower() != want.lower():
-            sys.exit(f"that is not {want}; nothing saved. Run auth again and pick {want}.")
-    save_token(cfg, args.platform, tok)
-    print(f"saved {args.platform} token to {tokens_path(cfg)}")
+    _, tok = call("POST", "https://oauth2.googleapis.com/token", form=True, data={
+        "client_id": cid, "client_secret": secret, "code": got["code"], "redirect_uri": redirect,
+        "grant_type": "authorization_code", "code_verifier": verifier})
+    # Which account this is, so Gmail can refuse any other (tools/gmail/).
+    granted = tok.get("scope", "").split()
+    try:
+        _, me = call("GET", "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+                     headers={"Authorization": f"Bearer {tok['access_token']}"})
+        tok["account"] = me.get("emailAddress", "")
+    except RuntimeError:
+        tok["account"] = ""
+    print(f"signed in as {tok['account'] or 'an account Gmail could not read'}; "
+          f"allowed: {', '.join(s.rsplit('/', 1)[-1] for s in granted) or 'nothing'}")
+    want = cfg.get("gmail", {}).get("account", "")
+    if want and tok["account"].lower() != want.lower():
+        sys.exit(f"that is not {want}; nothing saved. Run auth again and pick {want}.")
+    save_token(cfg, "google", tok)
+    print(f"saved the Google token to {tokens_path(cfg)}")
+    return 0
 
 
 # ---------------------------------------------------------------- main
@@ -527,29 +458,29 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     sub = ap.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("stage")
-    s.add_argument("clip")
-    s.add_argument("--title", required=True)
-    s.add_argument("--caption", required=True)
-    s.add_argument("--hashtags", default="")
-    s.add_argument("--when", default="auto")
-    s.add_argument("--platforms", default=",".join(PLATFORMS))
-    sub.add_parser("list")
-    sub.add_parser("check")
-    pub = sub.add_parser("publish")
-    pub.add_argument("--live", action="store_true", help="really send, to platforms in the config's live list")
-    pub.add_argument("--now", action="store_true", help="treat every approved post as due (testing)")
-    a = sub.add_parser("auth")
-    a.add_argument("platform", choices=PLATFORMS + ("google", "gmail"))
+    s = sub.add_parser("ship", help="schedule a post that passed the QA gate")
+    s.add_argument("spec")
+    for plat in PLATFORMS:
+        s.add_argument(f"--{plat}", metavar="WHEN", help=f"when it goes out on {plat}")
+    s.add_argument("--live", action="store_true", help="really send, to platforms in the config's live list")
+    st = sub.add_parser("status", help="a sent post's state and numbers")
+    st.add_argument("platform", choices=PLATFORMS)
+    st.add_argument("id")
+    sub.add_parser("accounts", help="the accounts connected in Zernio")
+    a = sub.add_parser("auth", help="sign in to Google (YouTube and Gmail)")
+    a.add_argument("platform", choices=GOOGLE)
     args = ap.parse_args(argv)
 
     cfg_path = Path(args.config)
-    if not cfg_path.exists():
+    if cfg_path.exists():
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    elif args.cmd == "ship":
+        cfg = {}      # no config: nothing is live, so ship can only dry-run
+    else:
         sys.exit(f"no config at {cfg_path}; copy tools/post/config.example.json there")
-    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     cfg["_dir"] = str(cfg_path.parent)
-    {"stage": stage, "list": show, "check": check, "publish": publish, "auth": auth}[args.cmd](cfg, args)
+    return {"ship": ship, "status": status, "accounts": accounts, "auth": auth}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

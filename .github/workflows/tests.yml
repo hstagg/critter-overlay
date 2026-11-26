@@ -3,7 +3,8 @@
 # needs the native DLL, which is built with godot-cpp and SCons. Then exports
 # the player build's pack and checks the Admin page is not in it, and compiles
 # the installer (against stand-in files) so a broken script shows here, not at
-# release time.
+# release time. It also runs the posting tool's Python tests (tools/post),
+# which replace the network, so nothing is ever sent.
 
 name: Tests
 
@@ -27,6 +28,10 @@ jobs:
       GODOT_SHA256: 731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953
     steps:
       - uses: actions/checkout@v7
+
+      - name: Posting tool tests
+        shell: pwsh
+        run: python -m unittest tools/post/test_post.py
 
       - name: Cache Godot
         id: cache
