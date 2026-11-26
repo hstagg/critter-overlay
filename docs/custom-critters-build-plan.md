@@ -1726,7 +1726,7 @@ ships clothes, sharing, the Collection badges and the docs.
 |---|---|---|
 | A0 | Design: My critters and Make a critter | done 2026-11-24 (`design/studio/my-critters/`) |
 | A1 | Rasteriser spike | done 2026-11-24 |
-| A2 | Studio gate, My critters page, widgets | not started |
+| A2 | Studio gate, My critters page, widgets | code done 2026-11-26; the VM tour (player and admin builds) is still to do |
 | A3 | Store schema 2 | done 2026-11-24 |
 | A4 | Gaits | done 2026-11-24 |
 | B1 | Side-on plan + kit data layer | done 2026-11-24 |
@@ -2004,3 +2004,25 @@ step left needs the developer, or a design that needs them:
   move up one: R1 3.3.0, R2 3.4.0, R3 3.5.0, R4 3.6.0. Nothing in the code
   was keyed to 3.2.0 (`app_min` comes from the running app's `VERSION`), and
   every Studio way stays off in the player build until its milestone.
+- 2026-11-26: A2's code done (the VM tour in both builds, its Done-when
+  check, is still to do). Changes from the plan:
+  - **The gate** is A3's `Customs.ways` / `way_on()` / `all_ways_on()`, used
+    as it is; there is no `main.studio_on()`. `export_presets.cfg` and
+    `build-v3.ps1` needed nothing: the player build never calls
+    `all_ways_on()`.
+  - **The page** is its own file, `gui/my_critters.gd` (settings_pages.gd
+    keeps one as `pages.my`); it holds the importer, which now only draws
+    the editor card. The badge words are `Customs.badge()`, shared with the
+    Collection's shelf. The sidebar has nine pages (ten with Admin), so the
+    buttons are 41 px (37 with Admin).
+  - **Decided with the developer:** Spawn one now on a homemade critter is
+    free (`main.spawn_homemade()`), since they sit outside rarity and the
+    economy; Make a copy is in (`Customs.make_copy()`, "<name> copy", met
+    afresh); the picker's 12 recent colours last for the session only, and
+    where they are kept for good is settled in D4.
+  - The design's "drop a file anywhere" hint waits for C5, which makes it
+    true. Speed for homemade critters is five stops (0.5x to 2x, snail to
+    rapid), not the cast's six.
+  - `my_critters_test.gd`: the chooser with ways off and on, a picture
+    imported through the page, the grid and its chips, each kind's Edit
+    words, Share hidden while its way is off, Make a copy, and the picker.

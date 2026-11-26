@@ -1,8 +1,8 @@
 extends Window
 ## The Settings window (design: "Critter Overlay v3 GUI" canvas, the seven
 ## settings pages). Borderless, 1100 x 760, with its own title bar: a sidebar
-## with the live status and the seven pages (Home, Critters, Focus, World,
-## Sound, Collection, System), and the page on the right, scrolling.
+## with the live status and the pages (Home, Critters, My critters, Focus,
+## World, Sound, Collection, Shop, System), and the page on the right, scrolling.
 ##
 ## Every control writes straight to settings.gd; main.gd listens and applies
 ## the change. Closing the window keeps the critters running in the tray.
@@ -18,7 +18,7 @@ const Pages := preload("res://gui/settings_pages.gd")
 const W := 1100
 const H := 760
 const SIDE_W := 232
-const NAV := [["home", "Home", "home"], ["critters", "Critters", "paw"], ["focus", "Focus", "mug"],
+const NAV := [["home", "Home", "home"], ["critters", "Critters", "paw"], ["my_critters", "My critters", "plus"], ["focus", "Focus", "mug"],
 	["world", "World", "leaf"], ["sound", "Sound", "sound"], ["collection", "Collection", "star"],
 	["shop", "Shop", "heart"], ["system", "System", "sliders"]]
 
@@ -197,13 +197,13 @@ func _sidebar() -> Control:
 
 	# The pages.
 	var admin_on: bool = main.admin_on()
-	var nav := K.vbox(2 if admin_on else 4)
+	var nav := K.vbox(2 if admin_on else 3)
 	for n in NAV:
 		nav.add_child(_nav_button(n[0], n[1], n[2]))
 	if admin_on:
 		nav.add_child(_nav_button("admin", "Admin", "sliders"))
-		for b in nav.get_children():
-			b.custom_minimum_size.y = 39   # room for a ninth page
+	for b in nav.get_children():
+		b.custom_minimum_size.y = 37 if admin_on else 41   # nine pages, ten with Admin
 	v.add_child(nav)
 
 	var spacer := Control.new()
@@ -250,6 +250,14 @@ func _nav_button(key: String, label: String, icon: String) -> Button:
 		bc.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
 		bc.position.x -= 10
 		b.add_child(bc)
+	if key == "my_critters":
+		# How many, or New with none yet (A0).
+		var mine: int = pages.my.count()
+		var mc := UI.chip("%d" % mine, c.ink, c.surface, c.line) if mine > 0 else K.new_pill()
+		mc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mc.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+		mc.position.x -= 10
+		b.add_child(mc)
 	if key == "collection":
 		# The found count, in Legendary's colours.
 		var t := Palette.tier("legendary", dark)

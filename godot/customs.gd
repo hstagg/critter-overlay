@@ -139,6 +139,17 @@ static func way(d: Dictionary) -> String:
 	return ""
 
 
+static func badge(d: Dictionary) -> String:
+	# How it was made, in the words used everywhere (A0): Shapes, Drawn,
+	# Animated or Picture.
+	match kind(d):
+		"kit":
+			return "Shapes" if str(d.get("from", "")) == "shapes" else "Drawn"
+		"frames":
+			return "Animated"
+	return "Picture"
+
+
 static func way_on(w: String) -> bool:
 	return w == "" or bool(ways.get(w, false))
 
@@ -618,16 +629,7 @@ static func add(name: String, pictures: Array, extra := {}) -> String:
 		return ""
 	if imgs.size() == 1:
 		imgs[0] = trim(imgs[0])
-	var slug := name.to_lower().strip_edges()
-	var clean := ""
-	for ch in slug:
-		clean += ch if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") else "-"
-	while clean.contains("--"):
-		clean = clean.replace("--", "-")
-	clean = clean.trim_prefix("-").trim_suffix("-").left(24)
-	if clean == "":
-		clean = "critter"
-	var key := "%s-%s" % [clean, "%06x" % (randi() & 0xFFFFFF)]
+	var key := _new_key(name)
 	var folder := dir.path_join(key)
 	DirAccess.make_dir_recursive_absolute(folder)
 	imgs[0].save_png(folder.path_join("image.png"))
@@ -647,6 +649,47 @@ static func add(name: String, pictures: Array, extra := {}) -> String:
 	all[id] = d
 	save(id)
 	return id
+
+
+static func _new_key(name: String) -> String:
+	# A folder name: the name in lower-case letters and digits, and a random tail.
+	var clean := ""
+	for ch in name.to_lower().strip_edges():
+		clean += ch if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") else "-"
+	while clean.contains("--"):
+		clean = clean.replace("--", "-")
+	clean = clean.trim_prefix("-").trim_suffix("-").left(24)
+	if clean == "":
+		clean = "critter"
+	return "%s-%s" % [clean, "%06x" % (randi() & 0xFFFFFF)]
+
+
+static func make_copy(id: String) -> String:
+	# Make a copy (My critters): the whole folder as a new critter, "<name>
+	# copy", met afresh. Returns its id, or "" if it can't be used here.
+	if not all.has(id):
+		return ""
+	var name := (str(all[id].get("name", "My critter")).left(35) + " copy")
+	var key := _new_key(name)
+	var folder := dir.path_join(key)
+	_copy_tree(str(all[id]["_dir"]), folder)
+	var d = JSON.parse_string(_read(folder.path_join("custom.json")))
+	if typeof(d) != TYPE_DICTIONARY:
+		_remove_tree(folder)
+		return ""
+	d["name"] = name
+	d["made"] = int(Time.get_unix_time_from_system())
+	d["rev"] = 1
+	d["seen"] = {}
+	d["_dir"] = folder
+	_read_extras(d)
+	if _unusable(d) != "":
+		_remove_tree(folder)
+		return ""
+	var nid := "custom:" + key
+	all[nid] = d
+	save(nid)
+	return nid
 
 
 static func add_folder(src: String) -> String:

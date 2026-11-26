@@ -1,15 +1,13 @@
 extends RefCounted
-## Settings › System › Custom critters (docs/sticker-critters-beta-plan.md):
-## the homemade critters, each with its own on/off, how often it visits, Edit
-## and Delete; and Import a critter: a file picker, then the picture with its
-## background taken out, walking in a preview, with a name, which way it
+## Use a picture and Change picture, on My critters (gui/my_critters.gd;
+## docs/sticker-critters-beta-plan.md): a file picker, then the picture with
+## its background taken out, walking in a preview, with a name, which way it
 ## faces and a size. Nothing is saved until Keep (customs.gd does the work).
 ##
-## settings_pages.gd keeps one of these, so the half-made critter survives
-## the page being rebuilt after each choice.
+## my_critters.gd keeps one of these, so the half-made critter survives the
+## page being rebuilt after each choice.
 
 const Customs := preload("res://customs.gd")
-const Settings := preload("res://settings.gd")
 const K := preload("res://gui/controls.gd")
 const UI := preload("res://gui/ui.gd")
 const CritterView := preload("res://gui/critter_view.gd")
@@ -30,67 +28,14 @@ var name := ""
 var error := ""
 
 
-func section() -> Control:
+func editor() -> Control:
+	# The picture being made or changed, in a card, with any error above it.
 	var c := K.c
 	var rows := []
-	var imp := K.button("Import a critter", "bs", "plus", true, pick)
-	imp.disabled = editing != ""
-	imp.add_theme_color_override("font_disabled_color", c.ink2)   # the default grey vanishes on light
-	rows.append(K.row("Import a critter",
-		"A PNG, JPG or WebP. One animal on a plain background works best, or a picture that is already cut out.", imp))
 	if error != "":
-		rows.append(K.margins(UI.label(error, 13, c.dng_ink, 700), 20, 0, 20, 12))
-	if editing != "":
-		rows.append(_editor(c))
-	var ids := Customs.ids()
-	ids.sort_custom(func(a, b): return int(Customs.all[a].get("made", 0)) < int(Customs.all[b].get("made", 0)))
-	for id in ids:
-		rows.append(_row(id, c))
-	if ids.is_empty() and editing == "":
-		rows.append(K.margins(UI.label("None yet. Critters you made in v2.0 come over by themselves.", 13, c.ink2, 400), 20, 0, 20, 14))
-	return K.section("Custom critters", K.card(rows), "Beta")
-
-
-func _row(id: String, c: Dictionary) -> Control:
-	var d: Dictionary = Customs.all[id]
-	var h := K.hbox(14)
-	var well := PanelContainer.new()
-	well.add_theme_stylebox_override("panel", K.box(c.track, 12))
-	well.custom_minimum_size = Vector2(72, 64)
-	well.add_child(CritterView.make(id, 72, 64, 0.8, "sit", false, -1, [], true))
-	h.add_child(well)
-	var text := K.vbox(2)
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := UI.label(str(d.get("name", "Homemade critter")), 15, c.ink, 800)
-	title.clip_text = true
-	text.add_child(title)
-	var count := int(d.get("seen", {}).get("count", 0))
-	var from := "From v2.0" if str(d.get("from", "")).begins_with("v2:") else "Made here"
-	text.add_child(UI.label("%s · %s" % [from, "not met yet" if count == 0 else "visited %d time%s" % [count, "" if count == 1 else "s"]], 13, c.ink2, 400))
-	h.add_child(text)
-	var visits := K.dropdown(Settings.VISIT_NAMES, clampi(int(d.get("visits", 1)), 0, 3), func(i):
-		Customs.all[id]["visits"] = i
-		Customs.save(id))
-	visits.tooltip_text = "How often it visits"
-	visits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(visits)
-	var on := K.toggle(bool(d.get("enabled", true)), "%s visits your desk" % d.get("name", ""), func(v):
-		Customs.all[id]["enabled"] = v
-		Customs.save(id))
-	on.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(on)
-	var edit := K.button("Edit", "bq", "", true, func(): _edit(id))
-	edit.disabled = editing != ""
-	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(edit)
-	var del := K.button("", "bd", "trash", true, func():
-		w.confirm("Delete %s?" % d.get("name", "this critter"), "It stops visiting and its picture is deleted from this computer. This can't be undone.", "Delete", func():
-			Customs.remove(id)
-			w.rebuild()))
-	del.tooltip_text = "Delete"
-	del.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(del)
-	return K.margins(h, 20, 10, 20, 10)
+		rows.append(K.margins(UI.label(error, 13, c.dng_ink, 700), 20, 14, 20, 0))
+	rows.append(K.margins(_editor(c), 0, 12, 0, 0))
+	return K.card(rows)
 
 
 func _editor(c: Dictionary) -> Control:
@@ -108,26 +53,7 @@ func _editor(c: Dictionary) -> Control:
 
 	var form := K.vbox(10)
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var field := LineEdit.new()
-	field.text = name
-	field.placeholder_text = "Its name"
-	field.max_length = 40
-	field.add_theme_font_override("font", UI.font(700))
-	field.add_theme_font_size_override("font_size", 14)
-	var fs := K.box(c.surface, 12, c.sec_line, 2)
-	fs.content_margin_left = 12
-	fs.content_margin_right = 12
-	fs.content_margin_top = 8
-	fs.content_margin_bottom = 8
-	var ff := fs.duplicate()
-	ff.border_color = c.acc_ink
-	field.add_theme_stylebox_override("normal", fs)
-	field.add_theme_stylebox_override("focus", ff)
-	field.add_theme_color_override("font_color", c.ink)
-	field.add_theme_color_override("font_placeholder_color", c.ink2)
-	field.add_theme_color_override("caret_color", c.acc_ink)
-	field.text_changed.connect(func(t): name = t)
-	form.add_child(field)
+	form.add_child(K.text_field(name, "Its name", 40, func(t): name = t))
 	if editing == "new":
 		form.add_child(_choice("Background", K.seg(CUTS.map(func(x): return x[0]), cut, func(i):
 			cut = i
@@ -191,7 +117,7 @@ func open_file(path: String) -> void:
 	_refresh()
 
 
-func _edit(id: String) -> void:
+func edit(id: String) -> void:
 	var d: Dictionary = Customs.all[id]
 	var img := Image.load_from_file(str(d["_dir"]).path_join("image.png"))
 	if img == null or img.is_empty():

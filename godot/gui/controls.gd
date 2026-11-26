@@ -446,6 +446,30 @@ static func dropdown(options: Array, selected: int, on_pick: Callable, icons: Ar
 	return o
 
 
+static func text_field(text: String, placeholder: String, max_length: int, on_change: Callable) -> LineEdit:
+	# A one-line text box in the design's look: the accent border when focused.
+	var field := LineEdit.new()
+	field.text = text
+	field.placeholder_text = placeholder
+	field.max_length = max_length
+	field.add_theme_font_override("font", UI.font(700))
+	field.add_theme_font_size_override("font_size", 14)
+	var fs := box(c.surface, 12, c.sec_line, 2)
+	fs.content_margin_left = 12
+	fs.content_margin_right = 12
+	fs.content_margin_top = 8
+	fs.content_margin_bottom = 8
+	var ff := fs.duplicate()
+	ff.border_color = c.acc_ink
+	field.add_theme_stylebox_override("normal", fs)
+	field.add_theme_stylebox_override("focus", ff)
+	field.add_theme_color_override("font_color", c.ink)
+	field.add_theme_color_override("font_placeholder_color", c.ink2)
+	field.add_theme_color_override("caret_color", c.acc_ink)
+	field.text_changed.connect(on_change)
+	return field
+
+
 static func stepper(text: String, on_minus: Callable, on_plus: Callable) -> Control:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", box(c.raised, 14, c.sec_line, 2))

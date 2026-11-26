@@ -1620,6 +1620,18 @@ func spawn_now() -> bool:
 	return true
 
 
+func spawn_homemade(id: String) -> bool:
+	# My critters' Spawn one now: free, since a homemade critter sits outside
+	# rarity and the economy and never rolls (decision 2026-11-26).
+	if not Customs.all.has(id) or hosts.size() >= HARD_MAX:
+		return false
+	if paused:
+		_set_paused(false)
+	var h = _spawn("roam", "walk", Vector2(-1, -1), id)
+	_update_tray()
+	return h != null
+
+
 func toggle_pause() -> void:
 	_set_paused(not paused)
 

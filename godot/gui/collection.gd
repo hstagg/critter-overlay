@@ -21,6 +21,7 @@ var _dark := false
 var _previews := []            # critters ticking in the cards
 var cards := {}                # species -> its card
 var focus := ""                # a species to outline (opened from a toast)
+var open_my := Callable()      # opens My critters (Settings); the Homemade shelf links across
 
 
 class Floor extends Node:
@@ -143,7 +144,23 @@ func _build() -> void:
 	# the counts above and the diary.
 	var homemade := Customs.ids()
 	if not homemade.is_empty() and filter != "missing":
-		col.add_child(UI.label("Homemade", 19, c.ink, 600, true))
+		var hh := HBoxContainer.new()
+		hh.add_theme_constant_override("separation", 12)
+		var ht := UI.label("Homemade", 19, c.ink, 600, true)
+		ht.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hh.add_child(ht)
+		if open_my.is_valid():
+			var link := LinkButton.new()
+			link.text = "Open My critters"
+			link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
+			link.add_theme_color_override("font_color", c.acc_ink)
+			link.add_theme_color_override("font_hover_color", c.acc_ink)
+			link.add_theme_font_override("font", UI.font(800))
+			link.add_theme_font_size_override("font_size", 13)
+			link.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			link.pressed.connect(open_my)
+			hh.add_child(link)
+		col.add_child(hh)
 		var hg := GridContainer.new()
 		hg.columns = COLUMNS
 		hg.add_theme_constant_override("h_separation", 14)
@@ -216,7 +233,7 @@ func _homemade_card(id: String, c: Dictionary) -> Control:
 	nr.add_child(nm)
 	nr.add_child(UI.label("Seen %d" % int(d.get("seen", {}).get("count", 0)), 12, c.ink2, 700))
 	bc.add_child(nr)
-	bc.add_child(UI.label("From v2.0" if str(d.get("from", "")).begins_with("v2:") else "Homemade", 12, c.ink3, 700))
+	bc.add_child(UI.label("Yours · " + Customs.badge(d), 12, c.ink3, 700))
 	col.add_child(body)
 	return card
 
