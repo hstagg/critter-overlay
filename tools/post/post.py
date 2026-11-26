@@ -29,6 +29,8 @@ Usage:
       [--youtube WHEN] [--live]
   python tools/post/post.py status tiktok|instagram|youtube ID
   python tools/post/post.py accounts       the accounts connected in Zernio
+  python tools/post/post.py comments [--since WHEN] [--platform P]
+  python tools/post/post.py reply PLATFORM COMMENT_ID [--post POST_ID] --text-file F [--live]
   python tools/post/post.py auth google    sign in for YouTube and Gmail
 
 WHEN is ISO 8601 (2026-11-27T18:00+00:00); without an offset it is this
@@ -36,6 +38,15 @@ computer's local time. It must be in the future. ship prints one JSON line per
 platform: post, platform, id (the Zernio post id, or the YouTube video id),
 scheduled, and status ("scheduled", "dry_run", "refused" or "failed") with an
 error when there is one. It exits 1 if any platform was refused or failed.
+
+comments prints one JSON line per comment by someone else on our posts:
+platform, post_id, comment_id, author, text, time, replied (one of our
+replies is visible under it, or replies.jsonl has it), and url where known.
+TikTok and Instagram come from Zernio's comment inbox, YouTube from
+commentThreads. A platform it can't read prints {"platform", "error"}.
+reply sends one reply under the same live lock as ship, and refuses a
+second reply to one comment and more than REPLY_CAP replies in
+REPLY_WINDOW_H hours.
 
 The config (default ~/critter-post/config.json, or --config) holds the Zernio
 key and the Google client; tokens live beside it in tokens.json. Neither
@@ -87,6 +98,14 @@ TIKTOK = {
     "content_preview_confirmed": True,
     "express_consent_given": True,
 }
+
+# Comments and replies. A run of the reply routine sends at most REPLY_CAP
+# replies: the cap counts live replies in the last REPLY_WINDOW_H hours, from
+# replies.jsonl beside the config (which also stops a second reply to one comment).
+REPLY_CAP, REPLY_WINDOW_H = 30, 4
+REPLY_LIMITS = {"tiktok": 150, "instagram": 2200, "youtube": 10000}   # characters
+COMMENT_PAGES = 5           # pages read per list, at most
+ZERNIO_PAUSE = 1.0          # seconds between Zernio comment reads
 
 
 # ---------------------------------------------------------------- the post
@@ -390,6 +409,154 @@ def accounts(cfg, _args):
     return 0
 
 
+# ---------------------------------------------------------------- comments and replies
+
+def replies_path(cfg):
+    return Path(cfg["_dir"]) / "replies.jsonl"
+
+
+def reply_log(cfg):
+    path = replies_path(cfg)
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def youtube_comments(cfg, since, replied_ids):
+    auth = {"Authorization": f"Bearer {fresh_token(cfg)}"}
+    api = "https://www.googleapis.com/youtube/v3/"
+    items = call("GET", api + "channels?part=id&mine=true", headers=auth)[1].get("items", [])
+    if not items:
+        raise RuntimeError("the signed-in Google account has no YouTube channel")
+    me, page, out = items[0]["id"], "", []
+    for _ in range(COMMENT_PAGES):
+        q = {"part": "snippet,replies", "allThreadsRelatedToChannelId": me, "maxResults": 100,
+             "order": "time", "textFormat": "plainText"}
+        if page:
+            q["pageToken"] = page
+        got = call("GET", api + "commentThreads?" + urllib.parse.urlencode(q), headers=auth)[1]
+        for th in got.get("items", []):
+            top = th["snippet"]["topLevelComment"]
+            s = top["snippet"]
+            if s.get("authorChannelId", {}).get("value") == me:
+                continue
+            ours = any(r["snippet"].get("authorChannelId", {}).get("value") == me
+                       for r in th.get("replies", {}).get("comments", []))
+            out.append({"platform": "youtube", "post_id": th["snippet"].get("videoId"), "comment_id": top["id"],
+                        "author": s.get("authorDisplayName"), "text": s.get("textDisplay", ""),
+                        "time": s.get("publishedAt"), "replied": ours or top["id"] in replied_ids})
+        page = got.get("nextPageToken")
+        if not page:
+            break
+    return [c for c in out if after(c, since)]
+
+
+def after(c, since):
+    """True if the comment is newer than since (or its time can't be read: better shown than lost)."""
+    if not since or not c.get("time"):
+        return True
+    try:
+        return parse_when(str(c["time"])) >= since
+    except ValueError:
+        return True
+
+
+def zernio_comments(cfg, plat, since, replied_ids, max_posts):
+    account = zernio_account(cfg, plat)
+    profile = cfg.get("zernio", {}).get("profile_id")
+    posts, cursor = [], None
+    for _ in range(COMMENT_PAGES):     # our posts that have comments, newest first
+        q = {"limit": 50, **({"profileId": profile} if profile else {}), **({"cursor": cursor} if cursor else {})}
+        got = zernio(cfg, "GET", "/inbox/comments?" + urllib.parse.urlencode(q))
+        posts += [p for p in got.get("data", []) if p.get("platform") == plat
+                  and p.get("accountId") in (None, account) and p.get("commentCount", 1)]
+        pg = got.get("pagination") or {}
+        cursor = pg.get("nextCursor") or pg.get("cursor")
+        if not pg.get("hasMore") or not cursor or len(posts) >= max_posts:
+            break
+    out = []
+    for p in posts[:max_posts]:
+        cursor = None
+        for _ in range(COMMENT_PAGES):
+            time.sleep(ZERNIO_PAUSE)    # Zernio allows 60 requests a minute on the smallest plan
+            q = {"accountId": account, "limit": 100, **({"cursor": cursor} if cursor else {})}
+            got = zernio(cfg, "GET", f"/inbox/comments/{urllib.parse.quote(str(p['id']))}?"
+                         + urllib.parse.urlencode(q))
+            for c in got.get("comments", []):
+                who = c.get("from") or {}
+                if who.get("isOwner"):
+                    continue
+                ours = any((r.get("from") or {}).get("isOwner") for r in c.get("replies", []))
+                out.append({"platform": plat, "post_id": str(p["id"]), "comment_id": str(c["id"]),
+                            "author": who.get("username") or who.get("name"), "text": c.get("message", ""),
+                            "time": c.get("createdTime"), "replied": ours or str(c["id"]) in replied_ids,
+                            "url": c.get("url")})
+            pg = got.get("pagination") or {}
+            cursor = pg.get("cursor") or pg.get("nextCursor")
+            if not pg.get("hasMore") or not cursor:
+                break
+    return [c for c in out if after(c, since)]
+
+
+def comments(cfg, args):
+    since = parse_when(args.since) if args.since else None
+    replied_ids = {r["comment_id"] for r in reply_log(cfg) if r.get("live")}
+    failed = False
+    for plat in [args.platform] if args.platform else PLATFORMS:
+        try:
+            got = youtube_comments(cfg, since, replied_ids) if plat == "youtube" else \
+                zernio_comments(cfg, plat, since, replied_ids, args.posts)
+        except Exception as e:  # one platform failing must not hide the others
+            print(json.dumps({"platform": plat, "error": str(e)[:400]}), flush=True)
+            failed = True
+            continue
+        for c in sorted(got, key=lambda c: str(c["time"] or "")):
+            print(json.dumps(c, ensure_ascii=False), flush=True)
+    return 1 if failed else 0
+
+
+def reply(cfg, args):
+    out = {"platform": args.platform, "comment_id": args.comment_id, "post_id": args.post, "reply_id": None}
+    text = Path(args.text_file).read_text(encoding="utf-8").strip()
+    log = reply_log(cfg)
+    cutoff = time.time() - REPLY_WINDOW_H * 3600
+    recent = [r for r in log if r.get("live") and r.get("ts", 0) >= cutoff]
+    why = ("the reply is empty" if not text else
+           f"over {REPLY_LIMITS[args.platform]} characters" if len(text) > REPLY_LIMITS[args.platform] else
+           "--post is needed for TikTok and Instagram" if args.platform != "youtube" and not args.post else
+           "already replied to this comment" if any(r.get("live") and r["comment_id"] == args.comment_id
+                                                    for r in log) else
+           f"{REPLY_CAP} replies already sent in the last {REPLY_WINDOW_H} hours" if len(recent) >= REPLY_CAP
+           else None)
+    live = args.live and args.platform in cfg.get("live", [])
+    if why:
+        out.update(status="refused", error=why)
+    elif not live:
+        out.update(status="dry_run", plan=f"reply to {args.platform} comment {args.comment_id}: {json.dumps(text)}")
+    else:
+        try:
+            if args.platform == "youtube":
+                auth = {"Authorization": f"Bearer {fresh_token(cfg)}"}
+                _, got = call("POST", "https://www.googleapis.com/youtube/v3/comments?part=snippet",
+                              {"snippet": {"parentId": args.comment_id, "textOriginal": text}}, auth)
+                out["reply_id"] = got["id"]
+            else:
+                key = uuid.uuid5(uuid.NAMESPACE_URL, f"critter-overlay/reply/{args.platform}/{args.comment_id}")
+                got = zernio(cfg, "POST", f"/inbox/comments/{urllib.parse.quote(args.post)}",
+                             {"accountId": zernio_account(cfg, args.platform), "message": text,
+                              "commentId": args.comment_id}, {"Idempotency-Key": str(key)})
+                out["reply_id"] = (got.get("data") or {}).get("commentId")
+            out["status"] = "replied"
+        except Exception as e:
+            out.update(status="failed", error=str(e)[:400])
+    if out["status"] == "replied":
+        with open(replies_path(cfg), "a", encoding="utf-8") as f:
+            f.write(json.dumps({"ts": time.time(), "platform": args.platform, "post_id": args.post,
+                                "comment_id": args.comment_id, "reply_id": out["reply_id"], "live": True}) + "\n")
+    print(json.dumps(out, ensure_ascii=False))
+    return 1 if out["status"] in ("refused", "failed") else 0
+
+
 # ---------------------------------------------------------------- sign-in
 
 def loopback_code(auth_url, port):
@@ -467,6 +634,16 @@ def main(argv=None):
     st.add_argument("platform", choices=PLATFORMS)
     st.add_argument("id")
     sub.add_parser("accounts", help="the accounts connected in Zernio")
+    c = sub.add_parser("comments", help="other people's comments on our posts, as JSON lines")
+    c.add_argument("--since", help="only comments from this time on (ISO 8601)")
+    c.add_argument("--platform", choices=PLATFORMS)
+    c.add_argument("--posts", type=int, default=20, help="Zernio: the most recent commented posts to read")
+    r = sub.add_parser("reply", help="reply to one comment")
+    r.add_argument("platform", choices=PLATFORMS)
+    r.add_argument("comment_id")
+    r.add_argument("--post", help="the post id from comments (TikTok and Instagram)")
+    r.add_argument("--text-file", required=True, help="the reply, UTF-8")
+    r.add_argument("--live", action="store_true", help="really send, if the platform is in the config's live list")
     a = sub.add_parser("auth", help="sign in to Google (YouTube and Gmail)")
     a.add_argument("platform", choices=GOOGLE)
     args = ap.parse_args(argv)
@@ -479,7 +656,8 @@ def main(argv=None):
     else:
         sys.exit(f"no config at {cfg_path}; copy tools/post/config.example.json there")
     cfg["_dir"] = str(cfg_path.parent)
-    return {"ship": ship, "status": status, "accounts": accounts, "auth": auth}[args.cmd](cfg, args)
+    return {"ship": ship, "status": status, "accounts": accounts, "comments": comments, "reply": reply,
+            "auth": auth}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
