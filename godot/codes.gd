@@ -31,6 +31,7 @@ const FILE_VERSION := 1
 # trusts), base64 DER. A key is never removed, so every code ever sold keeps
 # working; a new key takes the next number.
 const KEYS := {
+	1: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUU90IX2LGZ8bdlicTAjRuLoxFptPpE6AR1bT25/h7WLjpNQ8Fmp7/0Izi68IHqdhWf38M4foinihPan1PFcZdA==",   # made 2026-11-26
 }
 
 # Codes that leaked badly, as "kind:serial": none can be redeemed from then

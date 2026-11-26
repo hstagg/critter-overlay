@@ -15,6 +15,7 @@ const Species := preload("res://species.gd")
 # it, which grants nothing and so is safe to publish. A build carrying the
 # wrong public key fails here.
 const REAL_CANARIES := {
+	1: "3W000-0AFS6-40J31-B6N86-YXHG3-JB6SN-NTQ95-W50PZ-XG68D-0EJWF-K3HYA-TXF53-7PZ81-X83EQ-62XT2-SD5ER-DVTRB-311CH-Y7H5Q-C34CN-GZG7R-S6QM",
 }
 
 var fails := 0

@@ -9,8 +9,9 @@ whoever pastes it; that was accepted for a cosmetic pack. The update check
 stays the only network use.
 
 Status: approved by the developer on 2026-11-25 (decision D33 in
-`docs/v3-launch-plan.md`). Steps 1 and 3 to 8 are built; the real key
-(step 2) and the VM checks come next. It touches the economy save, a
+`docs/v3-launch-plan.md`). Steps 1 to 8 are built: the real key is key 1
+(2026-11-26), its canary is in `codes_test.gd`, and the creator pool is
+made. The VM checks come next. It touches the economy save, a
 discuss-first area, which is why it was planned and approved before any
 code. It ships first, as 3.2.0, before Critter Studio, which moves to the
 release after (decided 2026-11-26).
