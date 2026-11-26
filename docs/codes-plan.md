@@ -9,9 +9,11 @@ whoever pastes it; that was accepted for a cosmetic pack. The update check
 stays the only network use.
 
 Status: approved by the developer on 2026-11-25 (decision D33 in
-`docs/v3-launch-plan.md`). Not built yet. It touches the economy save, a
+`docs/v3-launch-plan.md`). Steps 1 and 3 to 8 are built; the real key
+(step 2) and the VM checks come next. It touches the economy save, a
 discuss-first area, which is why it was planned and approved before any
-code. It ships as the next minor version.
+code. It ships first, as 3.2.0, before Critter Studio, which moves to the
+release after (decided 2026-11-26).
 
 ## What the player gets
 
@@ -120,6 +122,13 @@ The art comes first:
    face item, rendered on the cast with `design/wear/sheet.py`. It also
    draws three showpiece candidates and three dye colours, shown on items.
 2. The developer picks by picker. Only the picks go into the builder.
+
+**Picked (2026-11-26)**, from three themes (Starlight, Sweet shop, Little
+hero), three showpieces, three dyes and three creator hats: the Starlight
+set (Moon nightcap, Starry capelet, Star glasses), the Moon cradle, the
+Royal blue dye (#5865DD), and the Director's beret as the creator hat. The
+clothes are ported to `wear_draw.gd` too, so homemade kit critters can wear
+them.
 
 **Catalogue:** pack clothes get the tier `pack` in `catalogue.json`, which
 has no price.
