@@ -1,81 +1,111 @@
-# Posting queue
+# Posting
 
-`post.py` takes a finished clip (from `tools/film/`) to TikTok, Instagram Reels
-and YouTube Shorts through each platform's official API, with a person's
-approval in between. The flow:
+`post.py` schedules a finished clip on TikTok, Instagram Reels and YouTube
+Shorts. Nobody approves posts by hand. An automated QA gate checks each one,
+and the live lock is the kill switch.
 
-1. **Film** a clip with `tools/film/scene.ps1` (or cut one with `edit.py`).
-2. **Stage** it with a title, caption and hashtags. `--when auto` takes the
-   next free slot (`every_days` after the last post, at `slot`).
-3. **Review**: open the post's file in the queue folder, edit the caption if
-   you like, and tick `- [x] approve` (or `- [x] bin`). That tick is the only
-   way a post goes out.
-4. **Publish** runs on a schedule. Each approved post whose time has come is
-   sent to each platform once; the result is logged at the bottom of its file
-   and the ids go in `posted:`.
+1. **Film** a clip with `tools/film/` and cut it with `edit.py`.
+2. **Write the post spec**: a JSON file holding the clip's path and, for each
+   platform, the words that go with it (the format is at the top of
+   `post.py`).
+3. **Run the QA gate.** It writes its verdict to `<clip>.qa.json` beside the
+   clip. `ship` refuses a post unless that record says `"pass": true` for the
+   same post and is newer than the clip, so a recut clip needs the gate again.
+4. **Ship** it with one time per platform. TikTok and Instagram are scheduled
+   through [Zernio](https://zernio.com) (a TikTok and Meta partner), and post
+   on Zernio's side at the time. YouTube is uploaded straight away as private
+   with `publishAt`, and YouTube makes it public at that time.
 
 ```powershell
-python tools\post\post.py stage "$env:USERPROFILE\Videos\Critter Overlay\clip.mp4" `
-    --title "Rare: Sea Otter" --caption "One of us is rarer than the rest." `
-    --hashtags "#desktoppet #cozygames" --when auto
-python tools\post\post.py list       # the schedule
-python tools\post\post.py check      # every clip against the platforms' limits
-python tools\post\post.py publish    # dry run: prints and logs what it would send
+python tools\post\post.py ship post.json `
+    --tiktok 2026-11-27T18:00 --instagram 2026-11-27T19:00 --youtube 2026-11-27T17:00
+python tools\post\post.py status tiktok <zernio post id>   # state, link and numbers
+python tools\post\post.py status youtube <video id>
+python tools\post\post.py accounts                         # what is connected in Zernio
 ```
 
-## Two locks
+Times are ISO 8601. A time without an offset is this computer's local time,
+and every time must be in the future. `ship` prints one JSON line per
+platform:
 
-A run is a **dry run** unless both are true: it was started with `--live`, and
-the platform is listed in the config's `"live"`. The config ships with
-`"live": []`, so nothing is sent until the owner adds a platform. Approval is
-needed either way. `--now` (treat approved posts as due) only works in a dry
-run.
+```json
+{"post": "2026-11-27-desk-kittens", "platform": "tiktok", "id": "6745...", "scheduled": "2026-11-27T18:00:00+00:00", "status": "scheduled"}
+```
+
+The `status` is `scheduled`, `dry_run` (with the `plan`, and `needs` naming
+anything a live send would lack), `refused` (the QA gate, the time or the
+words) or `failed` (the platform's error). The `id` is the Zernio post id for
+TikTok and Instagram, and the video id for YouTube. One platform failing
+doesn't stop the others. The exit code is 1 if any platform was refused or
+failed.
+
+## The live lock
+
+A platform is really sent only if both of these are true:
+
+- the run was started with `--live`
+- the platform is listed in the config's `"live"`
+
+Anything else is a dry run, which prints the plan and touches no network. The
+config ships with `"live": []`. Taking a platform out of `"live"` stops it at
+once, even for scheduled runs. Posts already scheduled on Zernio or YouTube
+still go out unless they are deleted there.
+
+A retry of the same post, platform and time sends the same `Idempotency-Key`,
+so within 24 hours Zernio returns the first post instead of making a second.
 
 ## Config
 
-Copy `config.example.json` to `%USERPROFILE%\critter-post\config.json` (or pass
-`--config`). Tokens are written beside it in `tokens.json`. Keep both out of
-this repo.
+Copy `config.example.json` to `%USERPROFILE%\critter-post\config.json`, or
+pass `--config`. Tokens are written beside it in `tokens.json`. Keep both out
+of this repo. `ship` works without a config, but only as a dry run.
 
-- `queue`: the folder of post files (a synced folder makes review from a phone
-  possible).
-- `front`, `summary_key`: extra front-matter keys for the post files, if the
-  folder has its own conventions.
-- `google`: the Google OAuth client's JSON (YouTube and Gmail); `gmail`: the
+- `live`: the platforms that may really be sent.
+- `zernio.api_key`: from Zernio's dashboard (API keys).
+- `zernio.accounts`: optional. Each platform's Zernio account id, for when
+  more than one is connected. Otherwise `ship` uses the one active account
+  for the platform.
+- `zernio.tiktok`: overrides for TikTok's settings. The defaults are public,
+  comments, duets and stitches on, and disclosed as "Your brand", since the
+  account promotes its own app. `ship` also confirms TikTok's preview and
+  consent step, which the QA gate stands in for.
+- `zernio.instagram`: optional `platformSpecificData` for Reels, such as
+  `{"shareToFeed": true}` (the default) or `{"thumbOffset": 1500}`.
+- `google`: the Google OAuth client's JSON (YouTube and Gmail). `gmail`: the
   one account Gmail may use, and whether it may send.
-- `tiktok`: the TikTok app's client key and secret.
 
-## Signing in (once per platform, by the account owner)
+## Setting up (once, by the account owner)
 
-- **YouTube:** one Google Cloud project shared with Gmail (`tools/gmail/README.md`
-  has the steps): YouTube Data API v3 and YouTube Analytics API on, a "Desktop
-  app" OAuth client whose JSON is named in the config as
-  `"google": {"client_file": ...}`, and the consent screen published ("In
-  production"; while it says "Testing", Google expires the sign-in after 7
-  days). Then `post.py auth google`, which signs in once for both and also
-  grants reading the channel's statistics and analytics and replying to
-  comments (the marketing collector uses those). Uploads from a project
-  Google has not audited stay **private**; the audit form is in the API's
-  quota pages.
-- **Instagram:** a Professional (creator or business) account and a Meta app
-  with "Instagram API with Instagram login" and the
-  `instagram_business_content_publish` permission. Generate a token in the
-  app dashboard, then `post.py auth instagram` and paste it.
-- **TikTok:** a TikTok for Developers app with Login Kit and the Content
-  Posting API (`video.upload` scope), redirect URI `http://127.0.0.1:8765/`.
-  Then `post.py auth tiktok`. Clips land in the TikTok app's drafts; finish the
-  post there, pasting the caption that `publish` prints and logs.
+- **TikTok and Instagram:** make a Zernio account, connect the TikTok account
+  and the Instagram Professional (creator or business) account, and create an
+  API key. Zernio's free tier covers two connected accounts. Put the key in
+  the config, then check with `post.py accounts`.
+- **YouTube:** one Google Cloud project shared with Gmail. The steps are in
+  `tools/gmail/README.md`. You need:
+  - the YouTube Data API v3 and the YouTube Analytics API turned on
+  - a "Desktop app" OAuth client, whose JSON is named in the config as
+    `"google": {"client_file": ...}`
+  - the consent screen set to "In production". While it says "Testing",
+    Google expires the sign-in after 7 days.
+
+  Then run `post.py auth google`. This one sign-in covers YouTube and Gmail.
+  It also lets the marketing collector read the channel's statistics and
+  analytics, and reply to comments.
 
 ## Running it on a schedule
 
-Once a platform is live, a Windows scheduled task runs the publisher every
-hour:
-
-```powershell
-schtasks /Create /TN "Critter post" /SC HOURLY /TR "python \"C:\path\to\tools\post\post.py\" publish --live"
-```
+The marketing department's runs call `ship` for each post they schedule, and
+record the ids it prints. Nothing here runs on a timer by itself.
 
 ## Tests
 
-`python -m unittest tools/post/test_post.py` (needs ffmpeg) runs the queue end
-to end with the senders replaced, so it never touches the network.
+`python -m unittest tools/post/test_post.py` runs everything with the network
+replaced, so it never sends. The Tests workflow runs it on every pull request.
+
+## History
+
+Until November 2026 the tool kept a queue of Markdown files, each with an
+approve tick box that a person had to tick. TikTok clips went to the app's
+drafts, and Instagram went through the Graph API directly. All three were
+replaced by the QA gate, the live lock and Zernio, and that code was removed.
+The last version with it is in git history.
