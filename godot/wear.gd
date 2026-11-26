@@ -14,6 +14,9 @@ extends RefCounted
 ## species-only items or FITS_BADLY ones, and a hood hides KIT_HOOD_HIDES.
 ## Frame critters wear nothing yet (F3).
 ##
+## Items of the tier "pack" come in a pack (codes.gd, the Supporter Pack and the
+## creator hat): never sold, owned only through a code, price 0.
+##
 ## Prices are by hours of focus, a wide spread (game design rules, D28): at
 ## about 115 berries a steady focus hour (tools/economy_sim.py; fewer in a
 ## first session), small 50 is about half an hour, medium 250 a couple of
@@ -48,6 +51,9 @@ const DYES := {
 	"rose": ["Rose", "#F590B4"], "sky": ["Sky", "#7FBCF5"], "mint": ["Mint", "#86D9B0"],
 	"sunshine": ["Sunshine", "#FFCF5C"], "lilac": ["Lilac", "#B59AF0"], "cocoa": ["Cocoa", "#B98A5A"],
 	"midnight": ["Midnight", "#3B3346"],
+	# A pack's dye (a third field, the pack): never sold, owned through a code
+	# (codes.gd), and it colours any dyeable item.
+	"royal": ["Royal blue", "#5865DD", "supporter"],
 }
 const DYE_PRICE := 50
 const TREAT_PRICE := 40

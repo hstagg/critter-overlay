@@ -14,6 +14,7 @@ const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
+const Codes := preload("res://codes.gd")
 const Importer := preload("res://gui/importer.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"   # the update pages (updater.gd); moves with the repo
@@ -1151,7 +1152,8 @@ func _colours(sp: String, id: String, on: bool) -> Control:
 	sw.add_theme_constant_override("v_separation", 6)
 	var opts := [["", "Its own", Wear.MAINS[id]]]
 	for d in Wear.DYES:
-		opts.append([d, Wear.DYES[d][0], Wear.DYES[d][1]])
+		if Codes.pack_of(d) == "" or eco.owns_dye(id, d):   # a pack's dye only once owned
+			opts.append([d, Wear.DYES[d][0], Wear.DYES[d][1]])
 	for o in opts:
 		var dye: String = o[0]
 		var mine: bool = dye == "" or eco.owns_dye(id, dye)
@@ -1252,12 +1254,15 @@ func _rail(sp: String, worn: Array) -> Control:
 	ids.sort_custom(func(a, b): return Wear.price(a) > Wear.price(b) or (Wear.price(a) == Wear.price(b) and a < b))
 	if shop_slot in ["all", "showpiece"]:
 		for pid in Prop.PROPS:
-			grid.add_child(_tile_prop(pid))
+			if Codes.pack_of(pid) == "" or eco.owns(pid):   # a pack's showpiece only once owned
+				grid.add_child(_tile_prop(pid))
 	for id in ids:
 		if shop_slot == "showpiece":
 			break
 		if not Wear.fits(id, sp) or not Wear.unlocked(id, eco.collection):
 			continue
+		if Codes.pack_of(id) != "" and not eco.owns(id):
+			continue   # a pack's clothes stay out of the Shop until owned
 		if shop_slot == "showpiece" and Wear.ITEMS[id][2] != "showpiece":
 			continue
 		if shop_slot in ["head", "neck", "face"] and Wear.slot(id) != shop_slot:

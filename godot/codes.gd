@@ -49,12 +49,13 @@ const GRANTS := {
 	CREATOR: {"packs": ["supporter", "creator"], "berries": 25000},
 }
 
-# What each pack holds: clothes (wear.gd ids, tier "pack" in the catalogue),
-# showpieces (prop.gd ids) and dyes (wear.gd DYES ids).
+# What each pack holds: clothes (wear.gd ids, tier "pack" in the catalogue,
+# drawn by design/wear/items_pack.py), showpieces (prop.gd ids) and dyes
+# (wear.gd DYES ids, marked with their pack).
 const PACKS := {
-	"supporter": {"name": "Supporter Pack", "clothes": ["pack_hat", "pack_neck", "pack_face"],
-		"showpieces": ["pack_bed"], "dyes": ["pack_dye"]},
-	"creator": {"name": "Creator", "clothes": ["creator_hat"], "showpieces": [], "dyes": []},
+	"supporter": {"name": "Supporter Pack", "clothes": ["moon_nightcap", "star_cape", "star_glasses"],
+		"showpieces": ["moon_cradle"], "dyes": ["royal"]},
+	"creator": {"name": "Creator", "clothes": ["director_beret"], "showpieces": [], "dyes": []},
 }
 
 var path := "user://codes.json"

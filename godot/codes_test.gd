@@ -7,6 +7,9 @@ extends SceneTree
 
 const Codes := preload("res://codes.gd")
 const Admin := preload("res://admin.gd")
+const Wear := preload("res://wear.gd")
+const Prop := preload("res://prop.gd")
+const Species := preload("res://species.gd")
 
 # The canary for each real key (mint.py canary): a kind-15 code signed with
 # it, which grants nothing and so is safe to publish. A build carrying the
@@ -264,6 +267,21 @@ func _init() -> void:
 	check(FileAccess.file_exists(s.path + ".before-forget"), "set aside as codes.json.before-forget")
 	check(store().packs().is_empty(), "a reload brings nothing back")
 	check(s.redeem(sup).result == "ok", "and the code redeems again")
+
+	# --- Each pack's things exist: drawn for every species, in the catalogue as tier
+	# "pack", the showpiece with its art, the dye marked as the pack's.
+	for p in Codes.PACKS:
+		for id in Codes.PACKS[p].clothes:
+			check(Wear.has(id) and Wear.ITEMS[id][2] == "pack" and Wear.only(id) == "", "%s is in the catalogue, tier pack, for everyone" % id)
+			for sp in Species.DATA:
+				check(Wear.fits(id, sp), "%s is drawn for the %s" % [id, sp])
+		for pid in Codes.PACKS[p].showpieces:
+			check(Prop.PROPS.has(pid) and FileAccess.file_exists("res://art/props/%s.svg" % pid), "the showpiece %s is there" % pid)
+		for dye in Codes.PACKS[p].dyes:
+			check(Wear.DYES.has(dye) and Wear.DYES[dye].size() > 2 and Wear.DYES[dye][2] == p, "the dye %s is marked as the %s pack's" % [dye, p])
+	for dye in Wear.DYES:
+		check(Wear.DYES[dye].size() < 3 or Codes.pack_of(dye) == Wear.DYES[dye][2], "the dye %s is in the pack it says" % dye)
+	check(Codes.PACKS.supporter.clothes.map(func(i): return Wear.slot(i)) == ["head", "neck", "face"], "the Supporter Pack: a hat, a neck item and a face item")
 
 	# --- Pack things are never sold.
 	for p in Codes.PACKS:
