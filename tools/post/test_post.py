@@ -49,7 +49,7 @@ class FakeHTTP:
         for (m, frag), reply in self.routes.items():
             if m == method and frag in url:
                 if callable(reply):
-                    reply = reply()
+                    reply = reply(url)
                 return reply if isinstance(reply, tuple) else ({}, reply)
         raise AssertionError(f"unexpected {method} {url}")
 
@@ -68,7 +68,9 @@ ZERNIO_ROUTES = {
 }
 
 
-class ShipTest(unittest.TestCase):
+class Base(unittest.TestCase):
+    """A temporary config folder, a clip with a passing QA record, and post.main with HTTP replaced."""
+
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
         self.clip = self.dir / "clip.mp4"
@@ -102,6 +104,8 @@ class ShipTest(unittest.TestCase):
             code = post.main(["--config", str(config or self.cfg_path), *argv])
         return code, out.getvalue()
 
+
+class ShipTest(Base):
     def ship(self, *extra, http=no_network, config=None, times=None):
         times = times or {"tiktok": SOON, "instagram": SOON, "youtube": LATER}
         args = ["ship", str(self.spec_path)]
@@ -188,7 +192,7 @@ class ShipTest(unittest.TestCase):
         self.config(live=["tiktok", "instagram"], zernio={"api_key": "K", "instagram": {"shareToFeed": True}})
         made = iter(["zp-tt", "zp-ig"])
         http = FakeHTTP({**ZERNIO_ROUTES,
-                         ("POST", "/posts"): lambda: {"post": {"_id": next(made), "status": "scheduled"}}})
+                         ("POST", "/posts"): lambda _url: {"post": {"_id": next(made), "status": "scheduled"}}})
         code, res = self.ship("--live", http=http, times={"tiktok": SOON, "instagram": LATER})
         self.assertEqual(code, 0, res)
         self.assertEqual((res["tiktok"]["id"], res["instagram"]["id"]), ("zp-tt", "zp-ig"))
@@ -308,6 +312,144 @@ class ShipTest(unittest.TestCase):
         _, out = self.run_post("accounts", http=FakeHTTP(dict(ZERNIO_ROUTES)))
         self.assertEqual(len(out.splitlines()), 3)
         self.assertNotIn("SECRET", out)
+
+
+def thread(tid, who, when, replies=()):
+    def c(cid, author, at):
+        return {"id": cid, "snippet": {"authorChannelId": {"value": author}, "authorDisplayName": "@" + author,
+                                       "textDisplay": f"hello from {author}", "publishedAt": at}}
+    return {"id": tid, "snippet": {"videoId": "vid1", "topLevelComment": c(tid, who, when)},
+            "replies": {"comments": [c(tid + ".r", a, when) for a in replies]}}
+
+
+def zc(cid, who, when, owner=False, replies=()):
+    return {"id": cid, "message": f"hi from {who}", "createdTime": when, "url": f"https://x/{cid}",
+            "from": {"id": "u-" + who, "username": who, "isOwner": owner},
+            "replies": [{"id": cid + ".r", "from": {"isOwner": o}} for o in replies]}
+
+
+class CommentsTest(Base):
+    def setUp(self):
+        super().setUp()
+        post.ZERNIO_PAUSE = 0
+        self.text = self.dir / "reply.txt"
+        self.text.write_text("Hello from the critters! Free on itch.io.", encoding="utf-8")
+
+    def youtube_routes(self):
+        pages = {"": {"items": [thread("t1", "fan", "2026-11-26T10:00:00Z", replies=["UCme"]),
+                                thread("t2", "UCme", "2026-11-26T10:30:00Z"),
+                                thread("t3", "old", "2026-11-20T10:00:00Z")], "nextPageToken": "p2"},
+                 "p2": {"items": [thread("t4", "asker", "2026-11-26T11:00:00Z")]}}
+        return {("GET", "channels?part=id"): {"items": [{"id": "UCme"}]},
+                ("GET", "commentThreads"): lambda url: pages["p2" if "pageToken=p2" in url else ""]}
+
+    def zernio_routes(self):
+        pages = {"": {"comments": [zc("c1", "fan", "2026-11-26T10:00:00Z", replies=[True]),
+                                   zc("c2", "us", "2026-11-26T10:05:00Z", owner=True),
+                                   zc("c0", "old", "2026-11-01T10:00:00Z")],
+                      "pagination": {"hasMore": True, "cursor": "k2"}},
+                 "k2": {"comments": [zc("c3", "asker", "2026-11-26T12:00:00Z")], "pagination": {"hasMore": False}}}
+        return {**ZERNIO_ROUTES,
+                ("GET", "/inbox/comments?"): {"data": [
+                    {"id": "v1", "platform": "tiktok", "accountId": "acc-tt", "commentCount": 3},
+                    {"id": "v0", "platform": "tiktok", "accountId": "acc-tt", "commentCount": 0},
+                    {"id": "m1", "platform": "instagram", "accountId": "acc-ig", "commentCount": 1}],
+                    "pagination": {"hasMore": False}},
+                ("GET", "/inbox/comments/v1?"): lambda url: pages["k2" if "cursor=k2" in url else ""],
+                ("GET", "/inbox/comments/m1?"): {"comments": [zc("i1", "reels_fan", "2026-11-26T09:00:00Z")]}}
+
+    def comments_out(self, *argv, http):
+        code, out = self.run_post("comments", *argv, http=http)
+        return code, [json.loads(line) for line in out.splitlines()]
+
+    def reply(self, plat, cid, *extra, http=no_network):
+        code, out = self.run_post("reply", plat, cid, "--text-file", str(self.text), *extra, http=http)
+        return code, json.loads(out)
+
+    # ---- reading
+
+    def test_youtube_comments_skip_ours_and_old_ones(self):
+        self.config()
+        self.google_token()
+        code, got = self.comments_out("--platform", "youtube", "--since", "2026-11-25T00:00Z",
+                                      http=FakeHTTP(self.youtube_routes()))
+        self.assertEqual(code, 0)
+        self.assertEqual([c["comment_id"] for c in got], ["t1", "t4"])
+        self.assertEqual((got[0]["replied"], got[1]["replied"]), (True, False))
+        self.assertEqual(got[1], {"platform": "youtube", "post_id": "vid1", "comment_id": "t4", "author": "@asker",
+                                  "text": "hello from asker", "time": "2026-11-26T11:00:00Z", "replied": False})
+
+    def test_zernio_comments_read_every_page_and_know_our_replies(self):
+        self.config(zernio={"api_key": "K"})
+        http = FakeHTTP(self.zernio_routes())
+        code, got = self.comments_out("--platform", "tiktok", "--since", "2026-11-25T00:00Z", http=http)
+        self.assertEqual(code, 0)
+        self.assertEqual([(c["comment_id"], c["replied"]) for c in got], [("c1", True), ("c3", False)])
+        self.assertEqual((got[1]["post_id"], got[1]["author"], got[1]["text"]), ("v1", "asker", "hi from asker"))
+        reads = http.find("GET", "/inbox/comments/")
+        self.assertEqual(len(reads), 2)                     # v0 has no comments; m1 is Instagram
+        self.assertIn("accountId=acc-tt", reads[0]["url"])
+
+    def test_one_platform_failing_still_lists_the_rest(self):
+        self.config()                                       # no Zernio key
+        self.google_token()
+        code, got = self.comments_out(http=FakeHTTP(self.youtube_routes()))
+        self.assertEqual(code, 1)
+        self.assertEqual([g["platform"] for g in got if "error" in g], ["tiktok", "instagram"])
+        self.assertIn("zernio.api_key", got[0]["error"])
+        self.assertEqual(len([g for g in got if g.get("platform") == "youtube"]), 3)
+
+    # ---- replying
+
+    def test_reply_is_dry_without_both_locks(self):
+        self.config(live=["youtube"])
+        self.assertEqual(self.reply("youtube", "t4")[1]["status"], "dry_run")             # no --live
+        self.config(live=[])
+        self.assertEqual(self.reply("youtube", "t4", "--live")[1]["status"], "dry_run")   # not listed
+        self.assertFalse(post.replies_path({"_dir": str(self.dir)}).exists())
+
+    def test_youtube_reply_then_never_twice(self):
+        self.config(live=["youtube"])
+        self.google_token()
+        http = FakeHTTP({("POST", "youtube/v3/comments"): {"id": "t4.reply"}})
+        code, res = self.reply("youtube", "t4", "--live", http=http)
+        self.assertEqual((code, res["status"], res["reply_id"]), (0, "replied", "t4.reply"))
+        body = http.find("POST", "youtube/v3/comments")[0]["data"]
+        self.assertEqual(body, {"snippet": {"parentId": "t4",
+                                            "textOriginal": "Hello from the critters! Free on itch.io."}})
+        code, res = self.reply("youtube", "t4", "--live", http=http)
+        self.assertEqual((code, res["status"]), (1, "refused"))
+        self.assertIn("already replied", res["error"])
+        self.assertEqual(len(http.find("POST", "youtube/v3/comments")), 1)
+        _, got = self.comments_out("--platform", "youtube", http=FakeHTTP(self.youtube_routes()))
+        self.assertTrue(next(c for c in got if c["comment_id"] == "t4")["replied"])      # from the log
+
+    def test_zernio_reply_needs_the_post_and_sends_once(self):
+        self.config(live=["tiktok"], zernio={"api_key": "K"})
+        self.assertIn("--post", self.reply("tiktok", "c3", "--live")[1]["error"])
+        http = FakeHTTP({**ZERNIO_ROUTES, ("POST", "/inbox/comments/v1"):
+                         {"success": True, "data": {"commentId": "c3.reply", "isReply": True}}})
+        code, res = self.reply("tiktok", "c3", "--post", "v1", "--live", http=http)
+        self.assertEqual((code, res["reply_id"]), (0, "c3.reply"))
+        sent = http.find("POST", "/inbox/comments/v1")[0]
+        self.assertEqual(sent["data"], {"accountId": "acc-tt", "commentId": "c3",
+                                        "message": "Hello from the critters! Free on itch.io."})
+        self.assertIn("Idempotency-Key", sent["headers"])
+
+    def test_reply_cap_and_length(self):
+        self.config(live=["youtube"])
+        self.google_token()
+        now = time.time()
+        log = [{"ts": now - 60 * i, "platform": "youtube", "comment_id": f"x{i}", "live": True} for i in range(29)]
+        log.append({"ts": now - 5 * 3600, "platform": "youtube", "comment_id": "old", "live": True})
+        post.replies_path({"_dir": str(self.dir)}).write_text("".join(json.dumps(r) + "\n" for r in log))
+        http = FakeHTTP({("POST", "youtube/v3/comments"): {"id": "r"}})
+        self.assertEqual(self.reply("youtube", "a", "--live", http=http)[1]["status"], "replied")   # the 30th
+        code, res = self.reply("youtube", "b", "--live", http=http)
+        self.assertEqual(code, 1)
+        self.assertIn("30 replies already sent", res["error"])
+        self.text.write_text("x" * 151, encoding="utf-8")
+        self.assertIn("over 150", self.reply("tiktok", "c", "--post", "v1")[1]["error"])
 
 
 if __name__ == "__main__":

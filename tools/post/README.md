@@ -39,6 +39,48 @@ TikTok and Instagram, and the video id for YouTube. One platform failing
 doesn't stop the others. The exit code is 1 if any platform was refused or
 failed.
 
+## Comments and replies
+
+```powershell
+python tools\post\post.py comments --since 2026-11-27T12:00Z          # all three platforms
+python tools\post\post.py comments --platform tiktok
+python tools\post\post.py reply youtube <comment id> --text-file reply.txt --live
+python tools\post\post.py reply tiktok <comment id> --post <post id> --text-file reply.txt --live
+```
+
+`comments` prints one JSON line for each comment someone else left on our
+posts. Each line has:
+
+- `platform`, `post_id`, `comment_id`
+- `author` and `text`
+- `time`
+- `replied`: true if one of our replies shows under the comment, or if
+  `replies.jsonl` records one
+- `url`, where it's known
+
+A platform it can't read prints `{"platform", "error"}`, and the others still
+list. The exit code is then 1.
+
+- **YouTube:** reads `commentThreads` across the channel, up to 500 threads,
+  newest first.
+- **TikTok and Instagram:** read through Zernio's comment inbox, from the 20
+  most recent posts that have comments (`--posts` changes this). The reads are
+  spaced a second apart to stay inside Zernio's rate limit. On TikTok it needs
+  the account connected through Zernio's Business app. A developer-app
+  connection can't read or reply to comments.
+
+`reply` sends one reply. It uses the same live lock as `ship`, so it's a dry
+run unless the run has `--live` and the platform is listed in `"live"`.
+TikTok and Instagram also need `--post`, the `post_id` from `comments`. Every
+reply sent is written to `replies.jsonl` beside the config. `reply` refuses
+in these cases:
+
+- a second reply to the same comment
+- more than 30 replies in 4 hours (one run's worth, at three runs a day)
+- an empty reply
+- a reply over the platform's length: 150 characters on TikTok, 2,200 on
+  Instagram, 10,000 on YouTube
+
 ## The live lock
 
 A platform is really sent only if both of these are true:
@@ -65,6 +107,7 @@ of this repo. `ship` works without a config, but only as a dry run.
 - `zernio.accounts`: optional. Each platform's Zernio account id, for when
   more than one is connected. Otherwise `ship` uses the one active account
   for the platform.
+- `zernio.profile_id`: optional. Limits `comments` to one Zernio profile.
 - `zernio.tiktok`: overrides for TikTok's settings. The defaults are public,
   comments, duets and stitches on, and disclosed as "Your brand", since the
   account promotes its own app. `ship` also confirms TikTok's preview and
