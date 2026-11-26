@@ -302,6 +302,8 @@ func run(action: String, chosen := "kitten") -> void:
 		"forget":
 			forget_codes()
 			open_codes("")
+		"creator":
+			creator_check()
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -707,8 +709,30 @@ func open_codes(text: String) -> void:
 	var pages = main.settings_win.pages
 	pages.code_text = text
 	pages.code_note = ""
-	pages.to_codes = true
+	pages.jump = "codes"
 	main.settings_win.rebuild()
+
+
+func creator_check() -> void:
+	# The audit's Creator mode row: creator mode on (a session creator pack if
+	# no code gave it), System > Creator open, and every everyday species
+	# called in each look, through creator mode's own Call.
+	if not main.codes.has_pack("creator"):
+		set_pack("creator", true)
+	main.settings.set_value("system.creator_mode", true)
+	# Everyone else goes at once (as in Start over), so all 24 fit under the
+	# cap of 25 rather than waiting for the others to walk off.
+	stop_moves()
+	main.pairs.active.clear()
+	main.pairs.bolts.clear()
+	for h in main.hosts.duplicate():
+		main.hosts.erase(h)
+		h.queue_free()
+	for s in Species.DATA:
+		if not Species.is_special(s):
+			for t in ["common", "rare", "epic"]:
+				main.call_critter(s, t)
+	main.open_settings_at("system", "creator")
 
 
 func set_infinite(on: bool) -> void:

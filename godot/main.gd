@@ -492,6 +492,7 @@ func _ready() -> void:
 	tray.pause_pressed.connect(toggle_pause)
 	tray.collection_pressed.connect(func(): open_settings("collection"))
 	tray.desktop_pressed.connect(toggle_on_desktop)
+	tray.call_pressed.connect(func(): open_settings_at("system", "creator"))
 	tray.settings_pressed.connect(func(): open_settings("home"))
 	tray.quit_pressed.connect(quit_app)
 	if open_on_start != "":
@@ -1862,6 +1863,7 @@ func redeem_code(text: String) -> Dictionary:
 		var gave := ["%s berries" % SettingsWindow._thousands(paid)] if paid > 0 else []
 		gave.append("the %s" % Wear.item_name(Codes.PACKS.creator.clothes[0]).to_lower())
 		gave.append("the Supporter Pack")
+		gave.append("creator mode, in System > Creator")
 		toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Creator code", "Thank you for showing your critters",
 			"It gave you %s." % _and(gave), "#D9961A")
 	else:
@@ -1884,6 +1886,38 @@ func codes_changed() -> void:
 		_redress(sp)
 	sync_props()
 	_update_tray()
+
+
+func creator_on() -> bool:
+	# Creator mode: a creator code, and the switch in System > Creator on.
+	return codes != null and codes.has_pack("creator") and bool(settings.value("system.creator_mode"))
+
+
+func call_critter(sp: String, tier: String) -> bool:
+	# Creator mode's Call: an everyday critter in the look asked for, through
+	# the same path as the Admin page's spawns. It wears the player's outfit
+	# and stays for a normal visit, but takes no banked roll, records no
+	# sighting, pays no first-find berries and doesn't count in the
+	# Collection. The Legendary visitors can't be called: they stay a
+	# surprise. False when it can't come (the cap of 25 among them).
+	if not creator_on() or not Species.has(sp) or Species.is_special(sp) or hosts.size() >= HARD_MAX:
+		return false
+	var top: String = Species.row(sp).get("rarity_max", "epic")
+	if not tier in ["common", "rare", "epic"] or Economy.TIERS.find(tier) > Economy.TIERS.find(top):
+		return false
+	var h = _spawn("roam", "walk", Vector2(-1, -1), sp, tier)
+	if h == null:
+		return false
+	h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
+	_update_tray()
+	return true
+
+
+func open_settings_at(page: String, section: String) -> void:
+	# Settings on a page, scrolled to one of its sections (settings_pages.gd jump).
+	open_settings(page)
+	settings_win.pages.jump = section
+	settings_win.rebuild()
 
 
 func start_over() -> void:
@@ -2012,6 +2046,8 @@ func _on_setting(key: String) -> void:
 			updater.download()
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
+	if under.call("system.creator_mode") and tray != null:
+		_update_tray()
 	if under.call("world.on_desktop"):
 		var was := on_desktop
 		on_desktop = bool(settings.value("world.on_desktop")) and desktop_ok()
@@ -2107,7 +2143,7 @@ func _update_tray() -> void:
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
 		"found_total": counts[1], "berries": economy.berries, "spawn_price": Economy.SPAWN_PRICE,
 		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key"))),
-		"desktop_ok": desktop_ok(), "on_desktop": on_desktop})
+		"desktop_ok": desktop_ok(), "on_desktop": on_desktop, "creator": creator_on()})
 
 
 func note_pop() -> void:

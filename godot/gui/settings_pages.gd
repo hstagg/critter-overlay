@@ -999,7 +999,7 @@ func _shop(body: VBoxContainer) -> void:
 	bp.add_child(berries)
 	var right := K.hbox(14)
 	right.add_child(_link("Have a code?", func():
-		to_codes = true
+		jump = "codes"
 		w.go("system")))
 	right.add_child(bp)
 	header(body, "Shop", "Pick something to try it on. Berries come from working; nothing here costs money.", right)
@@ -1526,9 +1526,12 @@ func _system(body: VBoxContainer) -> void:
 
 	var codes := _codes_section()
 	body.add_child(codes)
-	if to_codes:
-		to_codes = false
-		w.scroll_to(codes)
+	var creator: Control = _creator_section() if w.main.codes.has_pack("creator") else null
+	if creator != null:
+		body.add_child(creator)
+	if jump != "":
+		w.scroll_to(creator if jump == "creator" and creator != null else codes)
+		jump = ""
 
 	# Help: what a bug report needs, kept on this computer until the player
 	# sends it.
@@ -1591,7 +1594,12 @@ func _system(body: VBoxContainer) -> void:
 var code_text := ""                # what is in the Redeem box, kept across rebuilds
 var code_note := ""                # what the last Redeem said
 var code_tone := ""                # "bad", or "" for a plain note
-var to_codes := false              # scroll to Codes once System is built (the Shop's link)
+var jump := ""                     # System's section to scroll to once built: "codes" (the Shop's link) or "creator" (the tray)
+var creator_sp := "kitten"         # creator mode: who to call
+var creator_tier := 0              # and in which look (CREATOR_LOOKS)
+var creator_note := ""
+
+const CREATOR_LOOKS := [["Common", "common"], ["Rare", "rare"], ["Epic", "epic"]]
 
 
 func _codes_section() -> Control:
@@ -1642,6 +1650,31 @@ func _codes_section() -> Control:
 	for e in held:
 		rows.append(_code_row(e))
 	return K.section("Codes", K.card(rows))
+
+
+func _creator_section() -> Control:
+	# Creator mode (a creator code): call any everyday critter in any look,
+	# for filming. Not the Legendary visitors: they stay a surprise.
+	var c := K.c
+	var on: bool = S().value("system.creator_mode")
+	var rows := [_toggle_row("Creator mode", "Call any everyday critter in its Common, Rare or Epic look, for filming. Called critters wear their outfits and stay a normal visit, and don't count in your Collection. Off: normal play, and the tray's Call a critter goes.", "system.creator_mode")]
+	if on:
+		var everyday: Array = Species.DATA.keys().filter(func(s): return not Species.is_special(s))
+		if not creator_sp in everyday:
+			creator_sp = everyday[0]
+		var h := HFlowContainer.new()
+		h.add_theme_constant_override("h_separation", 10)
+		h.add_theme_constant_override("v_separation", 10)
+		h.add_child(K.dropdown(everyday.map(func(s): return Collection.species_name(s)), everyday.find(creator_sp), func(i): creator_sp = everyday[i]))
+		h.add_child(K.dropdown(CREATOR_LOOKS.map(func(l): return l[0]), creator_tier, func(i): creator_tier = i))
+		h.add_child(K.button("Call", "bp", "paw", true, func():
+			var ok: bool = w.main.call_critter(creator_sp, CREATOR_LOOKS[creator_tier][1])
+			creator_note = "" if ok else "No more can come just now: %d critters is the most at once." % w.main.HARD_MAX
+			w.rebuild()))
+		rows.append(K.margins(h, 20, 14, 20, 14))
+		if creator_note != "":
+			rows.append(K.margins(UI.label(creator_note, 13, c.acc_ink, 700), 20, 0, 20, 14))
+	return K.section("Creator", K.card(rows))
 
 
 func _code_row(e: Dictionary) -> Control:

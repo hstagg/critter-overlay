@@ -26,6 +26,7 @@ func _init() -> void:
 	s.load_file()
 	check(s.value("focus.max_out") == 8, "defaults load without a file")
 	check(s.value("world.notes") == "rare", "rare sighting notes default to Rare and up")
+	check(s.value("system.creator_mode") == true, "creator mode is on by default (it only shows with a creator code)")
 	check(s.sp("kitten", "visits") == 2 and s.sp("rabbit", "visits") == 1, "kittens visit often, as in v2.0")
 	check(s.sp("turtle", "tier_max") == "epic" and s.sp("panda", "tier_max") == "epic", "turtle and panda stop at Epic")
 	check(is_equal_approx(s.zoom(), 1.0), "120 px is the art's own size")
