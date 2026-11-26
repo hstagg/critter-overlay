@@ -290,6 +290,18 @@ func run(action: String, chosen := "kitten") -> void:
 			dress_kit_all()
 		"wear_sheet":
 			wear_sheet()
+		"code":
+			# System > Codes with a test code in the box (TEST_CODES), or a
+			# Supporter code with one letter changed ("wrong").
+			var text: String = TEST_CODES.get(arg, "")
+			if arg == "wrong":
+				text = TEST_CODES.supporter
+				var i := 20
+				text = text.left(i) + ("X" if text[i] != "X" else "Y") + text.substr(i + 1)
+			open_codes(text)
+		"forget":
+			forget_codes()
+			open_codes("")
 		"open":
 			main.open_settings(arg)
 		"url":
@@ -673,6 +685,31 @@ static func test_picture(with_background: bool) -> Image:
 				var edge := Vector2((x - 150) / 106.0, (y - 175) / 111.0).length_squared() > 0.9 and body and not ear
 				img.set_pixel(x, y, outline if edge else fur)
 	return img
+
+# --- Codes (codes.gd) ---------------------------------------------------------------
+
+func set_pack(pack: String, on: bool) -> void:
+	# A pack on or off for this session only, without a code.
+	main.codes.set_session(pack, on)
+	main.codes_changed()
+
+
+func forget_codes() -> void:
+	# codes.json set aside as codes.json.before-forget: nothing unlocked, and
+	# the redeem flow can be tried again. Creator berries already paid stay
+	# paid (economy.json), so a creator code pays no more.
+	main.codes.forget()
+	main.codes_changed()
+
+
+func open_codes(text: String) -> void:
+	main.open_settings("system")
+	var pages = main.settings_win.pages
+	pages.code_text = text
+	pages.code_note = ""
+	pages.to_codes = true
+	main.settings_win.rebuild()
+
 
 func set_infinite(on: bool) -> void:
 	# The developer's own PC (Economy.INFINITE_FLAG): berries never run out.

@@ -997,7 +997,12 @@ func _shop(body: VBoxContainer) -> void:
 	berries.add_child(UI.icon(Icons.berry(26)))
 	berries.add_child(UI.label("%s berries" % _thousands(eco.berries), 18, c.ink, 600, true))
 	bp.add_child(berries)
-	header(body, "Shop", "Pick something to try it on. Berries come from working; nothing here costs money.", bp)
+	var right := K.hbox(14)
+	right.add_child(_link("Have a code?", func():
+		to_codes = true
+		w.go("system")))
+	right.add_child(bp)
+	header(body, "Shop", "Pick something to try it on. Berries come from working; nothing here costs money.", right)
 
 	var sp: String = w.selected_species if Species.has(w.selected_species) else _built(false)[0]
 	var worn: Array = eco.outfit(sp)
@@ -1090,7 +1095,7 @@ func _dressing_room(sp: String, worn: Array, trying: Array, dyes: Dictionary) ->
 		var nm := UI.label(Wear.item_name(id), 22, c.ink, 600, true)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tr.add_child(nm)
-		tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(price), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
+		tr.add_child(UI.label(_yours(id) if owned else "%s berries" % _thousands(price), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
 		info.add_child(tr)
 		var btns := K.hbox(8)
 		var main_btn: Button
@@ -1162,7 +1167,7 @@ func _colours(sp: String, id: String, on: bool) -> Control:
 		b.custom_minimum_size = Vector2(30, 30)
 		b.focus_mode = Control.FOCUS_ALL
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		b.tooltip_text = o[1] + ("" if mine else ", %d berries" % Wear.DYE_PRICE)
+		b.tooltip_text = o[1] + ("" if mine else ", %d berries" % Wear.DYE_PRICE) + (", " + _yours(dye) if Codes.pack_of(dye) != "" else "")
 		var st := K.box(Color(o[2]), 15, c.outline if sel else (c.line if mine else c.dash), 3 if sel else 2)
 		b.add_theme_stylebox_override("normal", st)
 		b.add_theme_stylebox_override("hover", st)
@@ -1334,7 +1339,7 @@ func _tile_prop(pid: String) -> Control:
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.add_child(_trim(UI.label(Prop.prop_name(pid), 13, c.ink, 800)))
 	var owned: bool = eco.owns(pid)
-	var line := "Out on your desk" if eco.props_out.has(pid) else ("Yours" if owned else "%s berries" % _thousands(Prop.PRICE))
+	var line := "Out on your desk" if eco.props_out.has(pid) else (_yours(pid) if owned else "%s berries" % _thousands(Prop.PRICE))
 	t.add_child(_trim(UI.label(line, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700)))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
@@ -1373,7 +1378,7 @@ func _prop_panel(pid: String) -> Control:
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tr.add_child(nm)
 	var owned: bool = eco.owns(pid)
-	tr.add_child(UI.label("Yours" if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
+	tr.add_child(UI.label(_yours(pid) if owned else "%s berries" % _thousands(Prop.PRICE), 15, Palette.tier("fresh", w.dark).ink if owned else c.ink, 800))
 	info.add_child(tr)
 	var what := UI.label("It stands on your taskbar; drag it where you like, or right-click it to put it away. When you step away, sleepy critters curl up in it." + (" They go inside the cottage." if Prop.PROPS[pid][3] else ""), 13, c.ink2, 400)
 	what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1439,7 +1444,7 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 		t.add_child(_trim(UI.label("Only for %ss" % Collection.species_name(sp).to_lower(), 11, c.acc_ink, 800)))
 	if Wear.PERKS.has(id):
 		t.add_child(_trim(UI.label(Wear.PERKS[id].text, 11, Palette.tier("legendary", w.dark).ink, 800)))
-	var price_text := "Wearing" if id in worn else ("Yours" if owned else "%s berries" % _thousands(Wear.price(id)))
+	var price_text := "Wearing" if id in worn else (_yours(id) if owned else "%s berries" % _thousands(Wear.price(id)))
 	t.add_child(_trim(UI.label(price_text, 12, Palette.tier("fresh", w.dark).ink if owned else c.ink2, 700)))
 	v.add_child(K.margins(t, 10, 8, 10, 8))
 	b.add_child(v)
@@ -1447,6 +1452,26 @@ func _tile_item(id: String, sp: String, worn: Array) -> Control:
 		shop_try = "" if picked else id
 		w.rebuild())
 	return b
+
+
+func _yours(id: String) -> String:
+	# Where an owned thing's price would be: "Yours", or the pack it came in.
+	var p := Codes.pack_of(id)
+	return Codes.PACKS[p].name if p != "" else "Yours"
+
+
+func _link(text: String, on_press: Callable) -> LinkButton:
+	var c := K.c
+	var lb := LinkButton.new()
+	lb.text = text
+	lb.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
+	lb.add_theme_color_override("font_color", c.acc_ink)
+	lb.add_theme_color_override("font_hover_color", c.acc_ink_h)
+	lb.add_theme_font_override("font", UI.font(800))
+	lb.add_theme_font_size_override("font_size", 13)
+	lb.pressed.connect(on_press)
+	lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return lb
 
 
 # ============================================================ SYSTEM
@@ -1499,6 +1524,12 @@ func _system(body: VBoxContainer) -> void:
 		_toggle_row("Record what you meet", "Each critter and tier you meet goes in your Collection. Off: nothing new is added.", "system.seen_log"),
 	])))
 
+	var codes := _codes_section()
+	body.add_child(codes)
+	if to_codes:
+		to_codes = false
+		w.scroll_to(codes)
+
 	# Help: what a bug report needs, kept on this computer until the player
 	# sends it.
 	var copied := [null]
@@ -1545,21 +1576,110 @@ func _system(body: VBoxContainer) -> void:
 	at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	at.add_child(UI.label("Critter Overlay %s" % w.main.updater.version_name(w.main.VERSION), 20, c.ink, 600, true))
 	at.add_child(UI.label("Small companions for long days.", 13, c.ink2, 400))
+	if w.main.codes.has_pack("supporter"):
+		at.add_child(UI.label("Supporter: thank you.", 13, c.acc_ink, 800))
 	about.add_child(at)
 	for l in [["Help", func(): OS.shell_open(HOME)],
 			["Credits and licences", func(): w.notice("Credits and licences", _credits())],
 			["Privacy", func(): w.notice("Privacy", PRIVACY)]]:
-		var lb := LinkButton.new()
-		lb.text = l[0]
-		lb.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
-		lb.add_theme_color_override("font_color", c.acc_ink)
-		lb.add_theme_color_override("font_hover_color", c.acc_ink_h)
-		lb.add_theme_font_override("font", UI.font(800))
-		lb.add_theme_font_size_override("font_size", 13)
-		lb.pressed.connect(l[1])
-		lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		about.add_child(lb)
+		about.add_child(_link(l[0], l[1]))
 	body.add_child(K.section("About", K.margins(about, 4, 6, 4, 6)))
+
+
+# --- Codes (codes.gd, docs/codes-plan.md) ------------------------------------------
+
+var code_text := ""                # what is in the Redeem box, kept across rebuilds
+var code_note := ""                # what the last Redeem said
+var code_tone := ""                # "bad", or "" for a plain note
+var to_codes := false              # scroll to Codes once System is built (the Shop's link)
+
+
+func _codes_section() -> Control:
+	var c := K.c
+	var store = w.main.codes
+	var rows := []
+	var h := K.hbox(14)
+	var box := TextEdit.new()
+	box.text = code_text
+	box.placeholder_text = "Paste your code here"
+	box.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	box.scroll_fit_content_height = true
+	box.custom_minimum_size = Vector2(0, 60)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_font_override("font", UI.font(700))
+	box.add_theme_font_size_override("font_size", 14)
+	var fs := K.box(c.surface, 12, c.sec_line, 2)
+	fs.set_content_margin_all(10)
+	var ff := fs.duplicate()
+	ff.border_color = c.acc_ink
+	box.add_theme_stylebox_override("normal", fs)
+	box.add_theme_stylebox_override("focus", ff)
+	box.add_theme_color_override("font_color", c.ink)
+	box.add_theme_color_override("font_placeholder_color", c.ink2)
+	box.add_theme_color_override("caret_color", c.acc_ink)
+	box.text_changed.connect(func(): code_text = box.text)
+	h.add_child(box)
+	var redeem := K.button("Redeem", "bp", "check", true, _redeem)
+	redeem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(redeem)
+	rows.append(K.margins(h, 20, 16, 20, 16))
+	if code_note != "":
+		var note := UI.label(code_note, 13, c.dng_ink if code_tone == "bad" else c.acc_ink, 700)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size.x = 200
+		rows.append(K.margins(note, 20, 0, 20, 14))
+	var held: Array = store.held()
+	if held.is_empty() and not store.has_pack("supporter"):
+		# The one place the app mentions the pack before it is owned.
+		var line := K.hbox(12)
+		var l := UI.label("A code unlocks the Supporter Pack: starry clothes, a moon cradle and a new dye, for looks only. It's how you can support Critter Overlay.", 13, c.ink2, 400)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = 200
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(l)
+		line.add_child(_link("See the Supporter Pack", func(): OS.shell_open(Codes.PACK_PAGE)))
+		rows.append(K.margins(line, 20, 14, 20, 16))
+	for e in held:
+		rows.append(_code_row(e))
+	return K.section("Codes", K.card(rows))
+
+
+func _code_row(e: Dictionary) -> Control:
+	# A code this PC holds, with a Copy button so it can be kept somewhere safe.
+	var what: String = {Codes.SUPPORTER: "Supporter Pack", Codes.CREATOR: "Creator code"}.get(e.kind, "For a newer version")
+	var groups: PackedStringArray = str(e.code).split("-")
+	var desc := "%s-%s-... Copy it to keep it somewhere safe." % [groups[0], groups[1]]
+	if not e.known:
+		desc = "Kept here until you update Critter Overlay: this version doesn't have what it unlocks yet."
+	var copy := K.button("Copy", "bs", "check", true)
+	copy.pressed.connect(func():
+		DisplayServer.clipboard_set(e.code)
+		copy.text = "Copied")
+	return K.row(what, desc, copy)
+
+
+func _redeem() -> void:
+	var r: Dictionary = w.main.redeem_code(code_text)
+	code_tone = "bad" if r.result in ["wrong", "revoked"] else ""
+	match r.result:
+		"ok":
+			code_text = ""
+			code_note = ""
+			if r.kind == Codes.SUPPORTER:
+				shop_slot = "all"
+				shop_try = ""
+				w.go("shop")
+				return
+		"later":
+			code_text = ""
+			code_note = "Thank you. That code is for something newer than this version: it's kept here and unlocks when you update."
+		"again":
+			code_note = "That code is already redeemed on this computer."
+		"revoked":
+			code_note = "That code can't be used any more."
+		_:
+			code_note = "That code doesn't look right. Copy it again, all of it."
+	w.rebuild()
 
 
 const PRIVACY := """Critter Overlay keeps everything on this computer.

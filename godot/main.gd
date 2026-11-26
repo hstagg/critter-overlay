@@ -582,15 +582,16 @@ func _customs_note() -> void:
 
 
 func sync_props() -> void:
-	# The showpieces put out in the Shop, standing on the taskbar.
+	# The showpieces put out in the Shop, standing on the taskbar. A pack's
+	# showpiece whose code is gone goes away, and comes back out with it.
 	for pid in props.keys():
-		if not economy.props_out.has(pid):
+		if not economy.props_out.has(pid) or not economy.owns(pid):
 			props[pid].release_all()
 			props[pid].queue_free()
 			props.erase(pid)
 	for pid in economy.props_out:
 		if props.has(pid) or not Prop.PROPS.has(pid) or not economy.owns(pid):
-			continue   # (a pack's showpiece whose code is gone stays put away)
+			continue
 		var p = Prop.new()
 		add_child(p)
 		p.setup(self, pid, economy.props_out[pid], Critter.zoom)
@@ -1844,6 +1845,45 @@ func _redress(sp: String) -> void:
 	for h in hosts:
 		if h.species == sp and h.state != "popping":
 			h.critter.wear(economy.outfit(sp), economy.dyed.get(sp, {}))
+
+
+# --- Codes (codes.gd, docs/codes-plan.md) ---------------------------------------------
+
+func redeem_code(text: String) -> Dictionary:
+	# System > Codes > Redeem: what codes.redeem() says, after paying any
+	# creator berries and showing the note. A Supporter code then opens the
+	# Shop (settings_pages.gd does that).
+	var r: Dictionary = codes.redeem(text)
+	if r.result != "ok":
+		return r
+	var paid: int = economy.pay_purses(codes.purses())
+	codes_changed()
+	if r.kind == Codes.CREATOR:
+		var gave := ["%s berries" % SettingsWindow._thousands(paid)] if paid > 0 else []
+		gave.append("the %s" % Wear.item_name(Codes.PACKS.creator.clothes[0]).to_lower())
+		gave.append("the Supporter Pack")
+		toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Creator code", "Thank you for showing your critters",
+			"It gave you %s." % _and(gave), "#D9961A")
+	else:
+		toasts.show_note(Icons.line("heart", 40, Color("#C0548A")), "Supporter Pack", "Thank you for supporting Critter Overlay",
+			"Your starry clothes, the moon cradle and the Royal blue dye are in the Shop.", "#C0548A")
+	return r
+
+
+static func _and(parts: Array) -> String:
+	# "a, b and c".
+	if parts.size() < 2:
+		return "".join(parts)
+	return ", ".join(parts.slice(0, -1)) + " and " + parts[-1]
+
+
+func codes_changed() -> void:
+	# A pack came or went (a code, or the Admin page): clothes it held come
+	# back on (or off), its showpiece back out (or away), the tray follows.
+	for sp in Species.DATA:
+		_redress(sp)
+	sync_props()
+	_update_tray()
 
 
 func start_over() -> void:

@@ -37,6 +37,10 @@ const KEYS := {
 # on, and anyone who already redeemed one keeps what it gave.
 const REVOKED := []
 
+# The pack's itch.io page: the one link to it, from System > Codes before
+# anything is unlocked.
+const PACK_PAGE := "https://critteroverlay.itch.io/supporter-pack"
+
 const SUPPORTER := 1
 const CREATOR := 2
 const CANARY := 15       # signed by each real key for the tests; grants nothing
@@ -55,7 +59,7 @@ const GRANTS := {
 const PACKS := {
 	"supporter": {"name": "Supporter Pack", "clothes": ["moon_nightcap", "star_cape", "star_glasses"],
 		"showpieces": ["moon_cradle"], "dyes": ["royal"]},
-	"creator": {"name": "Creator", "clothes": ["director_beret"], "showpieces": [], "dyes": []},
+	"creator": {"name": "Creator pack", "clothes": ["director_beret"], "showpieces": [], "dyes": []},
 }
 
 var path := "user://codes.json"
