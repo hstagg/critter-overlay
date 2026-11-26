@@ -29,3 +29,10 @@ tools/soak/out/
 google-client*.json
 client_secret*.json
 tokens.json
+
+# The codes' signing key, batches and ledger live outside every repo
+# (docs/codes-plan.md); tools/codes/mint.py refuses paths in a work tree too
+*.pem
+*.key
+codes-*.txt
+codes-ledger*.csv
