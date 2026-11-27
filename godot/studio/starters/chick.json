@@ -1,0 +1,24 @@
+{
+	"name": "Chick", "gait": "waddle",
+	"schema": 1, "plan": "upright", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"leg-near": [
+			{"t": "stroke", "pts": [[134, 232], [134, 252]], "width": 7, "fill": "#F7A04A"},
+			{"t": "stroke", "pts": [[124, 253], [144, 253]], "width": 7, "fill": "#F7A04A"}
+		],
+		"body": [
+			{"t": "ellipse", "x": 150, "y": 194, "w": 124, "h": 108, "fill": "#FFE07A"},
+			{"t": "ellipse", "x": 150, "y": 210, "w": 70, "h": 56, "fill": "#FFF1E2", "inside": true}
+		],
+		"wing-l": [{"t": "drop", "x": 92, "y": 196, "w": 30, "h": 52, "rot": 330, "fill": "#FFE07A"}],
+		"tuft": [{"t": "stroke", "pts": [[150, 78], [144, 62], [156, 54]], "width": 7, "fill": "#FFE07A"}],
+		"head": [
+			{"t": "ellipse", "x": 150, "y": 126, "w": 112, "h": 100, "fill": "#FFE07A"},
+			{"t": "tri", "x": 150, "y": 152, "w": 26, "h": 18, "apex": 0.5, "r": 4, "rot": 180, "fill": "#F7A04A"}
+		],
+		"eyes": [
+			{"t": "eye", "preset": "big", "x": 127, "y": 120, "w": 17, "h": 21, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 173, "y": 120, "w": 17, "h": 21, "fill": "#3A2A22"}
+		]
+	}
+}

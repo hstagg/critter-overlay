@@ -1,0 +1,28 @@
+{
+	"name": "Round mouse", "gait": "scurry",
+	"schema": 1, "plan": "front", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"tail": [{"t": "stroke", "pts": [[200, 244], [236, 236], [254, 214], [246, 192]], "width": 8, "fill": "#F7A9A2"}],
+		"body": [
+			{"t": "ellipse", "x": 150, "y": 215, "w": 120, "h": 94, "fill": "#E9DED3"},
+			{"t": "ellipse", "x": 150, "y": 227, "w": 64, "h": 56, "fill": "#FBF4EC", "inside": true}
+		],
+		"foot-l": [{"t": "ellipse", "x": 124, "y": 255, "w": 30, "h": 14, "fill": "#F7A9A2"}],
+		"head": [{"t": "ellipse", "x": 150, "y": 140, "w": 116, "h": 100, "fill": "#E9DED3"}],
+		"ear-l": [
+			{"t": "ellipse", "x": 96, "y": 90, "w": 62, "h": 62, "fill": "#E9DED3"},
+			{"t": "ellipse", "x": 98, "y": 92, "w": 36, "h": 36, "fill": "#F7A9A2", "inside": true}
+		],
+		"eyes": [
+			{"t": "eye", "preset": "big", "x": 128, "y": 136, "w": 18, "h": 22, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 172, "y": 136, "w": 18, "h": 22, "fill": "#3A2A22"}
+		],
+		"nose": [{"t": "heart", "x": 150, "y": 156, "w": 12, "h": 10, "fill": "#F59C9C", "line": false}],
+		"walk-body": [
+			{"t": "ellipse", "x": 158, "y": 216, "w": 136, "h": 76, "fill": "#E9DED3"},
+			{"t": "ellipse", "x": 150, "y": 234, "w": 76, "h": 26, "fill": "#FBF4EC", "inside": true}
+		],
+		"leg-front": [{"t": "rect", "x": 114, "y": 246, "w": 18, "h": 32, "r": 8, "fill": "#E9DED3"}],
+		"leg-back": [{"t": "rect", "x": 198, "y": 246, "w": 18, "h": 32, "r": 8, "fill": "#E9DED3"}]
+	}
+}

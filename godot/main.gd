@@ -1494,8 +1494,8 @@ func open_settings(page := "", sp := "") -> void:
 
 func open_studio(shapes_doc := {}, editing_id := "") -> void:
 	# The Critter Studio (plan D2), its own window: a shapes.json to build
-	# from (a starter or a saved critter's), or {} to carry on with what is
-	# open, or start blank.
+	# from (a starter or a saved critter's, with its id), or {} to carry on
+	# with what is open, or the Start page (D5) when nothing is.
 	if studio_win == null:
 		studio_win = StudioWindow.new()
 		add_child(studio_win)
@@ -1681,6 +1681,23 @@ func spawn_homemade(id: String) -> bool:
 	var h = _spawn("roam", "walk", Vector2(-1, -1), id)
 	_update_tray()
 	return h != null
+
+
+func refresh_homemade(id: String) -> int:
+	# Its art changed (the Studio saved over it, plan D6): each one out on
+	# the desk fades where it is and comes straight back, drawn with the new
+	# rev. A critter is built once, so this is how the change reaches it.
+	# Returns how many were swapped.
+	var n := 0
+	for h in hosts.duplicate():
+		if h.species != id or h.state != "live" or h.leaving:
+			continue
+		var at := Vector2(h.critter.position.x, h.y)
+		var asleep: bool = h.critter.is_napping()
+		h.leave(true)
+		if _spawn("roam", "loaf" if asleep else "sit", at, id) != null:
+			n += 1
+	return n
 
 
 func toggle_pause() -> void:

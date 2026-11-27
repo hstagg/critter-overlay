@@ -109,9 +109,7 @@ static func local_points(s: Dictionary) -> PackedVector2Array:
 					var a := -PI / 2 + PI / 2 * c + PI / 2 * i / 6.0
 					out.append(corners[c] + Vector2(cos(a), sin(a)) * r)
 		"tri":
-			out.append(Vector2(-w + s.apex * 2.0 * w, -h))
-			out.append(Vector2(w, h))
-			out.append(Vector2(-w, h))
+			out = rounded([Vector2(-w + s.apex * 2.0 * w, -h), Vector2(w, h), Vector2(-w, h)], s.r)
 		"drop":
 			# A teardrop: round at the bottom, a point at the top.
 			for i in STEPS:
@@ -130,6 +128,32 @@ static func local_points(s: Dictionary) -> PackedVector2Array:
 				var a := -PI / 2 + PI * i / n
 				var k := 1.0 if i % 2 == 0 else 0.48
 				out.append(Vector2(cos(a) * w * k, sin(a) * h * k))
+	return out
+
+
+static func rounded(corners: Array, r: float, per := 8) -> PackedVector2Array:
+	# A polygon with each corner rounded off by an arc of radius r (smaller
+	# where the sides are too short for it): a triangle's "r".
+	var out := PackedVector2Array()
+	var n := corners.size()
+	for i in n:
+		var v: Vector2 = corners[i]
+		var a: Vector2 = corners[(i - 1 + n) % n]
+		var b: Vector2 = corners[(i + 1) % n]
+		var d1 := (a - v).normalized()
+		var d2 := (b - v).normalized()
+		var half := absf(d1.angle_to(d2)) * 0.5
+		if r <= 0.0 or sin(half) < 0.001:
+			out.append(v)
+			continue
+		# How far along each side the arc starts: at most half the side.
+		var t := minf(r / tan(half), minf(v.distance_to(a), v.distance_to(b)) * 0.5)
+		var rr := t * tan(half)
+		var c := v + (d1 + d2).normalized() * rr / sin(half)
+		var a1 := (v + d1 * t - c).angle()
+		var sweep := angle_difference(a1, (v + d2 * t - c).angle())
+		for k in per + 1:
+			out.append(c + Vector2.from_angle(a1 + sweep * k / per) * rr)
 	return out
 
 
@@ -260,30 +284,47 @@ static func _centroid(poly: PackedVector2Array) -> Vector2:
 	return c / maxi(1, poly.size())
 
 
-static func suggest_pins(layers: Dictionary) -> Dictionary:
+static func _neck(layers: Dictionary, body_part: String) -> Vector2:
+	# The middle of the area where the head and that body really overlap,
+	# else the bottom middle of the head.
+	var hr := layer_rect(layers.head)
+	var neck := Vector2(hr.get_center().x, hr.end.y)
+	var sum := Vector2.ZERO
+	var area := 0.0
+	for hs in layers.head:
+		for bs in layers[body_part]:
+			for piece in Geometry2D.intersect_polygons(polygon(hs), polygon(bs)):
+				var a := _area(piece)
+				sum += _centroid(piece) * a
+				area += a
+	return sum / area if area > 1.0 else neck
+
+
+static func suggest_pins(layers: Dictionary, plan := "") -> Dictionary:
 	# Joints from the drawing: the neck is the middle of where the head and
 	# body overlap (or meet); a hip is the top middle of its leg; the tail's
 	# root is its point nearest the body; an ear's root its bottom middle;
-	# the eyes pin the middle of the eyes.
+	# the eyes pin the middle of the eyes. A critter that faces you (plan
+	# "front") has its head drawn on its sitting body: that is its sitting
+	# neck, and its walking neck is where its side-on walking body would
+	# carry a head, near the front of its top.
 	var pins := {}
 	var rect := func(part: String) -> Rect2:
 		return layer_rect(layers.get(part, []))
 	var body: Rect2 = rect.call("walk-body") if layers.has("walk-body") else rect.call("body")
-	if layers.has("head") and body.size != Vector2.ZERO:
-		var hr: Rect2 = rect.call("head")
-		var neck := Vector2(hr.get_center().x, hr.end.y)
-		# The middle of the area where the shapes really overlap, else
-		# the bottom middle of the head.
-		var sum := Vector2.ZERO
-		var area := 0.0
-		for hs in layers.head:
-			for bs in layers.get("walk-body", layers.get("body", [])):
-				for piece in Geometry2D.intersect_polygons(polygon(hs), polygon(bs)):
-					var a := _area(piece)
-					sum += _centroid(piece) * a
-					area += a
-		if area > 1.0:
-			neck = sum / area
+	if layers.has("head") and plan == "front" and layers.has("body"):
+		var sit := _neck(layers, "body")
+		var walk := sit
+		if layers.has("walk-body"):
+			var wb: Rect2 = rect.call("walk-body")
+			walk = wb.position + wb.size * Vector2(0.2, 0.3)
+		pins["neck-sit"] = [sit.x, sit.y]
+		pins["head"] = [sit.x, sit.y]
+		pins["neck-walk"] = [walk.x, walk.y]
+	elif layers.has("head") and body.size != Vector2.ZERO:
+		# An upright critter's head is drawn on its body facing you too.
+		var on := "body" if (plan == "upright" and layers.has("body")) or not layers.has("walk-body") else "walk-body"
+		var neck := _neck(layers, on)
 		pins["neck-walk"] = [neck.x, neck.y]
 		pins["neck-sit"] = [neck.x, neck.y]
 		pins["head"] = [neck.x, neck.y]
@@ -307,6 +348,17 @@ static func suggest_pins(layers: Dictionary) -> Dictionary:
 		if layers.has(ear):
 			var er: Rect2 = rect.call(ear)
 			pins[ear] = [er.get_center().x, er.end.y]
+	# A wing hangs from its shoulder, nearest the body's middle; a tuft
+	# springs from its bottom.
+	if layers.has("wing-l"):
+		var wr: Rect2 = rect.call("wing-l")
+		pins["wing-l"] = [wr.end.x - wr.size.x * 0.3, wr.position.y + wr.size.y * 0.15]
+	if layers.has("wing"):
+		var wr: Rect2 = rect.call("wing")
+		pins["wing"] = [wr.get_center().x, wr.position.y + wr.size.y * 0.15]
+	if layers.has("tuft"):
+		var tr: Rect2 = rect.call("tuft")
+		pins["tuft"] = [tr.get_center().x, tr.end.y]
 	if layers.has("eyes"):
 		var c: Vector2 = rect.call("eyes").get_center()
 		pins["eyes"] = [c.x, c.y]

@@ -398,6 +398,13 @@ func _edit(id: String) -> void:
 		kit_screen.start(id)
 	elif badge(Customs.all[id]) == "Animated" and Customs.way_on("frames"):
 		frames_screen.start(id)
+	elif badge(Customs.all[id]) == "Shapes" and Customs.way_on("shapes") and w.main != null:
+		# Edit shapes: the Studio opens with its shapes.json (plan D6).
+		var j = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[id]["_dir"]).path_join("shapes.json")))
+		if typeof(j) == TYPE_DICTIONARY:
+			w.main.open_studio(j, id)
+		else:
+			w.confirm("Its shapes are missing", "This critter's shapes.json can't be read, so it can't be opened in the Studio.", "OK", func(): pass)
 	else:
 		_later(WORDS[badge(Customs.all[id])][0])
 

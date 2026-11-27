@@ -87,7 +87,7 @@ static func write_builder_kit(shapes: Dictionary, name: String, dest: String, ga
 		var f := FileAccess.open(dest.path_join("parts/%s.svg" % p), FileAccess.WRITE)
 		f.store_string(parts[p])
 		f.close()
-	var pins := preload("res://studio/shapes.gd").suggest_pins(doc.layers)
+	var pins := preload("res://studio/shapes.gd").suggest_pins(doc.layers, plan)
 	pins.merge(doc.pins, true)
 	var pl: Dictionary = KitData.PLANS[plan]
 	var kit := {"schema": 1, "plan": plan, "gait": gait if gait in pl.gaits else pl.gaits[0], "pins": pins, "made_with": "builder"}

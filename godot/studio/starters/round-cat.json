@@ -1,0 +1,33 @@
+{
+	"name": "Round cat", "gait": "trot",
+	"schema": 1, "plan": "side", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"walk-body": [
+			{"t": "ellipse", "x": 160, "y": 200, "w": 150, "h": 78, "fill": "#F6C28F"},
+			{"t": "ellipse", "x": 150, "y": 224, "w": 84, "h": 30, "fill": "#FFF1E2", "inside": true}
+		],
+		"head": [
+			{"t": "ellipse", "x": 100, "y": 148, "w": 118, "h": 102, "fill": "#F6C28F"},
+			{"t": "ellipse", "x": 98, "y": 172, "w": 48, "h": 26, "fill": "#FFF1E2", "inside": true},
+			{"t": "ellipse", "x": 100, "y": 104, "w": 10, "h": 26, "fill": "#E0823F", "inside": true},
+			{"t": "ellipse", "x": 84, "y": 108, "w": 8, "h": 20, "rot": 342, "fill": "#E0823F", "inside": true},
+			{"t": "ellipse", "x": 116, "y": 108, "w": 8, "h": 20, "rot": 18, "fill": "#E0823F", "inside": true}
+		],
+		"ear-l": [
+			{"t": "tri", "x": 76, "y": 104, "w": 38, "h": 46, "apex": 0.4, "r": 6, "fill": "#F6C28F"},
+			{"t": "tri", "x": 77, "y": 110, "w": 18, "h": 24, "apex": 0.4, "r": 3, "fill": "#F7A9A2", "inside": true}
+		],
+		"ear-r": [
+			{"t": "tri", "x": 124, "y": 102, "w": 36, "h": 44, "apex": 0.6, "r": 6, "fill": "#F6C28F"},
+			{"t": "tri", "x": 123, "y": 108, "w": 16, "h": 22, "apex": 0.6, "r": 3, "fill": "#F7A9A2", "inside": true}
+		],
+		"eyes": [
+			{"t": "eye", "preset": "big", "x": 80, "y": 146, "w": 18, "h": 22, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 118, "y": 146, "w": 18, "h": 22, "fill": "#3A2A22"}
+		],
+		"nose": [{"t": "heart", "x": 99, "y": 163, "w": 11, "h": 9, "fill": "#F59C9C", "line": false}],
+		"leg-front": [{"t": "rect", "x": 116, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#F6C28F"}],
+		"leg-back": [{"t": "rect", "x": 204, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#F6C28F"}],
+		"tail": [{"t": "stroke", "pts": [[224, 196], [248, 184], [262, 158], [258, 132]], "width": 13, "fill": "#F6C28F"}]
+	}
+}

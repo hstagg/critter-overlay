@@ -21,6 +21,7 @@ const Shapes := preload("res://studio/shapes.gd")
 const Writer := preload("res://studio/shape_svg.gd")
 const Tools := preload("res://gui/studio/tools.gd")
 const LP := preload("res://gui/studio/layers_panel.gd")
+const Pins := preload("res://gui/studio/pins_panel.gd")
 const K := preload("res://gui/controls.gd")
 const UI := preload("res://gui/ui.gd")
 
@@ -187,8 +188,9 @@ func shown_parts() -> Array:
 	# The layers drawn now, back to front.
 	var in_pose := LP.pose_parts(st.doc.plan, st.pose)
 	var out := []
+	var pins: bool = st.view_mode == "pins"
 	for p in ORDER:
-		if p == st.part or (p in in_pose and not p in ALTERNATES and st.others_on):
+		if (p == st.part and not pins) or (p in in_pose and not p in ALTERNATES and (st.others_on or pins)):
 			if st.doc.layers.has(p) and not st.hidden.has(p):
 				out.append(p)
 	return out
@@ -222,11 +224,14 @@ func _draw() -> void:
 		draw_texture_rect(_guide(st.pose), view, false, Color(1, 1, 1, 0.16))
 	for p in shown_parts():
 		if tex.has(p):
-			draw_texture_rect(tex[p], view, false, Color(1, 1, 1, 1.0 if p == st.part else FAINT))
+			draw_texture_rect(tex[p], view, false, Color(1, 1, 1, 1.0 if p == st.part or st.view_mode == "pins" else FAINT))
 	# The ground.
 	draw_dashed_line(to_px(Vector2(-30, Tools.GROUND)), to_px(Vector2(330, Tools.GROUND)), c.acc_ink, 1.6, 6.0 * zoom)
 	draw_string(font, to_px(Vector2(296, Tools.GROUND + 13)) - Vector2(44, 0), "Ground", HORIZONTAL_ALIGNMENT_RIGHT, 44, 11, c.acc_ink)
-	_draw_selection()
+	if st.view_mode == "pins":
+		_draw_pins()
+	else:
+		_draw_selection()
 	if drag == "box":
 		var r := Rect2(to_px(box_rect.abs().position), box_rect.abs().size * zoom)
 		draw_rect(r, Color(c.acc_ink, 0.08))
@@ -285,6 +290,31 @@ func _draw_selection() -> void:
 	draw_string(UI.font(800), tp + Vector2(0, 12), tag, HORIZONTAL_ALIGNMENT_CENTER, 48, 10, c.tip_ink)
 
 
+func _draw_pins() -> void:
+	# Pins mode: each joint a dot with its name; the picked one with the box
+	# it must stay in and, once moved, where it was suggested.
+	var c := K.c
+	var font := UI.font(800)
+	var doc: Dictionary = st.doc
+	for p in Pins.shown(doc):
+		var at := to_px(Pins.at(doc, p))
+		var picked: bool = p == st.pin_sel
+		if picked:
+			var b := Pins.box(doc, p)
+			_dashed_rect(PackedVector2Array([to_px(b.position), to_px(Vector2(b.end.x, b.position.y)), to_px(b.end), to_px(Vector2(b.position.x, b.end.y))]), c.acc_ink)
+			if Pins.moved(doc, p):
+				var was := to_px(Pins.suggested(doc).get(p, Pins.at(doc, p)))
+				draw_arc(was, 6.0, 0.0, TAU, 20, Color(c.acc_ink, 0.6), 1.4)
+				draw_dashed_line(was, at, Color(c.acc_ink, 0.6), 1.2, 3.0)
+		draw_circle(at, 8.0 if picked else 6.5, c.acc_ink if picked else c.knob)
+		draw_circle(at, 8.0 if picked else 6.5, c.outline, false, 2.0)
+		var label: String = Pins.pin_name(doc.plan, p)[0]
+		var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+		var tp := at + Vector2(10, -10)
+		draw_rect(Rect2(tp - Vector2(4, 12), Vector2(tw + 8, 16)), c.tip_bg)
+		draw_string(font, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, c.tip_ink)
+
+
 func _outline(poly: PackedVector2Array, colour: Color, closed := true) -> void:
 	var pts := PackedVector2Array()
 	for p in poly:
@@ -338,6 +368,13 @@ func _button(e: InputEventMouseButton) -> void:
 		return
 	grab_focus()
 	var u := to_frame(px)
+	if st.view_mode == "pins":
+		var pin := Pins.pin_at(st.doc, u, 10.0 / zoom)
+		if pin != "":
+			st.pick_pin(pin)
+			_begin("pin", u)
+			drag_handle = pin
+		return
 	if st.tool in Shapes.TYPES:
 		st.place(st.tool, u)
 		return
@@ -417,8 +454,12 @@ func _motion(e: InputEventMouseMotion) -> void:
 	if not drag_moved:
 		if (u - drag_from).length() * zoom < 2.0:
 			return
-		st.hist.record(st.doc, [part])
+		st.hist.record(st.doc, ["@pins"] if drag == "pin" else [part])
 		drag_moved = true
+	if drag == "pin":
+		Pins.set_pin(st.doc, drag_handle, u)
+		st.pins_changed(false)
+		return
 	var sym: bool = st.sel.size() == 1 and st.sym_here()
 	if drag == "move":
 		Tools.set_layer(st.doc, part, drag_orig.duplicate(true))
@@ -452,3 +493,5 @@ func _release() -> void:
 		st.selection_changed()
 	elif was in ["move", "handle"] and drag_moved:
 		st.changed_parts([st.part])
+	elif was == "pin" and drag_moved:
+		st.pins_changed()

@@ -1,0 +1,14 @@
+{
+	"name": "Slime", "gait": "blob_bounce",
+	"schema": 1, "plan": "blob", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"body": [
+			{"t": "blob", "fill": "#A9D99B", "pts": [[70, 256], [230, 256], [240, 228], [216, 170], [178, 126], [150, 114], [122, 126], [84, 170], [60, 228]]},
+			{"t": "ellipse", "x": 110, "y": 166, "w": 20, "h": 34, "rot": 24, "fill": "#E4F5DC", "inside": true}
+		],
+		"eyes": [
+			{"t": "eye", "preset": "big", "x": 128, "y": 200, "w": 18, "h": 24, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 172, "y": 200, "w": 18, "h": 24, "fill": "#3A2A22"}
+		]
+	}
+}

@@ -52,15 +52,21 @@ func clear() -> void:
 
 
 static func _snap(doc: Dictionary, parts: Array) -> Dictionary:
+	# A part is a layer; "@style" and "@pins" are the doc's own (D4, D6).
 	var out := {}
 	for p in parts:
-		out[p] = doc.layers[p].duplicate(true) if doc.layers.has(p) else null
+		if str(p).begins_with("@"):
+			out[p] = doc.get(str(p).substr(1), {}).duplicate(true)
+		else:
+			out[p] = doc.layers[p].duplicate(true) if doc.layers.has(p) else null
 	return out
 
 
 static func _restore(doc: Dictionary, s: Dictionary) -> void:
 	for p in s:
-		if s[p] == null:
+		if str(p).begins_with("@"):
+			doc[str(p).substr(1)] = s[p].duplicate(true)
+		elif s[p] == null:
 			doc.layers.erase(p)
 		else:
 			doc.layers[p] = s[p].duplicate(true)
