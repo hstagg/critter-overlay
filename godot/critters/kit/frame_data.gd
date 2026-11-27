@@ -47,6 +47,49 @@ static func frame_files(folder: String, clip: String) -> Array:
 	return out
 
 
+# --- Head marks (F3): where its head is, for clothes --------------------------
+# clips.json "clips": {"<clip>": {"head": {"<frame>": [cx, cy, r]}}}, in the
+# 300 x 280 frame. A clip's marked frames are joined by straight lines; before
+# the first and after the last mark the head stays put. A clip with no marks
+# shows no clothes, and a critter with none at all can't wear any.
+
+static func head_marks(clips: Dictionary, clip: String) -> Array:
+	# [[frame, Vector3(cx, cy, r)], ...] sorted by frame; bad entries skipped.
+	var raw = clips.get("clips", {}).get(clip, {}).get("head", {})
+	var out := []
+	if typeof(raw) != TYPE_DICTIONARY:
+		return out
+	for k in raw:
+		var v = raw[k]
+		if not str(k).is_valid_int() or typeof(v) != TYPE_ARRAY or v.size() != 3:
+			continue
+		var r := clampf(float(v[2]), 4.0, 200.0)
+		out.append([int(k), Vector3(clampf(float(v[0]), 0.0, FRAME.x), clampf(float(v[1]), 0.0, FRAME.y), r)])
+	out.sort_custom(func(a, b): return a[0] < b[0])
+	return out
+
+
+static func head_at(clips: Dictionary, clip: String, frame: int) -> Variant:
+	# The head (Vector3 cx, cy, r) on this frame of the clip, or null.
+	var m := head_marks(clips, clip)
+	if m.is_empty():
+		return null
+	if frame <= m[0][0]:
+		return m[0][1]
+	for j in range(1, m.size()):
+		if frame <= m[j][0]:
+			var t := float(frame - m[j - 1][0]) / float(m[j][0] - m[j - 1][0])
+			return (m[j - 1][1] as Vector3).lerp(m[j][1], t)
+	return m[-1][1]
+
+
+static func has_head(clips: Dictionary) -> bool:
+	for c in clips.get("clips", {}):
+		if not head_marks(clips, c).is_empty():
+			return true
+	return false
+
+
 static func missing(folder: String, clips: Dictionary) -> String:
 	# Why the clips can't be used, or "".
 	if frame_files(folder, "walk").is_empty():

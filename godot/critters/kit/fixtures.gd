@@ -230,8 +230,9 @@ static func _cat_frame(leg_phase: int, eyes_open := true, paw_up := 0, sitting :
 	return img
 
 
-static func pixel_cat(dest: String, with_sit := true) -> String:
-	# Walk (4), sit (2) and blink (1) if with_sit, and act-wave (4).
+static func pixel_cat(dest: String, with_sit := true, with_head := false) -> String:
+	# Walk (4), sit (2) and blink (1) if with_sit, and act-wave (4). with_head
+	# marks its head (F3) on walk and sit; blink and act-wave stay unmarked.
 	var clips := {"walk": [], "act-wave": []}
 	for i in 4:
 		clips.walk.append(_cat_frame(i))
@@ -250,6 +251,11 @@ static func pixel_cat(dest: String, with_sit := true) -> String:
 	if with_sit:
 		info["sit"] = {"fps": 2, "loop": true}
 		info["blink"] = {"fps": 8, "loop": false}
+	if with_head:
+		# The head box is 90 x 80 at (80, 110); it bobs 4 down on walk frame 2.
+		info.walk["head"] = {"0": [125, 150, 42], "2": [125, 154, 42]}
+		if with_sit:
+			info.sit["head"] = {"0": [125, 150, 42]}
 	_json(dest.path_join("clips.json"), {"schema": 1, "faces": "left", "ground": 262, "stride_px": 100, "clips": info})
 	return dest
 

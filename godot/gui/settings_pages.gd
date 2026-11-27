@@ -15,6 +15,7 @@ const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
 const MyCritters := preload("res://gui/my_critters.gd")
+const Customs := preload("res://customs.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"   # the update pages (updater.gd); moves with the repo
 const HOME := "https://critteroverlay.itch.io/critter-overlay"   # the public page: Help
@@ -1298,6 +1299,13 @@ func _rail(sp: String, worn: Array) -> Control:
 		if shop_slot in ["head", "neck", "face"] and Wear.slot(id) != shop_slot:
 			continue
 		grid.add_child(_tile_item(id, sp, worn))
+	if shop_slot != "showpiece" and Customs.is_custom(sp) and not Wear.ITEMS.keys().any(func(i): return Wear.fits(i, sp)):
+		# A homemade critter nothing fits (F3): say why, under the showpieces.
+		var why := "Pictures can't wear clothes." if Customs.kind(Customs.all.get(sp, {})) == "sticker" 			else "Its head isn't marked, so clothes are off. Mark its head when you bring in its frames."
+		var note := UI.label(why, 13, K.c.ink2, 700)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size.x = 280
+		col.add_child(note)
 	# The rail scrolls on its own, so the dressing room stays in view.
 	var sc := ScrollContainer.new()
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

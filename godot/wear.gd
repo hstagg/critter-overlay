@@ -205,6 +205,8 @@ static func fits(id: String, species: String) -> bool:
 	# homemade critter can if it is a kit critter and the item is for kits.
 	if species.begins_with("custom:"):
 		var d: Dictionary = load("res://customs.gd").all.get(species, {})
+		if str(d.get("kind", "")) == "frames":   # F3: only with its head marked
+			return for_kits(id) and load("res://critters/kit/frame_data.gd").has_head(d.get("_clips", {}))
 		return str(d.get("kind", "")) == "kit" and for_kits(id)
 	return FileAccess.file_exists("res://art/wear/%s/%s.svg" % [id, species])
 

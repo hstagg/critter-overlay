@@ -19,6 +19,7 @@ const K := preload("res://gui/controls.gd")
 const UI := preload("res://gui/ui.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 const Importer := preload("res://gui/importer.gd")
+const FrameData := preload("res://critters/kit/frame_data.gd")
 
 # Each kind's words, everywhere (A0): badge, Edit button, the detail's line.
 const WORDS := {
@@ -265,9 +266,10 @@ func _detail(body: VBoxContainer) -> void:
 	right.add_child(w.pages._block("Speed", "", K.stepped(SPEED_NAMES, speed_i, func(i):
 		speed_val.text = SPEED_NAMES[i]
 		_store(id, "speed", SPEEDS[i])), "", speed_val))
+	var dresses := Customs.kind(d) == "kit" or (Customs.kind(d) == "frames" and FrameData.has_head(d.get("_clips", {})))
 	right.add_child(w.pages._block("Pop sound", "", _sound_row(id), "Borrow a critter's sound, or add your own: a WAV or OGG, 2 seconds at most.",
-		null, Customs.kind(d) != "kit"))
-	if Customs.kind(d) == "kit":
+		null, not dresses))
+	if dresses:
 		var shop := K.button("Open the Shop", "bs", "heart", true, func():
 			w.selected_species = id
 			w.go("shop"))

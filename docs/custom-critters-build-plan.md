@@ -1757,7 +1757,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | R3 | **Release 3.5.0** | not started |
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
 | F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
-| F3 | Clothes on frame critters | not started |
+| F3 | Clothes on frame critters | engine done 2026-11-27; the *Where's its head?* marking screen comes with E3's importer (after C0) |
 | G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
 | G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |
 | G3 | Hostile-file pass | done 2026-11-24 |
@@ -2026,3 +2026,13 @@ step left needs the developer, or a design that needs them:
   - `my_critters_test.gd`: the chooser with ways off and on, a picture
     imported through the page, the grid and its chips, each kind's Edit
     words, Share hidden while its way is off, Make a copy, and the picker.
+- 2026-11-27: F3's engine done. Head marks live in clips.json per clip,
+  `"head": {"<frame>": [cx, cy, r]}` in the 300 x 280 frame; `frame_data.gd
+  head_at()` joins marked frames with straight lines and holds the first and
+  last. `frames.gd` draws each item once for a reference head (kit_data.gd's
+  default metrics, radius about 65) and moves and scales one pivot to the
+  marked head each frame; a clip with no marks hides the clothes (the plan's
+  "with no marks" taken per clip, since a wave or a blink can move the head
+  anywhere). `Wear.fits()` lets a frame critter wear kit items only once its
+  head is marked; the Shop says why when nothing fits a homemade critter, and
+  My critters shows Clothes for it. The marking screen goes in E3's importer.

@@ -11,6 +11,10 @@ extends "res://critters/critter.gd"
 ##   sitting, now and then: blink, played once
 ##   its own moves: act-<name>, as the behaviour clip:<name>
 ##
+## Clothes (F3): drawn once for a reference head, then moved and scaled each
+## frame to the head marked in clips.json (frame_data.gd head_at()). On a
+## clip with no marks they are hidden; with no marks at all, nothing fits.
+##
 ## Walking frames follow the distance walked (stride_px a cycle), so feet
 ## don't skate. The art faces left; "faces": "right" flips it.
 
@@ -18,6 +22,9 @@ const Customs := preload("res://customs.gd")
 const FrameData := preload("res://critters/kit/frame_data.gd")
 const REF_HEIGHT := 226.0      # kit_data.gd's: the kitten's height
 const REF_SCALE := 0.45
+# The head clothes are drawn for: kit_data.gd's default head metrics.
+const REF_HEAD := {"cx": 150.0, "cy": 130.0, "rx": 70.0, "ry": 60.0, "top": 70.0, "chin": 190.0,
+	"eye_y": 130.0, "eye_dx": 28.0, "eye_r": 14.0, "side": 1.0}
 
 var atlas := {}
 var sheet: Sprite2D
@@ -25,11 +32,14 @@ var faces_right := false
 var clip := ""
 var clip_t := 0.0
 var last_dt := 0.0
+var clips := {}                 # clips.json
+var wear_pivot: Node2D          # the clothes, moved to the marked head each frame
 
 
 func _define() -> void:
 	var d: Dictionary = Customs.all.get(species, {})
 	var c: Dictionary = d.get("_clips", {})
+	clips = c
 	atlas = FrameData.atlas(Customs.tex_key(species), str(d.get("_dir", "")), c)
 	faces_right = str(c.get("faces", "left")) == "right"
 	var ground := clampf(float(c.get("ground", 262.0)), 100.0, 280.0)
@@ -84,11 +94,43 @@ func _build_rig() -> void:
 	sheet.position = -base_pt * PART_SCALE
 	body.add_child(sheet)
 	_sprites.append(sheet)
+	wear_pivot = Node2D.new()
+	body.add_child(wear_pivot)
 	_show("walk", 0)
 
 
-func wear(items: Array, _dyes: Dictionary = {}) -> void:
-	worn = items.duplicate()   # clothes on frame critters come with step F3
+func wear(items: Array, dyes: Dictionary = {}) -> void:
+	for n in _wear_nodes:
+		_sprites.erase(n)
+		n.queue_free()
+	_wear_nodes.clear()
+	worn = Wear.ordered(items)
+	perk_moves = Wear.perk_behaviours(worn)
+	if wear_pivot == null or not FrameData.has_head(clips):
+		return
+	var ref_r := sqrt(float(REF_HEAD.rx) * float(REF_HEAD.ry))
+	for id in worn:
+		if not Wear.fits(id, species):
+			continue
+		var dye: String = dyes.get(id, "")
+		var key := "wear:%s:%s:%s:%s" % [id, species, art_key(), dye]
+		if not _wear_textures.has(key):
+			var img := Image.new()
+			img.load_svg_from_string(Wear.svg_for_kit(id, REF_HEAD, dye), PART_SCALE)
+			img.generate_mipmaps()
+			_wear_textures[key] = ImageTexture.create_from_image(img)
+		var s := Sprite2D.new()
+		s.texture = _wear_textures[key]
+		s.centered = false
+		# Placed so the reference head's centre sits on the pivot, which is
+		# scaled by the marked radius over the reference's.
+		s.position = (Vector2(0, -WEAR_HEADROOM) - Vector2(REF_HEAD.cx, REF_HEAD.cy)) * PART_SCALE
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		wear_pivot.add_child(s)
+		_sprites.append(s)
+		_wear_nodes.append(s)
+	wear_pivot.set_meta("ref_r", ref_r)
+	_show(clip if clip != "" else "walk", 0)
 
 
 func _set_pose(p: String) -> void:
@@ -169,3 +211,10 @@ func _apply(p: Dictionary) -> void:
 
 func _show(c: String, i: int) -> void:
 	sheet.region_rect = atlas.regions[c][i]
+	if wear_pivot == null or _wear_nodes.is_empty():
+		return
+	var h = FrameData.head_at(clips, c, i)
+	wear_pivot.visible = h != null
+	if h != null:
+		wear_pivot.position = (Vector2(h.x, h.y) - base_pt) * PART_SCALE
+		wear_pivot.scale = Vector2.ONE * (h.z / float(wear_pivot.get_meta("ref_r", 64.8)))
