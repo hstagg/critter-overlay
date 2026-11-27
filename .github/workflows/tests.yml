@@ -38,6 +38,8 @@ jobs:
           $hits = git grep -l -E -e "-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----"
           if ($LASTEXITCODE -eq 0) { throw "A tracked file holds a private key: $($hits -join ', ')" }
           if ($LASTEXITCODE -gt 1) { throw "git grep failed ($LASTEXITCODE)" }
+          # git grep's 1 means no match; GitHub ends a pwsh step with $LASTEXITCODE.
+          exit 0
 
       - name: Posting tool tests
         shell: pwsh
