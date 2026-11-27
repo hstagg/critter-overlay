@@ -268,6 +268,8 @@ func run(action: String, chosen := "kitten") -> void:
 			kit_import_test(arg if arg != "" else "side")
 		"drop":
 			drop_test()
+		"frames_import":
+			frames_import_test()
 		"share_file":
 			share_file_test(arg if arg != "" else "kit")
 		"own_sound":
@@ -680,6 +682,20 @@ func kit_import_test(plan: String) -> void:
 <!-- saved again -->
 ")
 	f.close()
+
+
+func frames_import_test() -> void:
+	# E3: the pixel cat's frames through Bring an animation, with a fifth walk
+	# frame that doesn't match the first, so the loop doesn't close.
+	var src := "user://admin_frames_import"
+	load("res://critters/kit/fixtures.gd").pixel_cat(src)
+	var odd := Image.load_from_file(src.path_join("clips/walk/2.png"))
+	odd.flip_y()
+	odd.save_png(src.path_join("clips/walk/4.png"))
+	var my = await _my_critters()
+	Customs.all_ways_on()
+	my.frames_screen.start()
+	my.frames_screen.open_file(ProjectSettings.globalize_path(src.path_join("clips")))
 
 
 func drop_test() -> void:

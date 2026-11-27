@@ -1753,7 +1753,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | R2 | **Release 3.4.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
 | E2 | Frame formats | done 2026-11-24 |
-| E3 | Frame importer | not started |
+| E3 | Frame importer | screens done 2026-11-27 (`gui/frames_screen.gd`); still to do: cutting a single sprite sheet, and the VM check |
 | R3 | **Release 3.5.0** | not started |
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
 | F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
@@ -2075,3 +2075,14 @@ step left needs the developer, or a design that needs them:
   can be brought in. A template's own body wins over the one picked, unless
   it is changed on the kit page. Needs the VM: that critters still click
   through where they are see-through once their windows accept drops.
+- 2026-11-27: E3's screens (`gui/frames_screen.gd`, to C0's Frames page):
+  Bring an animation picks a file or folder; the frames are written to a
+  staging folder once and the settings only rewrite its clips.json, so the
+  critter walking beside them follows each change at once. Its moves lists
+  each clip with a frames-a-second stepper and Loops / Plays once (Once,
+  Twice, 3 times for its own moves), then what each missing move borrows;
+  Faces, a ground nudge, Step length, size, sound; P11's warnings under
+  Worth a look; Keep off without a walk. Watched and reloaded like the kit
+  page; Change frames reopens a kept critter's file. Left: cutting a single
+  sprite sheet on a grid (`stage_sheet()` is ready), and Where's its head?
+  with clothes for homemade critters (R4).
