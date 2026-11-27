@@ -1744,8 +1744,8 @@ ships clothes, sharing, the Collection badges and the docs.
 | R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
 | D1 | Shape model and SVG writer | done 2026-11-24 |
-| D2 | Studio window shell | not started |
-| D3 | Shape tools | not started |
+| D2 | Studio window shell | code done 2026-11-27 (`gui/studio/`); the VM check (opens, pans and zooms at 100% and 150%, fits 1366 x 768) is still to do |
+| D3 | Shape tools | code done 2026-11-27 (`gui/studio/tools.gd`, `history.gd`); trying the tools by hand on the VM is still to do |
 | D4 | Colour and style | not started |
 | D5 | Starters | not started |
 | D6 | Preview, pins and save | not started |
@@ -2086,3 +2086,29 @@ step left needs the developer, or a design that needs them:
   page; Change frames reopens a kept critter's file. Left: cutting a single
   sprite sheet on a grid (`stage_sheet()` is ready), and Where's its head?
   with clothes for homemade critters (R4).
+- 2026-11-27: D2 and D3's code done, built to D0's Builder page (still a
+  draft). `main.open_studio(shapes_doc, editing_id)` opens
+  `gui/studio/studio_window.gd`: the Settings chrome, drawn at the display
+  scale or smaller (`fit_for()`), resizable down to 1200 x 800 scaled to fit
+  a 1366 x 768 screen (a corner grip, since a borderless window has no
+  frame), maximise, vsync off. Layers grouped Every pose, Walking, Sitting,
+  Napping and Extras (`layers_panel.gd rows()`), the tool rail, the canvas,
+  and the right column with two labelled panels kept for D4 and D6. Pins
+  and Save are there but off until D6; no `?` panel yet (D7). The editing is
+  plain functions on the doc (`tools.gd`), so `studio_test.gd` drives every
+  tool without a window; `history.gd` keeps a copy of each touched layer
+  per action, 200 at most. Defaults taken for D0's open questions until the
+  review: the kitten is the guide for every plan (in the pose being drawn),
+  and the extras fold into one "N more" row that opens the list. Live
+  symmetry needs no stored ids: a shape's twin is the shape that is its
+  exact mirror about x 150, kept so as it is edited; with several shapes
+  selected, edits aren't mirrored. Blob and Line place a default shape on a
+  click (the plan's wording) rather than the design's click-to-add-points.
+  Found on the way: `shapes.gd` draws a triangle's corners sharp whatever
+  its `r`, so the tri radius handle changes nothing visible yet (a D1
+  follow-up). Admin: Open the Studio (`studio:front` for a faces-you one),
+  Build the test critter by script (`fixtures.gd studio_steps()`, matched
+  against `test_data/studio/test_critter.json` in `studio_test.gd`). Left
+  for the VM: D2's done-when (it opens, pans and zooms at 100% and 150%),
+  that it fits at 1366 x 768, that the corner grip, title drag and maximise
+  behave on a borderless window, and the tools by hand.
