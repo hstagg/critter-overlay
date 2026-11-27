@@ -1746,9 +1746,9 @@ ships clothes, sharing, the Collection badges and the docs.
 | D1 | Shape model and SVG writer | done 2026-11-24 |
 | D2 | Studio window shell | code done 2026-11-27 (`gui/studio/`); the VM check (opens, pans and zooms at 100% and 150%, fits 1366 x 768) is still to do |
 | D3 | Shape tools | code done 2026-11-27 (`gui/studio/tools.gd`, `history.gd`); trying the tools by hand on the VM is still to do |
-| D4 | Colour and style | not started |
-| D5 | Starters | not started |
-| D6 | Preview, pins and save | not started |
+| D4 | Colour and style | code done 2026-11-27 (`gui/studio/style_panel.gd`; the tri corner radius fixed in `shapes.gd`); recolouring by hand on the VM is still to do |
+| D5 | Starters | code done 2026-11-27 (`studio/starters/*.json`, the Start page `gui/studio/start_page.gd`); its done-when (all eight walk on the VM) is still to do |
+| D6 | Preview, pins and save | code done 2026-11-27 (`gui/studio/preview.gd`, `pins_panel.gd`, `save_panel.gd`); its done-when (a changed round cat arrives, is edited and updates on screen, on the VM) is still to do |
 | D7 | Usability pass | not started |
 | R2 | **Release 3.4.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
@@ -2112,3 +2112,58 @@ step left needs the developer, or a design that needs them:
   for the VM: D2's done-when (it opens, pans and zooms at 100% and 150%),
   that it fits at 1366 x 768, that the corner grip, title drag and maximise
   behave on a borderless window, and the tools by hand.
+- 2026-11-27: D4, D5 and D6's code done, built to D0's Builder, Start,
+  Pins, Save and Empty pages (still a draft). **D4:**
+  `gui/studio/style_panel.gd` fills the right column's top: A2's picker
+  embedded for the picked shapes, with *In this critter* (its colours, most
+  used first) added after *From the critters*; Outline and Marking; for the
+  whole critter Blush and the eyes as the engine has them (big, round, dot,
+  lash: D0's open question 2 is answered by the engine for now). A picker
+  drag is one undo step; `history.gd` now also keeps the doc's `@style` and
+  `@pins`. A new eye takes the critter's preset. The outline colour and
+  width can't be changed. `shapes.gd` now rounds a triangle's corners by
+  its `r` (D2's follow-up). **D5:** eight starters in
+  `studio/starters/*.json` (a shapes.json with its `name` and `gait`
+  beside it), from D0's `art.js` drawings: the bear and round mouse got a
+  side-on walking body and legs (a faces-you critter needs them), the ghost
+  12 points (the limit), the dog's floppy ear moved to Horns or fringe so
+  it hangs over the head, and every automatic pose left automatic. No
+  pins in them: they are suggested. *Blank* is the four body cards on the
+  Start page (`gui/studio/start_page.gd`), shown when the Studio opens
+  with nothing to build; the cards' pictures come from the real rig.
+  Leaving the Studio now forgets the doc, so the next visit starts there.
+  **D6:** `gui/studio/preview.gd` writes the doc to a staging folder
+  (`write_builder_kit()`) half a second after the last change and shows it
+  through `show_staged()` and `critter_view.gd`, held in Walk, Sit or Nap,
+  turning at the well's sides, with Blink, Look around and Swish tail (only
+  what it has). Pins mode (`gui/studio/pins_panel.gd`, P): the plan's
+  joints as dots, each suggested and following the shapes until dragged,
+  then kept in the doc's `pins`; a dragged pin stays within 60 units of its
+  suggestion, in the frame, hips below the neck; dragging the neck moves
+  the head's own pivot with it. `suggest_pins()` now knows the plan: a
+  faces-you critter's sitting neck is under its head on its sitting body,
+  its walking neck near the front of its walking body. Save
+  (`gui/studio/save_panel.gd`) is a dialog over the window: name (24),
+  how it walks (the plan's gaits, each with a line), size, pop sound, Send
+  it to my desk now. `keep()` writes the kit, makes the card picture from
+  the rig's sitting pose, and adds it to the store or saves over the
+  critter being edited (parts, shapes.json, kit.json and picture
+  replaced, name, size and sound changed, the rest of custom.json kept,
+  `bump_rev`). A critter is built once, so `main.refresh_homemade()` makes
+  each one on the desk fade where it is and come straight back with the
+  new art (clothes it wore aren't put back). My critters' *Edit shapes*
+  opens the Studio on its shapes.json. My critters, the close button and
+  Esc ask first with changes (Save and go back, Don't save, Stay here).
+  Admin: Spawn every starter, Save the test critter, Edit and save the
+  test critter, and three audit rows; `starters_test.gd` checks the
+  starters, save and edit round trips, pins, style in the SVG and the
+  window's colour, eye and pin actions. Left out: Try clothes (after F),
+  the pins drawn on the preview and the leg's swing in Pins mode, the
+  Save dialog's picture beside the kitten, tips and the `?` panel (D7).
+  The preview shares the one staged slot with the importers, so the
+  importers' previews and the Studio's can't both be live at once. Left
+  for the VM: all eight starters walk (D5's done-when), the preview
+  walking, sitting, napping and blinking in its well, the picker and
+  toggles by hand, dragging pins, and D6's done-when (a changed round cat
+  arrives, is edited, and updates on screen). Left for D7: everything a
+  new player finds confusing in these flows.
