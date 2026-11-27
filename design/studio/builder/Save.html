@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Critter Studio, save</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="studio.css">
+<style>
+.gait{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:16px;border:2px solid var(--chip-line);background:var(--raised);cursor:pointer;text-align:left;font-family:'Nunito',sans-serif;color:var(--ink)}
+.gait.sel{border-color:var(--outline);background:var(--chip-sel);box-shadow:0 2px 0 var(--lip)}
+.gait b{display:block;font-family:'Fredoka','Nunito',sans-serif;font-weight:600;font-size:16px}
+.gait span{font-size:12.5px;color:var(--ink2);font-weight:700}
+.gait .r{width:18px;height:18px;border-radius:50%;border:2px solid var(--off-line);flex-shrink:0;box-sizing:border-box}
+.gait.sel .r{border:5px solid var(--btn)}
+.walker{position:absolute;bottom:48px;right:-110px;width:112px;height:100px;animation:walkin 7s linear infinite}
+@keyframes walkin{0%{transform:translateX(0)}100%{transform:translateX(-860px)}}
+.steps{position:absolute;bottom:52px;height:6px;right:30px;width:520px;background-image:radial-gradient(circle,rgba(255,255,255,.75) 2px,transparent 2.5px);background-size:26px 6px;opacity:.7}
+</style>
+</head>
+<body class="board">
+<script src="icons.js"></script>
+<div class="boardbar"><button class="btn bs sm" id="themebtn">Dark theme</button><a class="btn bs sm" href="README.md">Notes</a></div>
+
+<div class="cap"><b>Save</b><span>Save opens this over the Studio. Name, gait, size and sound, then Keep.</span></div>
+<div class="art">
+<div class="win th-light sw">
+<header class="top">
+<span class="btn bq sm" style="color: var(--ink2)"><svg class="i"><use href="#i-back"/></svg>My critters</span>
+<span class="sep"></span>
+<span class="mark"><span data-art="mochi" style="width:40px;height:36px;display:block"></span></span>
+<div class="ttl"><span class="disp" style="font-weight:600;font-size:16px">Critter Studio</span><small>Built from shapes</small></div>
+<span class="grow"></span>
+<span class="btn bp" style="color: var(--btn-ink)">Save</span>
+<span class="sep"></span>
+<button class="wb" aria-label="Minimise"><svg class="i" style="width:18px;height:18px"><use href="#i-min"/></svg></button>
+<button class="wb" aria-label="Close"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></button>
+</header>
+<div class="body"><div class="layers"></div><div class="rail"></div><div class="stage"><div class="cv" id="cvbg"></div></div><div class="side"></div></div>
+<div class="scrim"></div>
+
+<div class="dlg" role="dialog" aria-labelledby="sv-t" style="left:200px;top:64px;width:880px;padding:26px 28px 24px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px">
+<div><h2 id="sv-t" class="h1" style="font-size:28px">Nearly ready</h2><p class="sub" style="font-size:14.5px">Give your critter a name and pick how it gets about. You can change all of this later on its page in My critters.</p></div>
+<a href="Builder.html" class="ib" aria-label="Close"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></a>
+</div>
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:26px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="pv walking" style="height:250px;background:var(--w-lilac)"><span class="pvlive">How it walks</span><div class="crit" id="pvc" style="width:240px;height:200px"></div><div class="gnd"></div></div>
+<div style="display:flex;align-items:flex-end;gap:14px;padding:12px 14px;border-radius:16px;background:var(--ground)">
+<span style="display:flex;align-items:flex-end;gap:4px;height:64px"><span data-art="mochi" data-view="20 0 270 280" style="width:60px;height:62px;display:block"></span><img src="../my-critters/art/cast-kitten.svg" width="60" height="62" alt="The kitten, for size"></span>
+<span style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.4">Mochi next to the kitten, at Normal size</span>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<label for="sv-n" style="font-weight:800;font-size:13px;color:var(--ink2)">Name</label>
+<div style="display:flex;align-items:center;gap:10px"><input id="sv-n" class="field" value="Mochi" maxlength="24" style="font-family:'Fredoka','Nunito',sans-serif;font-weight:600;font-size:18px"><span class="mini" style="color:var(--ink3);white-space:nowrap">5 of 24</span></div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="font-weight:800;font-size:13px;color:var(--ink2)">How it walks</span>
+<div role="radiogroup" aria-label="How it walks" style="display:grid;grid-template-columns:1fr 1fr;gap:10px" data-one id="gait">
+<button class="gait sel" role="radio" aria-checked="true" data-v="trot"><span class="r"></span><span><b>Trot</b><span>A steady walk, like the kitten</span></span></button>
+<button class="gait" role="radio" aria-checked="false" data-v="hop"><span class="r"></span><span><b>Hop</b><span>Springs along, like the rabbit</span></span></button>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;justify-content:space-between"><span class="rtt">Size</span><span class="val" style="font-size:15px">Normal</span></div>
+<div><input type="range" class="rng" min="0" max="2" step="1" value="1" aria-label="Size" style="background:linear-gradient(to right,var(--accent) 0 50%,var(--line) 50% 100%)"><div class="ticks"><span>Small</span><span>Normal</span><span>Big</span></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div><div class="rtt">Pop sound</div><div class="rtd">Borrow a critter's sound, or add your own.</div></div>
+<div style="display:flex;gap:8px;align-items:center"><button class="ib" aria-label="Play the sound"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></svg></button><button class="dd" style="flex:1"><span>Kitten</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--ground)">
+<span style="flex:1"><span class="rtt">Send it to my desk now</span><span class="rtd">It walks on as soon as you keep it. The Studio stays open.</span></span>
+<button class="tg on" role="switch" aria-checked="true" aria-label="Send it to my desk now"><span class="kn"></span></button>
+</div>
+</div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;gap:10px;border-top:2px solid var(--div);padding-top:16px">
+<a href="Builder.html" class="btn bs">Back to the shapes</a>
+<a href="#desk" class="btn bp" style="color:var(--btn-ink)"><svg class="i" style="width:18px;height:18px"><use href="#i-check"/></svg>Keep Mochi</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="cap" id="desk"><b>On the desk</b><span>Keep: Mochi walks on from the edge of the screen. The Studio stays open behind, saved, for more changes.</span></div>
+<div class="art">
+<div class="desk">
+<!-- The Studio, still open and saved -->
+<div class="win th-light" style="position:absolute;left:70px;top:60px;width:760px;height:470px;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(37,26,53,.25);display:flex;flex-direction:column">
+<div class="top" style="height:46px;gap:10px">
+<span class="mark" style="width:30px;height:30px;border-radius:10px"><span data-art="mochi" style="width:32px;height:30px;display:block"></span></span>
+<span class="disp" style="font-weight:600;font-size:15px">Critter Studio</span>
+<span class="namefield" style="display:inline-flex;align-items:center;height:30px;width:120px;font-size:15px">Mochi</span>
+<span class="saved" style="color:var(--fresh-ink)"><svg class="i" style="width:14px;height:14px;vertical-align:-2px"><use href="#i-check"/></svg> Saved</span>
+<span class="grow"></span>
+<span class="btn bp sm" style="color:var(--btn-ink);opacity:.55">Save</span>
+</div>
+<div class="body"><div class="layers" style="width:150px;padding-top:6px"><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:70%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:55%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:62%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:48%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:66%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:40%"></div></div><div class="stage"><div class="cv" id="cvbg2"></div></div><div class="side" style="width:170px;padding:6px 0 0"><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:70%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:55%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:62%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:48%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:66%"></div><div style="height:12px;border-radius:6px;background:var(--div);margin:12px 14px 0;width:40%"></div></div></div>
+</div>
+
+<div class="steps" aria-hidden="true"></div>
+<div class="walker" id="walker" aria-label="Mochi walking on"></div>
+<img src="../my-critters/art/cast-kitten.svg" width="104" height="108" alt="" style="position:absolute;left:180px;bottom:46px;transform:scaleX(-1)">
+
+<div class="toast win th-light" role="status">
+<span class="mark" style="width:46px;height:46px;border-radius:15px"><span data-art="mochi" style="width:48px;height:44px;display:block"></span></span>
+<span style="flex:1;display:flex;flex-direction:column;gap:4px">
+<span class="disp" style="font-weight:600;font-size:17px">Mochi is on your desk</span>
+<span style="font-size:13px;color:var(--ink2);line-height:1.4">It visits with the rest from now on. Click it to say hello.</span>
+<span style="display:flex;gap:8px;margin-top:6px"><span class="btn bs sm">Back to the Studio</span><span class="btn bq sm" style="color:var(--acc-ink)">See it in My critters</span></span>
+</span>
+</div>
+<div class="taskbar"><i></i><i></i><i class="on"></i><i></i><i></i></div>
+</div>
+</div>
+
+<script src="art.js"></script>
+<script src="canvas.js"></script>
+<script src="board.js"></script>
+<script>
+const M = CR.starters.mochi;
+const bg = [CV.frame(), CR.inner(M), CV.ground()];
+CV.draw(document.getElementById('cvbg'), bg);
+CV.draw(document.getElementById('cvbg2'), bg);
+const pvc = document.getElementById('pvc');
+const show = g => {
+  // Hop is shown as a bounce in this mock; the real preview is the kit rig.
+  pvc.innerHTML = CR.svg(M, { anim: true });
+  pvc.firstChild.style.animation = g === 'hop' ? 'bounce .7s ease-in-out infinite' : '';
+  pvc.firstChild.style.transformOrigin = '50% 100%';
+};
+show('trot');
+document.getElementById('gait').addEventListener('pick', e => show(e.detail));
+document.getElementById('walker').innerHTML = CR.svg(M, { anim: true, view: '20 30 270 250' });
+</script>
+</body>
+</html>

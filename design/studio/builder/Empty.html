@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Critter Studio, empty and other states</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="studio.css">
+<style>
+.hintcard{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:330px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 3px 0 var(--lip);border-color:var(--outline)}
+.qs{display:flex;gap:6px}
+.qs .btn{flex:1;padding:0 6px}
+.mini-art{width:410px;height:360px;position:relative;overflow:hidden;border-radius:14px;box-shadow:0 10px 40px rgba(37,26,53,.2);display:flex;flex-direction:column}
+.row3{display:grid;grid-template-columns:repeat(3,410px);gap:25px;margin-bottom:40px}
+.row3 .cap{margin-bottom:8px;flex-direction:column;gap:2px}
+</style>
+</head>
+<body class="board">
+<script src="icons.js"></script>
+<div class="boardbar"><button class="btn bs sm" id="themebtn">Dark theme</button><a class="btn bs sm" href="README.md">Notes</a></div>
+
+<!-- A. A blank start -->
+<div class="cap"><b>A blank start</b><span>Side-on, picked from Or start blank. The first tip shows; the needed parts are flagged, and Save says what's left.</span></div>
+<div class="art">
+<div class="win th-light sw">
+<header class="top">
+<a href="Start.html" class="btn bq sm" style="color: var(--ink2)"><svg class="i"><use href="#i-back"/></svg>My critters</a>
+<span class="sep"></span>
+<span class="mark"><svg class="i" style="width:22px;height:22px;margin-bottom:5px;color:var(--acc-ink)"><use href="#i-shapes"/></svg></span>
+<div class="ttl"><span class="disp" style="font-weight:600;font-size:16px">Critter Studio</span><small>Built from shapes</small></div>
+<label for="nm" class="mini" style="margin-left:10px">Name</label>
+<input id="nm" class="namefield" placeholder="Name it when you save" style="font-size:14px;font-family:'Nunito',sans-serif;font-weight:700">
+<span class="grow"></span>
+<div class="seg" role="radiogroup" aria-label="Mode"><button class="sel" role="radio" aria-checked="true">Shapes</button><button role="radio" aria-checked="false" disabled style="opacity:.5" title="Pins come once it has a body">Pins</button></div>
+<span class="grow"></span>
+<button class="ib" aria-label="Undo" style="opacity:.45"><svg class="i"><use href="#i-undo"/></svg></button>
+<button class="ib" aria-label="Redo" style="opacity:.45"><svg class="i"><use href="#i-redo"/></svg></button>
+<button class="ib" aria-label="Shortcuts"><svg class="i"><use href="#i-help"/></svg></button>
+<span class="btn bp" style="color:var(--btn-ink);opacity:.5" title="Draw the 5 needed parts first" aria-disabled="true">Save</span>
+<span class="sep"></span>
+<button class="wb" aria-label="Minimise"><svg class="i" style="width:18px;height:18px"><use href="#i-min"/></svg></button>
+<button class="wb" aria-label="Maximise"><svg class="i" style="width:16px;height:16px"><use href="#i-max"/></svg></button>
+<button class="wb" aria-label="Close"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></button>
+</header>
+<div class="body">
+<aside class="layers" aria-label="Layers">
+<div class="lhead"><span class="t">Layers</span><span class="need" style="height:22px">5 needed to walk</span></div>
+<div class="lscroll" role="listbox" data-one>
+<div class="grp">Every pose <span class="gn">head and face</span></div>
+<div class="lr missing tall"><span class="nm">Head<small>Needed to walk</small></span><span class="need">Needed</span></div>
+<div class="lr missing tall"><span class="nm">Eyes<small>Needed to walk</small></span><span class="need">Needed</span></div>
+<div class="lr empty tall"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg><span class="nm">Ears<small>Without them: no ear flicks</small></span></div>
+<div class="lr empty tall"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg><span class="nm">Tail<small>Without one: no tail swish</small></span></div>
+<div class="grp">Walking <span class="gn">needed</span></div>
+<div class="lr sel missing tall" style="border-style:solid;border-color:var(--outline);background:var(--chip-sel)"><span class="nm" style="color:var(--ink)">Body<small>Needed to walk</small></span><span class="need">Needed</span></div>
+<div class="lr missing tall"><span class="nm">Front leg<small>Needed to walk</small></span><span class="need">Needed</span></div>
+<div class="lr missing tall"><span class="nm">Back leg<small>Needed to walk</small></span><span class="need">Needed</span></div>
+<div class="lr auto"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm">Far legs <i>automatic</i></span></div>
+<div class="grp">Sitting and napping</div>
+<div class="lr auto"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm">Automatic, from walking</span></div>
+<div class="lr empty"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg><span class="nm">More parts: nose, mouth, wing...</span></div>
+</div>
+</aside>
+<nav class="rail" aria-label="Tools" data-one id="rail">
+<button class="tool sel" title="Move (V)"><svg class="i"><use href="#i-move"/></svg><span class="k">V</span></button><hr>
+<button class="tool" title="Oval (E)"><svg class="i"><use href="#i-ellipse"/></svg><span class="k">E</span></button>
+<button class="tool" title="Rounded box (R)"><svg class="i"><use href="#i-rect"/></svg><span class="k">R</span></button>
+<button class="tool" title="Triangle (T)"><svg class="i"><use href="#i-tri"/></svg><span class="k">T</span></button>
+<button class="tool" title="Drop (D)"><svg class="i"><use href="#i-drop"/></svg><span class="k">D</span></button>
+<button class="tool" title="Heart (H)"><svg class="i"><use href="#i-heart"/></svg><span class="k">H</span></button>
+<button class="tool" title="Star (S)"><svg class="i"><use href="#i-star"/></svg><span class="k">S</span></button>
+<button class="tool" title="Blob (B)"><svg class="i"><use href="#i-blob"/></svg><span class="k">B</span></button>
+<button class="tool" title="Line (L)"><svg class="i"><use href="#i-line"/></svg><span class="k">L</span></button>
+<button class="tool" title="Eye (I)"><svg class="i"><use href="#i-eye"/></svg><span class="k">I</span></button><hr>
+<button class="tool" title="Pan (hold Space)"><svg class="i"><use href="#i-hand"/></svg></button>
+</nav>
+<section class="stage">
+<div class="ctx"><span class="what">Body <small>no shapes yet</small></span><span class="grow"></span><button class="chip sel"><svg class="i" style="width:15px;height:15px"><use href="#i-show"/></svg>Guide cat</button></div>
+<div class="cv" id="cvA"></div>
+<div class="card hintcard">
+<div style="display:flex;align-items:center;gap:12px"><span class="wayic" style="width:40px;height:40px;border-radius:13px"><svg class="i"><use href="#i-ellipse"/></svg></span><span class="wt" style="font-size:18px">Add a shape to draw the body</span></div>
+<span class="wd">The body is the big middle part. An oval is a good start; drag it to fit the faint cat, or make it your own shape.</span>
+<div class="qs"><button class="btn bp sm" style="color:var(--btn-ink)"><svg class="i" style="width:16px;height:16px"><use href="#i-ellipse"/></svg>Oval</button><button class="btn bs sm"><svg class="i" style="width:16px;height:16px"><use href="#i-rect"/></svg>Box</button><button class="btn bs sm"><svg class="i" style="width:16px;height:16px"><use href="#i-blob"/></svg>Blob</button></div>
+</div>
+<div class="zoom"><button>-</button><span class="pct">145%</span><button>+</button><button>Fit</button></div>
+</section>
+<aside class="side">
+<div class="sec"><div class="sech"><span>Colour</span><span class="mini">for the next shape</span></div>
+<div class="mini">From the critters</div><div class="sw8" id="castA"></div>
+<div class="hexrow"><span class="now" style="background:#F6C28F"></span><label class="mini" for="hxA">Hex</label><input id="hxA" class="hex" value="#F6C28F"></div></div>
+<div class="hr"></div>
+<div class="sec" style="flex:1">
+<div class="sech"><span>How it moves</span></div>
+<div class="pv" style="height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px;background:var(--ground);border:2px dashed var(--chip-line)">
+<svg class="i" style="width:30px;height:30px;color:var(--acc-ink)"><use href="#i-play"/></svg>
+<span style="font-weight:800;font-size:14px">Your critter walks here</span>
+<span style="font-size:12.5px;color:var(--ink2);line-height:1.45">once it has a body, a head, eyes and two legs. It moves as you draw.</span>
+</div>
+</div>
+</aside>
+</div>
+<div class="tip l" style="left:330px;top:146px" role="note">
+<b>Pick a part, then a shape</b>
+The part on the left is the one you're drawing. Pick a shape here and click the canvas to put it down.
+<div class="tipbar"><span>1 of 3</span><span class="grow"></span><button class="tb">Skip tips</button><button class="tb p">Next tip</button></div>
+</div>
+</div>
+</div>
+
+<!-- B. Three smaller states -->
+<div class="row3">
+<div>
+<div class="cap"><b>An empty part</b><span>Tail picked, nothing in it yet</span></div>
+<div class="win th-light mini-art">
+<div class="ctx" style="background:var(--surface)"><span class="what">Tail <small>no shapes yet</small></span></div>
+<div class="cv" id="cvB" data-view="20 60 300 250" style="flex:1"></div>
+<div class="card hintcard" style="width:300px;top:58%">
+<span class="wt" style="font-size:17px">Add a shape to draw the tail</span>
+<span class="wd" style="font-size:13px">Tails swish when it's happy. A line makes a quick one: click to add points, double-click to finish.</span>
+<div class="qs"><button class="btn bp sm" style="color:var(--btn-ink)"><svg class="i" style="width:16px;height:16px"><use href="#i-line"/></svg>Line</button><button class="btn bs sm"><svg class="i" style="width:16px;height:16px"><use href="#i-drop"/></svg>Drop</button><button class="btn bq sm">Skip</button></div>
+</div>
+</div>
+</div>
+
+<div>
+<div class="cap"><b>The next tips</b><span>2 of 3 on a new shape, 3 of 3 by the preview</span></div>
+<div class="win th-light mini-art">
+<div class="cv" id="cvC" data-view="40 70 230 210" style="flex:1"></div>
+<div class="tip b" style="left:118px;top:20px;width:270px" role="note">
+<b>Move, resize, turn</b>
+Drag to move it. Pull a corner to resize; the round handle turns it.
+<div class="tipbar"><span>2 of 3</span><span class="grow"></span><button class="tb p">Next tip</button></div>
+</div>
+<div class="tip r" style="left:16px;top:238px;width:250px;padding:12px 14px" role="note">
+<b style="font-size:15px">Watch it as you go</b>
+The preview on the right walks with every change.
+<div class="tipbar"><span>3 of 3</span><span class="grow"></span><button class="tb p">Got it</button></div>
+</div>
+</div>
+</div>
+
+<div>
+<div class="cap"><b>Save with parts missing</b><span>Save is off; hovering it says why</span></div>
+<div class="win th-light mini-art" style="padding:22px;box-sizing:border-box;gap:14px;background:var(--ground)">
+<div style="display:flex;justify-content:flex-end"><span class="btn bp" style="color:var(--btn-ink);opacity:.5">Save</span></div>
+<div class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;border-color:var(--dng-line)">
+<span class="wt" style="font-size:17px">Two more parts and it can walk</span>
+<span class="wd" style="font-size:13px">Every critter needs these. Click one to draw it.</span>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div class="lr missing" style="height:38px"><span class="nm">Front leg</span><span class="need">Needed</span></div>
+<div class="lr missing" style="height:38px"><span class="nm">Back leg</span><span class="need">Needed</span></div>
+</div>
+<span style="font-size:12.5px;color:var(--ink3);font-weight:700">Everything else is optional.</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- C. Unsaved changes on Back -->
+<div class="cap"><b>Unsaved changes</b><span>My critters (or the window's close) with changes since the last save</span></div>
+<div class="art">
+<div class="win th-light sw">
+<header class="top">
+<span class="btn bq sm" style="color:var(--ink);background:var(--raised);border-color:var(--outline)"><svg class="i"><use href="#i-back"/></svg>My critters</span>
+<span class="sep"></span>
+<span class="mark"><span data-art="mochi" style="width:40px;height:36px;display:block"></span></span>
+<div class="ttl"><span class="disp" style="font-weight:600;font-size:16px">Critter Studio</span><small>Built from shapes</small></div>
+<span class="namefield" style="display:inline-flex;align-items:center;margin-left:10px">Mochi</span>
+<span class="saved">Changed since you saved</span>
+<span class="grow"></span>
+<span class="btn bp" style="color:var(--btn-ink)">Save</span>
+</header>
+<div class="body"><div class="layers"></div><div class="rail"></div><div class="stage"><div class="cv" id="cvD"></div></div><div class="side"></div></div>
+<div class="scrim"></div>
+<div class="dlg" role="alertdialog" aria-labelledby="us-t" aria-describedby="us-d" style="left:390px;top:220px;width:500px;padding:24px 26px 22px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;gap:16px;align-items:flex-start">
+<span style="width:84px;height:74px;flex-shrink:0;border-radius:18px;background:var(--w-lilac);display:flex;align-items:flex-end;justify-content:center;overflow:hidden"><span data-art="mochi" style="width:84px;height:72px;display:block"></span></span>
+<div><h2 id="us-t" class="h1" style="font-size:24px">Save your changes to Mochi?</h2>
+<p id="us-d" class="sub" style="font-size:14px">You've changed Mochi since you last saved. If you go back without saving, those changes are lost.</p></div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px">
+<button class="btn bq">Stay here</button>
+<button class="btn bd">Don't save</button>
+<button class="btn bp" style="color:var(--btn-ink)">Save and go back</button>
+</div>
+</div>
+</div>
+</div>
+
+<script src="art.js"></script>
+<script src="canvas.js"></script>
+<script src="board.js"></script>
+<script>
+const M = CR.starters.mochi;
+CV.draw(document.getElementById('cvA'), [CV.frame(), CV.guide('cat'), CV.ground()]);
+const noTail = JSON.parse(JSON.stringify(M)); delete noTail.layers.tail;
+CV.draw(document.getElementById('cvB'), [CV.frame(), CR.inner(noTail, { focus: 'tail', faint: 0.35 }), `<circle cx="224" cy="196" r="5" style="fill:none;stroke:var(--acc-ink)" stroke-width="1.6" stroke-dasharray="2 2"/>`, CV.ground()]);
+const one = { plan: 'side', layers: { 'walk-body': [{ t: 'ellipse', x: 160, y: 200, w: 150, h: 78, fill: '#F6C28F' }] } };
+CV.draw(document.getElementById('cvC'), [CV.frame(), CV.guide('cat'), CR.inner(one), CV.ground(), CV.handles([85, 161, 150, 78])]);
+CV.draw(document.getElementById('cvD'), [CV.frame(), CR.inner(M), CV.ground()]);
+const cast = ['#FFFFFF','#FFF1E2','#FBF4EC','#E9DED3','#F9DDBF','#FFE07A','#F6C28F','#F7A04A','#E0823F','#F7A9A2','#F59C9C','#A9D99B','#8CC46C','#A98468','#6B4A3A','#3B3437'];
+document.getElementById('castA').innerHTML = cast.map(c => `<button class="swc${c === '#F6C28F' ? ' sel' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Critter Studio, building</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body class="board">
+<script src="icons.js"></script>
+<div class="boardbar"><button class="btn bs sm" id="themebtn">Dark theme</button><a class="btn bs sm" href="README.md">Notes</a></div>
+
+<div class="cap"><b>Builder</b><span>The main window, editing Mochi (the A0 pages' shapes critter). Press ? for the shortcuts; Walk, Sit and Nap change the preview.</span></div>
+<div class="art">
+<div class="win th-light sw" id="win">
+
+<!-- Top bar: the Settings window's chrome, with the Studio's own controls -->
+<header class="top">
+<a href="../my-critters/Main.html" class="btn bq sm" style="color: var(--ink2)"><svg class="i"><use href="#i-back"/></svg>My critters</a>
+<span class="sep"></span>
+<span class="mark"><span data-art="mochi" style="width:40px;height:36px;display:block"></span></span>
+<div class="ttl"><span class="disp" style="font-weight:600;font-size:16px">Critter Studio</span><small>Built from shapes</small></div>
+<label for="nm" class="mini" style="margin-left:10px">Name</label>
+<input id="nm" class="namefield" value="Mochi" maxlength="24">
+<span class="saved">Changed since you saved</span>
+<span class="grow"></span>
+<div class="seg" role="radiogroup" aria-label="Mode" data-one>
+<button class="sel" role="radio" aria-checked="true">Shapes</button>
+<a href="Pins.html" class="btn" style="height:32px;padding:0 13px;border:2px solid transparent;border-radius:11px;font-size:13px;color:var(--ink2)">Pins</a>
+</div>
+<span class="grow"></span>
+<button class="ib" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button>
+<button class="ib" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)"><svg class="i"><use href="#i-redo"/></svg></button>
+<button class="ib" aria-label="Shortcuts" title="Shortcuts (?)" data-show="keys"><svg class="i"><use href="#i-help"/></svg></button>
+<a href="Save.html" class="btn bp" style="color: var(--btn-ink)">Save</a>
+<span class="sep"></span>
+<button class="wb" aria-label="Minimise"><svg class="i" style="width:18px;height:18px"><use href="#i-min"/></svg></button>
+<button class="wb" aria-label="Maximise"><svg class="i" style="width:16px;height:16px"><use href="#i-max"/></svg></button>
+<button class="wb" aria-label="Close"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></button>
+</header>
+
+<div class="body">
+
+<!-- Layers, grouped by pose -->
+<aside class="layers" aria-label="Layers">
+<div class="lhead"><span class="t">Layers</span><span class="planchip" title="Set when you started">Side-on, walks on four</span></div>
+<div class="lscroll" role="listbox" aria-label="Parts" data-one>
+
+<div class="grp">Every pose <span class="gn">head and face</span></div>
+<div class="lr sel" role="option"><span class="nm">Head</span><span class="ct">2</span><span class="ic" title="Hide"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic" title="Lock"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Eyes</span><span class="ct">2</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Ear</span><span class="ct">2</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Far ear</span><span class="ct">2</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Tail</span><span class="ct">1</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Nose</span><span class="ct">1</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-lock"/></svg></span></div>
+
+<div class="grp">Walking <span class="gn">needed</span></div>
+<div class="lr" role="option"><span class="nm">Body</span><span class="ct">2</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Front leg</span><span class="ct">1</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr" role="option"><span class="nm">Back leg</span><span class="ct">1</span><span class="ic"><svg class="i" style="width:16px;height:16px"><use href="#i-show"/></svg></span><span class="ic"><svg class="i" style="width:15px;height:15px"><use href="#i-unlock"/></svg></span></div>
+<div class="lr auto" role="option" title="Made from your near legs, a little darker"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm">Far legs <i>automatic</i></span></div>
+
+<div class="grp">Sitting</div>
+<div class="lr auto tall" role="option" title="Mochi sits in its walking body, legs at rest"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm" style="display:flex;flex-direction:column;line-height:1.15">Sitting body<small style="font-size:11px">Automatic</small></span><button class="btn bs sm" style="height:26px;padding:0 8px;font-size:12px;border-radius:9px">Draw this pose</button></div>
+
+<div class="grp">Napping</div>
+<div class="lr auto tall" role="option" title="The walking body, lowered and squashed, legs tucked away"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm" style="display:flex;flex-direction:column;line-height:1.15">Napping body<small style="font-size:11px">Automatic</small></span><button class="btn bs sm" style="height:26px;padding:0 8px;font-size:12px;border-radius:9px">Draw this pose</button></div>
+<div class="lr auto" role="option" title="Happy arcs where the eyes are"><svg class="i" style="width:15px;height:15px"><use href="#i-auto"/></svg><span class="nm">Closed eyes <i>automatic</i></span></div>
+
+<div class="grp">Extras <span class="gn">add any time</span></div>
+<div class="lr empty tall" role="option"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg><span class="nm">Open mouth<small>Without one: no yawns or sneezes</small></span></div>
+<div class="lr empty" role="option"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg><span class="nm">6 more: wing, mane, horns...</span></div>
+</div>
+</aside>
+
+<!-- Tools -->
+<nav class="rail" aria-label="Tools" data-one>
+<button class="tool sel" title="Move, turn and resize (V)" aria-label="Move"><svg class="i"><use href="#i-move"/></svg><span class="k">V</span></button>
+<hr>
+<button class="tool" title="Oval (E)" aria-label="Oval"><svg class="i"><use href="#i-ellipse"/></svg><span class="k">E</span></button>
+<button class="tool" title="Rounded box (R)" aria-label="Rounded box"><svg class="i"><use href="#i-rect"/></svg><span class="k">R</span></button>
+<button class="tool" title="Triangle (T)" aria-label="Triangle"><svg class="i"><use href="#i-tri"/></svg><span class="k">T</span></button>
+<button class="tool" title="Drop (D)" aria-label="Drop"><svg class="i"><use href="#i-drop"/></svg><span class="k">D</span></button>
+<button class="tool" title="Heart (H)" aria-label="Heart"><svg class="i"><use href="#i-heart"/></svg><span class="k">H</span></button>
+<button class="tool" title="Star (S)" aria-label="Star"><svg class="i"><use href="#i-star"/></svg><span class="k">S</span></button>
+<button class="tool" title="Blob: click to add points (B)" aria-label="Blob"><svg class="i"><use href="#i-blob"/></svg><span class="k">B</span></button>
+<button class="tool" title="Line: click to add points (L)" aria-label="Line"><svg class="i"><use href="#i-line"/></svg><span class="k">L</span></button>
+<button class="tool" title="Eye (I)" aria-label="Eye"><svg class="i"><use href="#i-eye"/></svg><span class="k">I</span></button>
+<hr>
+<button class="tool" title="Pan (hold Space)" aria-label="Pan"><svg class="i"><use href="#i-hand"/></svg></button>
+</nav>
+
+<!-- Canvas -->
+<section class="stage" aria-label="Canvas">
+<div class="ctx">
+<span class="what">Head <small>oval, 1 of 2</small></span>
+<button class="ib" title="Bring forward (Page Up)" aria-label="Bring forward"><svg class="i" style="width:18px;height:18px"><use href="#i-fwd"/></svg></button>
+<button class="ib" title="Send back (Page Down)" aria-label="Send back"><svg class="i" style="width:18px;height:18px"><use href="#i-bwd"/></svg></button>
+<button class="ib" title="Mirror (M)" aria-label="Mirror"><svg class="i" style="width:18px;height:18px"><use href="#i-mirror"/></svg></button>
+<button class="ib" title="Duplicate (Ctrl+D)" aria-label="Duplicate"><svg class="i" style="width:18px;height:18px"><use href="#i-dup"/></svg></button>
+<button class="ib" title="Delete (Del)" aria-label="Delete" style="color: var(--dng-ink)"><svg class="i" style="width:18px;height:18px"><use href="#i-del"/></svg></button>
+<span class="grow"></span>
+<button class="chip sel" title="Shapes snap to the ground line and the middle"><svg class="i" style="width:15px;height:15px"><use href="#i-snap"/></svg>Snap</button>
+<button class="chip" title="Show the other layers faintly, or hide them"><svg class="i" style="width:15px;height:15px"><use href="#i-show"/></svg>Other layers</button>
+</div>
+<div class="cv" id="cv"></div>
+<div class="zoom" aria-label="Zoom"><button aria-label="Zoom out">-</button><span class="pct">145%</span><button aria-label="Zoom in">+</button><button>Fit</button></div>
+<div class="hintpan">Hold Space and drag to move around. Ctrl and the wheel zoom.</div>
+</section>
+
+<!-- Colour, style and the live preview -->
+<aside class="side" aria-label="Colour and preview">
+<div class="sec">
+<div class="sech"><span>Colour</span><span class="mini">for the head oval</span></div>
+<div class="mini">From the critters</div>
+<div class="sw8" data-one id="cast"></div>
+<div class="mini">In this critter</div>
+<div class="sw8" data-one id="mine"></div>
+<div class="mini">Used lately</div>
+<div class="sw8" data-one id="recent"></div>
+<div class="pick">
+<div class="sv" style="background:linear-gradient(transparent,#000),linear-gradient(90deg,#fff,hsl(277,100%,50%))"><span class="dot" style="left:32%;top:9%;background:#C9A0E8"></span></div>
+<div class="hue"><span class="bar" style="top:77%"></span></div>
+</div>
+<div class="hexrow"><span class="now" style="background:#C9A0E8"></span><label for="hx" class="mini">Hex</label><input id="hx" class="hex" value="#C9A0E8"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div class="opt" title="The brown edge round the outside, like the cast's"><span class="d">Outline<small>Brown edge</small></span><button class="tg on" aria-pressed="true" aria-label="Outline"><span class="kn"></span></button></div>
+<div class="opt" title="A marking is clipped to the shapes under it: bellies, spots, stripes"><span class="d">Marking<small>Stays inside</small></span><button class="tg off" aria-pressed="false" aria-label="Marking"><span class="kn"></span></button></div>
+</div>
+</div>
+<div class="hr"></div>
+<div class="sec">
+<div class="sech"><span>The whole critter</span><span class="opt" style="font-size:13px">Blush <button class="tg on" aria-pressed="true" aria-label="Blush"><span class="kn"></span></button></span></div>
+<div class="eyes" role="radiogroup" aria-label="Eyes" data-one>
+<button class="eyeb sel" role="radio" aria-checked="true"><svg width="26" height="26" viewBox="0 0 26 26"><ellipse cx="13" cy="13" rx="8" ry="10" fill="#3A2A22"/><circle cx="15.2" cy="9.2" r="3" fill="#fff"/><circle cx="10.6" cy="16.5" r="1.3" fill="#fff" opacity=".8"/></svg>Big</button>
+<button class="eyeb" role="radio" aria-checked="false"><svg width="26" height="26" viewBox="0 0 26 26"><ellipse cx="13" cy="13" rx="8" ry="10" fill="#3A2A22"/><circle cx="15.4" cy="9.5" r="2.4" fill="#fff"/></svg>Round</button>
+<button class="eyeb" role="radio" aria-checked="false"><svg width="26" height="26" viewBox="0 0 26 26"><ellipse cx="13" cy="13" rx="5" ry="6" fill="#3A2A22"/></svg>Dot</button>
+<button class="eyeb" role="radio" aria-checked="false"><svg width="26" height="26" viewBox="0 0 26 26"><ellipse cx="12" cy="14" rx="7" ry="9" fill="#3A2A22"/><circle cx="14" cy="10.6" r="2.6" fill="#fff"/><path d="M17 7.7Q20.4 5.6 21.8 2.6" fill="none" stroke="#3A2A22" stroke-width="1.8" stroke-linecap="round"/></svg>Lash</button>
+</div>
+</div>
+<div class="hr"></div>
+<div class="sec" style="flex:1;min-height:0">
+<div class="sech"><span>How it moves</span>
+<div class="seg pvbar" role="radiogroup" aria-label="Preview" data-one id="pvseg"><button class="sel" data-v="walk">Walk</button><button data-v="sit">Sit</button><button data-v="nap">Nap</button></div></div>
+<div class="pv walking" id="pv" style="height:118px"><span class="pvlive">Live</span><div class="crit" id="pvc"></div><div class="gnd"></div></div>
+<div style="display:flex;gap:6px"><button class="btn bs sm" style="flex:1">Blink</button><button class="btn bs sm" style="flex:1">Look around</button><button class="btn bs sm" style="flex:1">Swish tail</button></div>
+</div>
+</aside>
+</div>
+
+<!-- The ? panel -->
+<div id="keys" hidden>
+<div class="scrim" data-show="keys"></div>
+<div class="dlg" role="dialog" aria-labelledby="k-t" style="left:270px;top:110px;width:740px;padding:22px 26px 20px">
+<div style="display:flex;align-items:flex-start;justify-content:space-between"><div><h2 id="k-t" class="h1" style="font-size:24px">Shortcuts</h2><p class="sub" style="font-size:13.5px;margin-top:4px">Every tool also has a button. Hover over one to see its key.</p></div><button class="ib" aria-label="Close" data-show="keys"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></button></div>
+<div class="keys" style="margin-top:6px">
+<div class="kgrp">Shapes</div>
+<div class="kr">Move, turn and resize <kbd>V</kbd></div><div class="kr">Oval <kbd>E</kbd></div>
+<div class="kr">Rounded box <kbd>R</kbd></div><div class="kr">Triangle <kbd>T</kbd></div>
+<div class="kr">Drop <kbd>D</kbd></div><div class="kr">Heart <kbd>H</kbd></div>
+<div class="kr">Star <kbd>S</kbd></div><div class="kr">Blob <kbd>B</kbd></div>
+<div class="kr">Line <kbd>L</kbd></div><div class="kr">Eye <kbd>I</kbd></div>
+<div class="kgrp">Changing shapes</div>
+<div class="kr">Undo <span><kbd>Ctrl</kbd> <kbd>Z</kbd></span></div><div class="kr">Redo <span><kbd>Ctrl</kbd> <kbd>Y</kbd></span></div>
+<div class="kr">Duplicate <span><kbd>Ctrl</kbd> <kbd>D</kbd></span></div><div class="kr">Delete <kbd>Del</kbd></div>
+<div class="kr">Copy, paste (any layer) <span><kbd>Ctrl</kbd> <kbd>C</kbd> <kbd>V</kbd></span></div><div class="kr">Mirror <kbd>M</kbd></div>
+<div class="kr">Bring forward, send back <span><kbd>PgUp</kbd> <kbd>PgDn</kbd></span></div><div class="kr">Nudge (Shift: by 10) <span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd></span></div>
+<div class="kr">Keep its shape while resizing <kbd>Shift</kbd></div><div class="kr">Turn in steps of 15&deg; <kbd>Shift</kbd></div>
+<div class="kgrp">Looking around</div>
+<div class="kr">Move around <span><kbd>Space</kbd> + drag</span></div><div class="kr">Zoom <span><kbd>Ctrl</kbd> + wheel</span></div>
+<div class="kr">Fit the frame <kbd>0</kbd></div><div class="kr">Shapes or Pins <kbd>P</kbd></div>
+<div class="kr">Save <span><kbd>Ctrl</kbd> <kbd>S</kbd></span></div><div class="kr">This panel <kbd>?</kbd></div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="art.js"></script>
+<script src="canvas.js"></script>
+<script src="board.js"></script>
+<script>
+const M = CR.starters.mochi;
+CV.draw(document.getElementById('cv'), [CV.frame(), CR.inner(M, { focus: 'head', faint: 0.4 }), CV.ground(), CV.handles(CR.box(M.layers.head[0]))]);
+const cast = ['#FFFFFF','#FFF1E2','#FBF4EC','#E9DED3','#F9DDBF','#FFE07A','#F6C28F','#F7A04A','#E0823F','#F7A9A2','#F59C9C','#A9D99B','#8CC46C','#A98468','#6B4A3A','#3B3437'];
+const mine = ['#C9A0E8','#F1E4FA','#F7A9A2','#F59C9C','#3A2A22'];
+const recent = ['#C9A0E8','#F1E4FA','#B78BDB','#A9D99B','#FFE07A','#F7A9A2'];
+const sw = (id, list, sel) => document.getElementById(id).innerHTML = list.map(c => `<button class="swc${c === sel ? ' sel' : ''}" style="background:${c}" title="${c}" aria-label="${c}"></button>`).join('');
+sw('cast', cast); sw('mine', mine, '#C9A0E8'); sw('recent', recent);
+const pvc = document.getElementById('pvc'), pv = document.getElementById('pv');
+const show = pose => { pvc.innerHTML = CR.svg(M, { pose, anim: true }); pv.classList.toggle('walking', pose === 'walk'); };
+show('walk');
+document.getElementById('pvseg').addEventListener('pick', e => show(e.detail));
+document.addEventListener('keydown', e => { if (e.key === '?') { const k = document.getElementById('keys'); k.hidden = !k.hidden; } });
+</script>
+</body>
+</html>

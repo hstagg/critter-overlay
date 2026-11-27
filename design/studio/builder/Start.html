@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Critter Studio, start</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body class="board">
+<script src="icons.js"></script>
+<div class="boardbar"><button class="btn bs sm" id="themebtn">Dark theme</button><a class="btn bs sm" href="README.md">Notes</a></div>
+
+<div class="cap"><b>Start</b><span>What a first-time player sees after Build from shapes on the Make a critter chooser. Each card opens the Builder.</span></div>
+<div class="art">
+<div class="win th-light sw">
+
+<header class="top">
+<a href="../my-critters/Make.html" class="btn bq sm" style="color: var(--ink2)"><svg class="i"><use href="#i-back"/></svg>My critters</a>
+<span class="sep"></span>
+<span class="mark"><span data-art="cat" style="width:40px;height:36px;display:block"></span></span>
+<div class="ttl"><span class="disp" style="font-weight:600;font-size:16px">Critter Studio</span><small>Built from shapes</small></div>
+<span class="grow"></span>
+<button class="wb" aria-label="Minimise"><svg class="i" style="width:18px;height:18px"><use href="#i-min"/></svg></button>
+<button class="wb" aria-label="Maximise"><svg class="i" style="width:16px;height:16px"><use href="#i-max"/></svg></button>
+<button class="wb" aria-label="Close"><svg class="i" style="width:18px;height:18px"><use href="#i-close"/></svg></button>
+</header>
+
+<div class="body" style="padding:30px 44px 32px;gap:36px;box-sizing:border-box">
+
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;gap:18px" aria-labelledby="st-h">
+<div><h1 id="st-h" class="h1">Start from a friend</h1><p class="sub">Pick one that's close to what you have in mind, then change anything: shapes, colours, eyes. The round cat is the easiest start.</p></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+
+<a href="Builder.html" class="card stc" style="text-decoration:none;border-color:var(--outline);box-shadow:0 3px 0 var(--lip)"><div class="well" style="background:var(--sp-kitten)"><span data-art="cat"></span></div><div class="tx"><span class="nm">Round cat</span><span class="mv">Trots on four legs</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--sp-hedgehog)"><span data-art="dog"></span></div><div class="tx"><span class="nm">Floppy dog</span><span class="mv">Trots on four legs</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--sp-squirrel)"><span data-art="bear"></span></div><div class="tx"><span class="nm">Bear</span><span class="mv">Faces you, plods off</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--sp-rabbit)"><span data-art="mouse"></span></div><div class="tx"><span class="nm">Round mouse</span><span class="mv">Faces you, scurries off</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--sp-duckling)"><span data-art="chick"></span></div><div class="tx"><span class="nm">Chick</span><span class="mv">Stands on two, waddles</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--sp-otter)"><span data-art="penguin"></span></div><div class="tx"><span class="nm">Penguin</span><span class="mv">Stands on two, waddles</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--w-green)"><span data-art="slime"></span></div><div class="tx"><span class="nm">Slime</span><span class="mv">No legs, bounces along</span></div></a>
+<a href="Builder.html" class="card stc" style="text-decoration:none"><div class="well" style="background:var(--w-ghost)"><span data-art="ghost"></span></div><div class="tx"><span class="nm">Ghost</span><span class="mv">No legs, floats along</span></div></a>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;background:var(--side);font-size:13.5px;color:var(--ink2);line-height:1.45">
+<span class="wayic" style="width:40px;height:40px;border-radius:13px"><svg class="i"><use href="#i-shapes"/></svg></span>
+<span style="flex:1">A starter only needs a few changes to be yours. Everything you leave alone, like how it naps, stays automatic until you want to draw it.</span>
+</div>
+</section>
+
+<section style="width:372px;flex-shrink:0;display:flex;flex-direction:column;gap:10px" aria-labelledby="bl-h">
+<div style="margin-bottom:8px"><h2 id="bl-h" class="disp" style="margin:0;font-weight:600;font-size:22px">Or start blank</h2><p class="sub" style="font-size:14px">First pick how it stands. It decides which parts you draw and how it moves.</p></div>
+
+<a href="Empty.html" class="card plan" style="text-decoration:none"><span class="pic"><span class="sil" data-art="cat" style="width:60px;height:52px;display:block"></span></span><span style="display:flex;flex-direction:column;gap:3px"><span class="wt" style="font-size:17px">Side-on</span><span class="wd" style="font-size:13px">Walks on four legs, seen from the side, like the kitten.</span><span class="mini" style="color:var(--ink3)">You draw: body, head, eyes, 2 legs</span></span></a>
+<a href="Empty.html" class="card plan" style="text-decoration:none"><span class="pic"><span class="sil" data-art="bear" style="width:60px;height:52px;display:block"></span></span><span style="display:flex;flex-direction:column;gap:3px"><span class="wt" style="font-size:17px">Faces you</span><span class="wd" style="font-size:13px">Sits looking at you, turns side-on to walk, like the otter.</span><span class="mini" style="color:var(--ink3)">You draw: sitting and walking body, head, eyes, 2 legs</span></span></a>
+<a href="Empty.html" class="card plan" style="text-decoration:none"><span class="pic"><span class="sil" data-art="chick" style="width:60px;height:52px;display:block"></span></span><span style="display:flex;flex-direction:column;gap:3px"><span class="wt" style="font-size:17px">Upright</span><span class="wd" style="font-size:13px">Stands on two legs and waddles, like the duckling.</span><span class="mini" style="color:var(--ink3)">You draw: body, head, eyes, 1 leg</span></span></a>
+<a href="Empty.html" class="card plan" style="text-decoration:none"><span class="pic"><span class="sil" data-art="slime" style="width:60px;height:52px;display:block"></span></span><span style="display:flex;flex-direction:column;gap:3px"><span class="wt" style="font-size:17px">Blob</span><span class="wd" style="font-size:13px">No legs. Bounces, glides, floats or slithers.</span><span class="mini" style="color:var(--ink3)">You draw: body, eyes</span></span></a>
+</section>
+</div>
+
+</div>
+</div>
+<script src="art.js"></script>
+<script src="board.js"></script>
+</body>
+</html>
