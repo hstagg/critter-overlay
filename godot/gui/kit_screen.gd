@@ -14,8 +14,9 @@ extends RefCounted
 ## kept critter (source.json says where it came from) and Keep replaces
 ## that critter's drawing.
 ##
-## Not yet: dragging the joints, giving an unrecognised layer a part name,
-## and Where's its head? (the design's Kit.html has all three).
+## A layer it didn't recognise can be named as a part (kit_import.gd stage()'s
+## assign). Not yet: dragging the joints, and Where's its head? (both in the
+## design's Kit.html).
 
 const Customs := preload("res://customs.gd")
 const KitImport := preload("res://kit_import.gd")
@@ -50,6 +51,7 @@ var active := false
 var step := "choose"               # choose | kit
 var plan := "side"
 var plan_set := false              # changed on the kit page: wins over a template's own body
+var assign := {}                   # layer name -> part, for layers not recognised
 var path := ""                     # the file being brought in
 var replacing := ""                # a kept critter's id, for Bring in a new version
 var staged := {}                   # kit_import.gd stage()
@@ -74,6 +76,7 @@ func start(id := "") -> void:
 	# From Make a critter (a new kit), or Bring in a new version of `id`.
 	active = true
 	plan_set = false
+	assign = {}
 	replacing = id
 	step = "choose"
 	error = ""
@@ -220,9 +223,9 @@ func open_file(p: String) -> void:
 func _restage() -> void:
 	# A file from a template knows its body; any other drawing takes the one
 	# picked, unless the body was changed on the kit page.
-	staged = KitImport.stage(path, plan if plan_set else "")
+	staged = KitImport.stage(path, plan if plan_set else "", assign)
 	if staged.error == "" and not plan_set and staged.template == "" and staged.plan != plan:
-		staged = KitImport.stage(path, plan)
+		staged = KitImport.stage(path, plan, assign)
 	if staged.error != "":
 		return
 	plan = staged.plan
@@ -309,6 +312,9 @@ func _kit_page(body: VBoxContainer, header: Callable) -> void:
 		checks.add_child(l)
 	top.add_child(checks)
 	body.add_child(K.card([K.margins(top, 20, 18, 20, 18)]))
+	var named := name_rows()
+	if not named.is_empty():
+		body.add_child(K.section("Layers it didn't recognise", K.card(named)))
 
 	var pl: Dictionary = KitData.PLANS[plan]
 	var gaits: Array = pl.gaits
@@ -344,6 +350,21 @@ func _kit_page(body: VBoxContainer, header: Callable) -> void:
 	body.add_child(K.card([K.margins(bar, 20, 14, 20, 14)]))
 
 
+func name_rows() -> Array:
+	# A drop-down per layer not recognised: leave it out, or which part it is.
+	var rows := []
+	var pl: Dictionary = KitData.PLANS[plan]
+	var open: Array = (pl.required + pl.optional).filter(func(p): return not staged.parts.has(p))
+	for layer in staged.unmatched:
+		var ln: String = layer
+		var names := ["Leave it out"] + open.map(func(p): return str(PART_WORDS.get(p, p)).capitalize())
+		rows.append(K.row(ln, "Which part is this layer?", K.dropdown(names, 0, func(i):
+			if i > 0:
+				assign[ln] = open[i - 1]
+				reload("%s is now the %s." % [ln, PART_WORDS.get(open[i - 1], open[i - 1])]))))
+	return rows
+
+
 static func check_lines(st: Dictionary) -> Array:
 	# [kind, words]: ok (found), need (a required part missing), cost (an
 	# optional part missing and the moves it takes away), note (taken out,
@@ -369,7 +390,7 @@ static func check_lines(st: Dictionary) -> Array:
 	if not st.dropped.is_empty():
 		out.append(["note", "Left out of the file: %s." % ", ".join(st.dropped)])
 	if not st.unmatched.is_empty():
-		out.append(["note", "Not recognised: %s. Name a layer after a part (see the template) to use it." % ", ".join(st.unmatched)])
+		out.append(["note", "Not recognised: %s. Say which part each is, below." % ", ".join(st.unmatched)])
 	return out
 
 
