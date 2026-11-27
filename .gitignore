@@ -29,3 +29,6 @@ tools/soak/out/
 google-client*.json
 client_secret*.json
 tokens.json
+
+# Built by the Site workflow (pages.yml), never stored
+site/press/critter-overlay-press-kit.zip
