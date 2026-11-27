@@ -278,3 +278,76 @@ static func _json(path: String, d: Dictionary) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(d, "\t"))
 	f.close()
+
+
+# --- The Studio's test critter (D3) -----------------------------------------------
+
+const StudioTools := preload("res://gui/studio/tools.gd")
+
+
+static func studio_steps() -> Array:
+	# Build the test critter by script (the Admin page) and studio_test.gd:
+	# each step is one action through the Studio's tools, as the canvas would
+	# make it, on a blank side-on doc and its history (gui/studio/history.gd).
+	# The doc it ends with is test_data/studio/test_critter.json.
+	return [
+		# The body: an oval pulled out by its corner, moved into place.
+		func(d, h): StudioTools.place(d, h, "walk-body", "ellipse", Vector2(160, 205)),
+		func(d, h): _studio_drag(d, h, "walk-body", 0, func(s): return StudioTools.scaled(s, Vector2i(1, 1), Vector2(270, 250), false)),
+		func(d, h): _studio_move(d, h, "walk-body", [0], Vector2(-40, -15)),
+		# The head the same way, and a cheek, sent back and brought forward again.
+		func(d, h): StudioTools.place(d, h, "head", "ellipse", Vector2(100, 150)),
+		func(d, h): _studio_drag(d, h, "head", 0, func(s): return StudioTools.scaled(s, Vector2i(1, 1), Vector2(180, 221), false)),
+		func(d, h): _studio_move(d, h, "head", [0], Vector2(-25, -23)),
+		func(d, h): StudioTools.place(d, h, "head", "ellipse", Vector2(96, 176)),
+		func(d, h): _studio_drag(d, h, "head", 1, func(s): return StudioTools.scaled(s, Vector2i(-1, -1), Vector2(106, 175), true)),
+		func(d, h): StudioTools.act(d, h, ["head"], func(): return StudioTools.back(d, "head", [1])),
+		func(d, h): StudioTools.act(d, h, ["head"], func(): return StudioTools.forward(d, "head", [0])),
+		# Two eyes: one placed and duplicated, the copy moved across.
+		func(d, h): StudioTools.place(d, h, "eyes", "eye", Vector2(84, 148)),
+		func(d, h): StudioTools.act(d, h, ["eyes"], func(): return StudioTools.duplicate_shapes(d, "eyes", [0])),
+		func(d, h): _studio_move(d, h, "eyes", [1], Vector2(24, -10)),
+		# A front leg sized from its corner, snapped onto the ground, its corners rounded.
+		func(d, h): StudioTools.place(d, h, "leg-front", "rect", Vector2(116, 240)),
+		func(d, h): _studio_drag(d, h, "leg-front", 0, func(s): return StudioTools.scaled(s, Vector2i(1, 1), Vector2(108, 260), false)),
+		func(d, h): _studio_move(d, h, "leg-front", [0], Vector2(19, 0)),
+		func(d, h): _studio_drag(d, h, "leg-front", 0, func(s): return StudioTools.with_radius(s, Vector2(114, 218))),
+		# The back leg: the front one copied, pasted on its own layer, moved back.
+		func(d, h): StudioTools.act(d, h, ["leg-back"], func(): return StudioTools.paste(d, "leg-back", StudioTools.copy(d, "leg-front", [0]))),
+		func(d, h): _studio_move(d, h, "leg-back", [0], Vector2(88, 0)),
+		# An ear: a triangle made taller, then turned (Shift: snapped to 15 degrees).
+		func(d, h): StudioTools.place(d, h, "ear-l", "tri", Vector2(80, 98)),
+		func(d, h): _studio_drag(d, h, "ear-l", 0, func(s): return StudioTools.scaled(s, Vector2i(-1, -1), Vector2(71, 79), false)),
+		func(d, h): _studio_drag(d, h, "ear-l", 0, func(s): return StudioTools.turned(s, Vector2(88, 51), Vector2(76, 53), true)),
+		# A tail: a line with its three points dragged into a curl.
+		func(d, h): StudioTools.place(d, h, "tail", "stroke", Vector2(240, 175)),
+		func(d, h): _studio_drag(d, h, "tail", 0, func(s): return StudioTools.with_point(s, 0, Vector2(226, 196))),
+		func(d, h): _studio_drag(d, h, "tail", 0, func(s): return StudioTools.with_point(s, 1, Vector2(252, 176))),
+		func(d, h): _studio_drag(d, h, "tail", 0, func(s): return StudioTools.with_point(s, 2, Vector2(262, 150))),
+		# A star for a nose, mirrored, then thought better of: undone twice.
+		func(d, h): StudioTools.place(d, h, "nose", "star", Vector2(56, 160)),
+		func(d, h): StudioTools.act(d, h, ["nose"], func(): StudioTools.mirror(d, "nose", [0])),
+		func(d, h): h.undo(d),
+		func(d, h): h.undo(d),
+		# A heart on the body, deleted; the eyes nudged up; the body ten left and back.
+		func(d, h): StudioTools.place(d, h, "walk-body", "heart", Vector2(170, 190)),
+		func(d, h): StudioTools.act(d, h, ["walk-body"], func(): StudioTools.delete(d, "walk-body", [1])),
+		func(d, h): StudioTools.act(d, h, ["eyes"], func(): StudioTools.nudge(d, "eyes", [0, 1], Vector2.UP, false)),
+		func(d, h): StudioTools.act(d, h, ["walk-body"], func(): StudioTools.nudge(d, "walk-body", [0], Vector2.LEFT, true)),
+		func(d, h): StudioTools.act(d, h, ["walk-body"], func(): StudioTools.nudge(d, "walk-body", [0], Vector2.RIGHT, true)),
+		# Draw this pose: the sitting body starts as a copy of the walking one.
+		func(d, h): StudioTools.act(d, h, ["body"], func(): return StudioTools.draw_pose(d, "body", "walk-body")),
+	]
+
+
+static func _studio_drag(d: Dictionary, h: RefCounted, part: String, i: int, f: Callable) -> void:
+	# A handle drag: one undo step, worked out from the shape as it began.
+	h.record(d, [part])
+	var orig: Array = StudioTools.layer(d, part).duplicate(true)
+	StudioTools.edit_one(d, part, i, orig, f.call(orig[i]), false)
+
+
+static func _studio_move(d: Dictionary, h: RefCounted, part: String, idx: Array, by: Vector2) -> void:
+	# A drag of the selection, snapped as the canvas snaps it.
+	h.record(d, [part])
+	StudioTools.move(d, part, idx, StudioTools.snap_delta(d, part, idx, by))

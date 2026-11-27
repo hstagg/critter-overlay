@@ -286,6 +286,10 @@ func run(action: String, chosen := "kitten") -> void:
 			main.open_settings(arg)
 		"url":
 			OS.shell_open(arg)
+		"studio":
+			studio_open(arg == "min", arg if arg in ["side", "front", "upright", "blob"] else "")
+		"studio_script":
+			studio_script()
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------
@@ -799,3 +803,43 @@ func give_berries(n: int) -> void:
 	main.economy.berries += n
 	main.economy.save()
 	main._update_tray()
+
+
+# --- The Critter Studio (D2, D3) ---------------------------------------------------------
+
+func studio_open(at_min := false, plan := "") -> void:
+	# D2: the Studio, as it was left (blank at first), or blank with a body
+	# plan ("front" to try live symmetry). At its minimum size, it should fit
+	# a 1366 x 768 screen with nothing cut off.
+	Customs.all_ways_on()
+	main.open_studio({"plan": plan} if plan != "" else {})
+	if not at_min:
+		return
+	var st: Window = main.studio_win
+	st.mode = Window.MODE_WINDOWED
+	st.size = st.min_size
+	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
+	st.position = usable.position + (usable.size - st.size) / 2
+	main.toasts.show_note(Icons.berry(40), "Admin", "The Studio at its smallest",
+		"%d x %d px, drawn at %d%%, on a %d x %d work area." % [st.size.x, st.size.y, roundi(st.content_scale_factor * 100.0), usable.size.x, usable.size.y])
+
+
+func studio_script() -> void:
+	# D3: the tools build the test critter in the Studio, a step every 0.3 s
+	# (fixtures.gd studio_steps). studio_test.gd checks the doc it ends with
+	# against test_data/studio/test_critter.json.
+	Customs.all_ways_on()
+	main.open_studio({"plan": "side"})
+	var st: Window = main.studio_win
+	for step in load("res://critters/kit/fixtures.gd").studio_steps():
+		await get_tree().create_timer(0.3).timeout
+		if not is_instance_valid(st) or not st.visible:
+			return
+		step.call(st.doc, st.hist)
+		st.sel = []
+		st.canvas.mark_all()
+		st.changed_parts([])
+	var n := 0
+	for part in st.doc.layers:
+		n += st.doc.layers[part].size()
+	main.toasts.show_note(Icons.berry(40), "Admin", "Test critter built", "%d shapes on %d layers, by the tools." % [n, st.doc.layers.size()])
