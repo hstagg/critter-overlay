@@ -142,7 +142,7 @@ func _init() -> void:
 	t = page(my)
 	check("Save as a file" in t and not "Copy code" in t, "a picture shares as a file, with no code")
 	check(t.any(func(x): return "only share pictures" in x), "with decision 5's note")
-	var built := Share.write_builder_kit(preload("res://share_test.gd").CRITTER, "Lilac", root.path_join("src/lilac"))
+	var built := Share.write_builder_kit(Fixtures.LILAC, "Lilac", root.path_join("src/lilac"))
 	var lilac := Customs.add_folder(built)
 	my.selected = lilac
 	my.sharing = true
@@ -154,6 +154,32 @@ func _init() -> void:
 	check(Share.export_critter(lilac, file, "3.1.1") == "" and FileAccess.file_exists(file), "and Save as a file writes one")
 	Customs.remove(lilac)
 	my.sharing = false
+
+	# --- Installing (G2) and adding a code (G1), shown before anything is written.
+	w.main = {"VERSION": "3.1.1"}
+	var before := Customs.ids().size()
+	my.install_file(file)
+	t = page(my)
+	check("Install Lilac?" in t and "Only install critters from people you trust." in t, "a .critter file opens the install view")
+	check(Customs.ids().size() == before and Customs.all.has(Customs.STAGED), "nothing is added yet, but it is shown")
+	var got: String = my.confirm_install()
+	check(got != "" and Customs.all[got]["name"] == "Lilac" and not Customs.all.has(Customs.STAGED), "Install adds it")
+	my.install_file(file)
+	t = page(my)
+	check(t.any(func(x): return "as Lilac 2" in x), "a taken name is said")
+	var got2: String = my.confirm_install()
+	check(Customs.all[got2]["name"] == "Lilac 2" and Customs.all[got]["name"] == "Lilac", "and the new one is Lilac 2, the old one kept")
+	my.add_code(Share.encode_code(Fixtures.LILAC, "Pip"))
+	t = page(my)
+	check("Add Pip?" in t and "Codes don't say who made them." in t, "a code opens the same view, with Add")
+	var pip: String = my.confirm_install()
+	check(pip != "" and Customs.all[pip].get("friend", false) and Customs.badge(Customs.all[pip]) == "Shapes", "Add keeps it as Shapes, from a friend")
+	my.add_code("hello")
+	t = page(my)
+	check("That code can't be used" in t and Customs.ids().size() == before + 3, "a bad code says so and adds nothing")
+	my._end_install()
+	for x in [got, got2, pip]:
+		Customs.remove(x)
 
 	Customs.ways = {}
 	my.selected = sticker

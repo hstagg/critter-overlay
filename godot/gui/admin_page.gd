@@ -113,6 +113,8 @@ func checks() -> Array:
 		["Homemade critters", "kit:slime", "Blobs: the slime bounces", "A legless slime with one antenna: squash, spring and land; naps melted (wider, lower); climbs a wall as a slide; throw and pop it.", "kit:slime"],
 		["Homemade critters", "kit:ghost", "Blobs: the ghost floats", "A ghost with no head: hovers 10 to 20 units up with a slow bob in every pose, eyes on its body; throw it and it lands softly and rises again.", "kit:ghost"],
 		["Homemade critters", "kit:snake", "Blobs: the snake slithers", "A snake: a side-to-side wave along the ground, tail flicking; never stretches, hunts or scratches.", "kit:snake"],
+		["Homemade critters", "share_code", "A code round-trips to the same critter", "My critters opens on a pasted CRIT1- code: Add Lilac?, the critter walking, Codes don't say who made them, Add and Cancel. Add puts it in the grid as Shapes, From a friend; its page's Share > Copy code gives a code that adds the same critter again (as Lilac 2). The code is on the clipboard too, to paste into Make a critter by hand.", "share_code"],
+		["Homemade critters", "share_file:kit", "Every kind round-trips through a file", "A test kit is saved as a .critter file and opened again: Install Kitten side?, walking, the trust line; Install adds it. Run share_file:frames and share_file:sticker too (the sticker shows decision 5's picture note). A critter's page has Share > Save as a file.", "share_file:kit"],
 		["Homemade critters", "dress_pixelcat", "Frame critter with head marks wears a hat that follows its head", "The pixel cat with its head marked walks in and sits in a hat: the hat bobs with its head as it walks, sits on its head when it sits, and is gone while it waves (that clip has no marks). The unmarked pixel cat (the row below) is offered nothing in the Shop.", "dress_pixelcat"],
 		["Homemade critters", "kit:pixelcat", "Frame critter walks, sits, naps, plays its act clips, climbs and is thrown", "A pixel cat drawn frame by frame: its walk keeps pace with the ground, it sits and blinks with its own frames, naps on its sit frames, waves now and then (its own clip), and climbs and flies when thrown on its fallbacks.", "kit:pixelcat"],
 		["Homemade critters", "own_sound", "Imported sound plays on pop", "A made-up chirp is given to the first homemade critter and played; it walks in: pop it and throw it, and the chirp plays at the set volume (and not at all with Pop sounds off).", "own_sound"],
@@ -286,6 +288,7 @@ func _events_card() -> Control:
 			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries],
 			["Dress the kitten kit in everything", func(): A().dress_kit_all()],
 			["Make the clothes contact sheet", func(): A().wear_sheet()], ["Dress the pixel cat", func(): A().dress_pixel_cat()],
+			["Copy and paste the test critter", func(): A().share_code_test()], ["Export and re-install a test kit", func(): A().share_file_test("kit")],
 			["Open My critters", func(): A().run("open:my_critters")], ["Colour picker test", func(): A().colour_picker_test()],
 			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
