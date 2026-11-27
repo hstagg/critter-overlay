@@ -230,6 +230,19 @@ func _init() -> void:
 	Customs.remove(kid)
 	Customs.ways = {}
 
+	# --- Dropping a file (C5): each kind to its importer, behind its way.
+	Customs.ways = {}
+	check(MyCritters.route("a/b.png") == "picture" and MyCritters.route("a/b.svg") == "" and MyCritters.route("a/b.critter") == "", "with the ways off only pictures go anywhere")
+	Customs.all_ways_on()
+	check(MyCritters.route("a/b.svg") == "kit" and MyCritters.route("a/b.zip") == "kit" and MyCritters.route("a/b.ora") == "kit", "drawings go to the kit importer")
+	check(MyCritters.route("a/b.gif") == "frames" and MyCritters.route("a/b.critter") == "install" and MyCritters.route("a/b.psd") == "", "animations, critter files, and nothing for a .psd")
+	check(my.drop("res://templates/front-1.svg") == "kit" and my.kit_screen.active and my.kit_screen.plan == "front", "a dropped template opens the kit page as its body")
+	my.kit_screen.close()
+	my.drop(file)
+	check(my.view == "install" and not my.staged.is_empty(), "a dropped .critter file opens the install view")
+	my._end_install()
+	Customs.ways = {}
+
 	# --- The colour picker.
 	check(Picker.parse_hex("#abc") == "#AABBCC" and Picker.parse_hex("8cc46c") == "#8CC46C", "hex in short and long forms")
 	check(Picker.parse_hex("#12345") == "" and Picker.parse_hex("#GG0000") == "", "not a colour: nothing")

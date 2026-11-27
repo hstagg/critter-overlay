@@ -449,6 +449,47 @@ func _save_file(id: String) -> void:
 	fd.popup_centered_ratio(0.6)
 
 
+# --- Dropping a file (C5) --------------------------------------------------------
+
+static func route(path: String) -> String:
+	# Which importer a dropped file goes to: picture, kit, frames, install,
+	# or "" (with the way still off, or a kind nothing reads).
+	var ext := path.get_extension().to_lower()
+	var to := ""
+	if DirAccess.dir_exists_absolute(path):
+		# A folder of PNG layers, or of numbered frames (0.png, 1.png...).
+		to = "frames" if FileAccess.file_exists(path.path_join("0.png")) else "kit"
+	elif ext in Customs.EXTENSIONS:
+		to = "picture"
+	elif ext in ["svg", "zip", "ora"]:
+		to = "kit"
+	elif ext in ["gif", "apng", "json", "aseprite", "ase"]:
+		to = "frames"
+	elif ext == "critter":
+		to = "install"
+	var way: String = {"picture": "", "kit": "kit", "frames": "frames", "install": "share", "": "-"}[to]
+	return to if way == "" or Customs.way_on(way) else ""
+
+
+func drop(path: String) -> String:
+	# Opens the importer for a dropped file; returns where it went.
+	var to := route(path)
+	match to:
+		"picture":
+			importer.open_file(path)
+		"kit":
+			kit_screen.start()
+			kit_screen.open_file(path)
+		"frames":
+			_later("Bring an animation")
+		"install":
+			install_file(path)
+		_:
+			importer.error = "That kind of file can't be brought in. Use a picture, a drawing with layers or a .critter file."
+			_go("list")
+	return to
+
+
 # --- A critter from someone (G1, G2; design/studio/import/Install.html) -----------
 
 func install_file(path: String) -> void:

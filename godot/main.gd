@@ -214,6 +214,7 @@ var variant_flag := ""        # --variant
 
 func _ready() -> void:
 	win_pool.close_request = close_requested_by_windows
+	win_pool.drop = drop_files
 	add_child(win_pool)
 	presence = Presence.new()
 	if ResourceLoader.exists(ADMIN_SCRIPT):
@@ -1470,9 +1471,20 @@ func _start_import() -> void:
 		settings_win.pages.my.importer.open_file(import_on_start)
 
 
+func drop_files(files: PackedStringArray) -> void:
+	# A file dropped on a critter or on Settings (plan C5): My critters opens
+	# with the importer for its kind (my_critters.gd drop()). Off until the
+	# kit way ships (R1), as dropping is part of it.
+	if files.is_empty() or not Customs.way_on("kit"):
+		return
+	open_settings("my_critters")
+	settings_win.pages.my.drop(files[0])
+
+
 func open_settings(page := "", sp := "") -> void:
 	if settings_win == null:
 		settings_win = SettingsWindow.new()
+		settings_win.files_dropped.connect(drop_files)
 		add_child(settings_win)
 	settings_win.open(self, page, sp)
 

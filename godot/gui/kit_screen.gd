@@ -49,6 +49,7 @@ var my: RefCounted                 # my_critters.gd
 var active := false
 var step := "choose"               # choose | kit
 var plan := "side"
+var plan_set := false              # changed on the kit page: wins over a template's own body
 var path := ""                     # the file being brought in
 var replacing := ""                # a kept critter's id, for Bring in a new version
 var staged := {}                   # kit_import.gd stage()
@@ -72,6 +73,7 @@ func _init(win: Window, owner: RefCounted) -> void:
 func start(id := "") -> void:
 	# From Make a critter (a new kit), or Bring in a new version of `id`.
 	active = true
+	plan_set = false
 	replacing = id
 	step = "choose"
 	error = ""
@@ -216,7 +218,11 @@ func open_file(p: String) -> void:
 
 
 func _restage() -> void:
-	staged = KitImport.stage(path, plan)
+	# A file from a template knows its body; any other drawing takes the one
+	# picked, unless the body was changed on the kit page.
+	staged = KitImport.stage(path, plan if plan_set else "")
+	if staged.error == "" and not plan_set and staged.template == "" and staged.plan != plan:
+		staged = KitImport.stage(path, plan)
 	if staged.error != "":
 		return
 	plan = staged.plan
@@ -309,6 +315,7 @@ func _kit_page(body: VBoxContainer, header: Callable) -> void:
 	var rows := [
 		K.row("Its body", "Picked from your file. Change it if it's wrong.", K.seg(PLANS.map(func(x): return x[1]), PLANS.map(func(x): return x[0]).find(plan), func(i):
 			plan = PLANS[i][0]
+			plan_set = true
 			reload("Brought in again as %s." % PLANS[i][1].to_lower()))),
 		K.row("How it walks", "", K.dropdown(gaits.map(func(g): return str(g).replace("_", " ").capitalize()), maxi(0, gaits.find(gait)), func(i):
 			gait = gaits[i]
