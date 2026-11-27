@@ -168,6 +168,12 @@ func _card(id: String) -> Control:
 		pic.custom_minimum_size = Vector2(CARD.x - 36, 88)
 		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		well.add_child(K.margins(pic, 8, 8, 8, 8))
+	else:
+		# No thumb.png yet (kits and frame critters until their importers'
+		# screens write one): the critter itself, sitting.
+		var view := CritterView.make(id, int(CARD.x - 20), 104, 0.55, "sit")
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(view)
 	if not on:
 		well.modulate.a = 0.45
 	v.add_child(well)

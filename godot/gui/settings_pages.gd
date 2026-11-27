@@ -530,6 +530,11 @@ func _your_own_tile() -> Control:
 		pic.custom_minimum_size = Vector2(40, 40)
 		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		well.add_child(K.margins(pic, 9, 9, 9, 9))
+	elif n > 0:
+		well.add_theme_stylebox_override("panel", K.box(c.track, 29, c.chip_line, 2))
+		var view := CritterView.make(MyCritters.newest(), 54, 54, 0.3)
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(view)
 	else:
 		well.add_theme_stylebox_override("panel", K.box(c.ph_bg, 29, c.dash, 2))
 		well.add_child(UI.icon(Icons.line("plus", 24, c.ph_ink)))
