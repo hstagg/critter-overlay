@@ -26,6 +26,7 @@ const UI := preload("res://gui/ui.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 
 const STAGING := "user://kit_staging"
+const GUIDE := "https://github.com/hstagg/critter-overlay/blob/main/docs/making-critters.md"   # moves with the repo, as settings_pages.gd REPO
 const PLANS := [
 	["side", "Side-on", "Four legs, seen from the side, like the kitten. Trots or hops."],
 	["front", "Faces you", "Sits facing you and walks side-on, like the otter."],
@@ -148,6 +149,8 @@ func _choose_page(body: VBoxContainer, header: Callable) -> void:
 	body.add_child(K.section("Start from a template", K.card([
 		K.row("Get the drawing templates", "One file for each body, with a layer per part and a faint critter to draw over. Works in Inkscape, Krita, Procreate, Photoshop, Affinity and more.",
 			K.button("Get the templates", "bs", "update", true, _save_templates)),
+		K.row("How to make a critter", "The part names, what each missing part costs, and how to save from your app.",
+			K.button("Open the guide", "bq", "arrow", true, func(): OS.shell_open(GUIDE))),
 	])))
 	var pick := K.hbox(10)
 	pick.add_child(K.button("Pick a file", "bp", "plus", true, _pick_file))
