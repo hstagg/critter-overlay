@@ -92,10 +92,40 @@ func _init() -> void:
 		st2.parts[p].svg = s.substr(0, a) + '<g transform="translate(0 -20)">' + s.substr(a, s.rfind("</svg>") - a) + "</g></svg>"
 	for k in st2.pins:
 		st2.pins[k] = [st2.pins[k][0], st2.pins[k][1] - 20]
+	var before: Dictionary = st2.pins.duplicate(true)
 	Import.write(st2, "High", high_dir)
 	var hk = JSON.parse_string(FileAccess.get_file_as_string(high_dir.path_join("kit.json")))
 	var hr := KitData.build(high_dir, hk)
 	check(absf(hr.ground_dy) <= 1.0, "a kit drawn above the line is grounded (%.1f off)" % hr.ground_dy)
+	check(st2.pins == before and hk.pins != before, "grounding leaves the staged pins in the file's frame")
+	Import.write(st2, "High", root.path_join("high2"))
+	var hk2 = JSON.parse_string(FileAccess.get_file_as_string(root.path_join("high2/kit.json")))
+	check(hk2.pins == hk.pins, "so writing it again gives the same kit")
+
+	# --- Joints dragged on the kit page (C4): within 60 units, hips below the neck.
+	var sj := Import.stage(ProjectSettings.globalize_path("res://templates/side-1.svg"))
+	var hip: Vector2 = Import.base_pins(sj)["hip-back"]
+	check(Import.move_pin(sj, "hip-back", hip + Vector2(100, 0)) == hip + Vector2(60, 0), "a joint stops 60 units from where it was")
+	var neck := Import.pin_now(sj, "neck-walk")
+	check(Import.move_pin(sj, "hip-front", Vector2(neck.x, neck.y - 30)).y > neck.y, "a hip stays below the neck")
+	check(Import.move_pin(sj, "neck-walk", neck + Vector2(5, 5)) == neck + Vector2(5, 5) and Import.pin_now(sj, "head") == neck + Vector2(5, 5), "the neck takes the head's pivot with it")
+	var again := Import.stage(ProjectSettings.globalize_path("res://templates/side-1.svg"))
+	Import.with_moved(again, sj.moved)
+	check(Import.pin_now(again, "hip-back") == hip + Vector2(60, 0) and Import.pin_now(again, "neck-walk") == neck + Vector2(5, 5), "laid over the file again after a reload")
+
+	# --- Where's its head? (F1): the adjusted ellipse is kit.json's head, and the rig's.
+	again["head_adj"] = {"dx": 8.0, "dy": -4.0, "kx": 1.25, "ky": 0.9}
+	Import.write(again, "Head", root.path_join("head"))
+	var hj = JSON.parse_string(FileAccess.get_file_as_string(root.path_join("head/kit.json")))
+	var m: Dictionary = again.head_measured
+	check(absf(float(hj.head.cx) - float(m.cx) - 8.0) < 0.01 and absf(float(hj.head.rx) - float(m.rx) * 1.25) < 0.01 and absf(float(hj.head.ry) - float(m.ry) * 0.9) < 0.01,
+		"the adjusted head is stored")
+	check(absf(float(hj.head.eye_y) - float(m.eye_y)) < 0.01, "the eyes stay where they were measured")
+	var hb := KitData.build(root.path_join("head"), hj)
+	check(absf(float(hb.head.cx) - float(hj.head.cx)) < 0.01 and absf(float(hb.head.rx) - float(hj.head.rx)) < 0.01, "and the rig dresses that head")
+	var back_adj := Import.head_adj_between(m, Import.adjusted_head(m, again.head_adj))
+	check(absf(float(back_adj.dx) - 8.0) < 0.01 and absf(float(back_adj.ky) - 0.9) < 0.001, "an adjustment can be worked back from a head")
+	check(absf(float(Import.adjusted_head(m, {"dx": 500.0}).cx) - float(m.cx) - Import.HEAD_ADJ_MOVE) < 0.01, "and it can't run off the head")
 
 	# --- A missing part is named, and nothing is written.
 	var bare := root.path_join("bare.svg")

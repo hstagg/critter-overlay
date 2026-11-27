@@ -7,7 +7,8 @@ extends RefCounted
 ##   - a folder (or zip) with a folder of numbered PNGs per clip (walk/0.png ...);
 ##   - a GIF or an APNG per clip, named by the clip (walk.gif, sit.png ...);
 ##   - Aseprite's JSON with its sheet PNG: each frame tag is a clip;
-##   - stage_sheet(): one sprite sheet cut on a grid, as one clip.
+##   - stage_sheets(): sprite sheets, each cut on a grid into one clip (E3);
+##     stage_sheet() is one of them.
 ## Clip names are matched loosely (walking, idle, sleep ...); any other name
 ## is the player's own move, act-<name>.
 ##
@@ -76,22 +77,50 @@ static func stage(path: String) -> Dictionary:
 
 static func stage_sheet(path: String, clip: String, cols: int, rows: int, count := 0, fps := 8) -> Dictionary:
 	# One clip cut from a sprite sheet on a grid, left to right, top to bottom.
+	return stage_sheets([{"path": path, "clip": clip, "cols": cols, "rows": rows, "count": count, "fps": fps}])
+
+
+static func stage_sheets(sheets: Array) -> Dictionary:
+	# Several sheets, one clip each ({"path", "clip", "cols", "rows",
+	# "count" (0: every cell), "fps"}), fitted and grounded together so the
+	# moves share one size.
+	var raw := {}
+	var fps := {}
+	for sh in sheets:
+		var clip := clip_name(str(sh.get("clip", "walk")))
+		if raw.has(clip):
+			return _fail("Two sheets are both %s: give each its own move." % clip.trim_prefix("act-"))
+		var cut = cut_sheet(str(sh.get("path", "")), int(sh.get("cols", 1)), int(sh.get("rows", 1)), int(sh.get("count", 0)))
+		if typeof(cut) == TYPE_STRING:
+			return _fail("%s: %s" % [str(sh.get("path", "")).get_file(), cut])
+		raw[clip] = cut
+		fps[clip] = clampi(int(sh.get("fps", 8)), 1, 30)
+	return _finish(raw, fps)
+
+
+static func sheet_size(path: String) -> Vector2i:
+	# A PNG's size from its header, or (-1, -1).
+	return Raster.png_size(FileAccess.get_file_as_bytes(path))
+
+
+static func cut_sheet(path: String, cols: int, rows: int, count := 0) -> Variant:
+	# The cells of a sheet, left to right, top to bottom ([Image]), or why not (String).
 	var bytes := FileAccess.get_file_as_bytes(path)
 	var size := Raster.png_size(bytes)
 	if size.x < 0 or size.x > Raster.MAX_SIDE or size.y > Raster.MAX_SIDE:
-		return _fail("Use a PNG sheet up to 4096 px a side.")
+		return "Use a PNG sheet up to 4096 px a side."
 	if cols < 1 or rows < 1 or size.x % cols != 0 or size.y % rows != 0:
-		return _fail("A %d x %d sheet doesn't split into %d columns and %d rows evenly." % [size.x, size.y, cols, rows])
+		return "A %d x %d sheet doesn't split into %d columns and %d rows evenly." % [size.x, size.y, cols, rows]
 	var img := Image.new()
 	if img.load_png_from_buffer(bytes) != OK:
-		return _fail("That sheet can't be read.")
+		return "That sheet can't be read."
 	img.convert(Image.FORMAT_RGBA8)
 	var cell := Vector2i(size.x / cols, size.y / rows)
 	var n := mini(count if count > 0 else cols * rows, mini(cols * rows, MAX_FRAMES))
 	var frames := []
 	for i in n:
 		frames.append(img.get_region(Rect2i(Vector2i(i % cols, i / cols) * cell, cell)))
-	return _finish({clip_name(clip): frames}, {clip_name(clip): fps})
+	return frames
 
 
 static func _fail(why: String) -> Dictionary:

@@ -550,6 +550,17 @@ static func build(folder: String, kit: Dictionary, size := 1.0, speed := 1.0) ->
 	# Head metrics for clothes (F1, P15), in the head drawing's own frame.
 	var head_img: Image = imgs.get("head", imgs.get("body"))
 	r["head"] = head_metrics(head_img, imgs.get("eyes"))
+	# kit.json "head" when there is one: the importer's (C4, F1) measure,
+	# perhaps moved and sized by the player in Where's its head?.
+	var stored = kit.get("head")
+	if typeof(stored) == TYPE_DICTIONARY:
+		for k in r.head:
+			if typeof(stored.get(k)) in [TYPE_INT, TYPE_FLOAT]:
+				r.head[k] = float(stored[k])
+		r.head.rx = clampf(r.head.rx, 8.0, 200.0)
+		r.head.ry = clampf(r.head.ry, 8.0, 200.0)
+		r.head.cx = clampf(r.head.cx, 0.0, FRAME.x)
+		r.head.cy = clampf(r.head.cy, 0.0, FRAME.y)
 	if front and imgs.has("head-side"):
 		var side := head_metrics(imgs["head-side"], imgs.get("eye-side"))
 		var crown_f := Vector2(r.head.cx, r.head.top)
