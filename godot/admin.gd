@@ -304,6 +304,8 @@ func run(action: String, chosen := "kitten") -> void:
 			frame_marks_test()
 		"imp_sheet":
 			sprite_sheet_test()
+		"studio_tips":
+			studio_tips_again()
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------
@@ -1019,3 +1021,19 @@ func sprite_sheet_test() -> void:
 	fs.set_sheet(0, "rows", 2)
 	fs.set_sheet(0, "count", 7)
 	fs.add_sheet(path, "act-wave")
+# --- The Critter Studio (D7) ---------------------------------------------------------------
+
+func studio_tips_again() -> void:
+	# D7: settings.gd's studio.tips_seen back to false, and the first tip
+	# shown: in the Studio as it is, or on the round cat if it isn't open.
+	main.settings.set_value("studio.tips_seen", false)
+	var st: Window = main.studio_win
+	if st == null or not st.visible or st.starting:
+		var cat: Dictionary = load("res://gui/studio/start_page.gd").starter("round-cat")
+		if cat.is_empty():
+			return
+		main.open_studio(cat.doc)
+		st = main.studio_win
+	st.tip_i = -1
+	st.build()
+	main.toasts.show_note(Icons.berry(40), "Admin", "Studio tips again", "The three tips show once more: Next tip, then Got it. Close and reopen the Studio: they don't come back.")

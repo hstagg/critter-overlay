@@ -64,6 +64,7 @@ const DEFAULTS := {
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
 	},
+	"studio": {"tips_seen": false},   # the Critter Studio's first-time tips (gui/studio/help.gd)
 }
 
 const SaveFile := preload("res://save_file.gd")

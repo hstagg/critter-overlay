@@ -303,13 +303,23 @@ func _row(r: Dictionary) -> Control:
 				var from: String = r.from
 				var part: String = r.part
 				var b := K.button("Draw this pose", "bs", "", true, func(): st.draw_pose(part, from))
+				b.tooltip_text = "Start this pose from a copy of the %s" % part_name(st.doc.plan, from).to_lower()
 				b.custom_minimum_size.y = 26
 				b.add_theme_font_size_override("font_size", 12)
 				b.focus_mode = Control.FOCUS_NONE
 				b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				h.add_child(b)
-	if r.kind == "auto":
-		row.tooltip_text = r.note
+	match r.kind:
+		"auto":
+			row.tooltip_text = "%s. Click to draw your own." % r.note
+		"missing":
+			row.tooltip_text = "Every critter needs this. Click to draw it."
+		"empty":
+			row.tooltip_text = "%s. Click to draw it." % r.note
+		"more":
+			row.tooltip_text = "Show every extra part"
+		_:
+			row.tooltip_text = "Click to draw on the %s" % str(r.label).to_lower()
 	var part_id: String = r.get("part", "")
 	row.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:

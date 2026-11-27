@@ -147,6 +147,7 @@ func checks() -> Array:
 		["Homemade critters", "imp_head", "Where's its head? moves and sizes the hat's ellipse", "Run: the side-on template with clothes on: Where's its head? shows the head with the dashed ellipse moved up and wider, a beanie on it, and Fit again offered. By hand: drag inside the ellipse to move it and the handles to size it; the hat follows; Beanie, Bow and Glasses each sit on it. Keep, then dress the kept critter in a beanie in the Shop: it sits where the ellipse was.", "imp_head"],
 		["Homemade critters", "imp_marks", "Frame head marks follow the head between frames", "Run: the pixel cat on Bring an animation with walk frames 1 and 3 and sit frame 1 marked: Where's its head? opens on walk frame 2, the circle dashed (following along), and the stepper steps through all four; frames 1 and 3 are solid; Walk and Sit say head marked, Wave and Blink say shows no clothes. By hand: drag the circle and its handle on a frame (it becomes marked), Unmark, Clear marks. Keep, then dress it in the Shop: the hat bobs with the marks.", "imp_marks"],
 		["Homemade critters", "imp_sheet", "A sprite sheet is cut into moves", "Run: a 4 x 2 sheet with seven frames on Bring an animation, cut into the walk (Columns 4, Rows 2, Frames 7), and the same sheet again as Wave: the critter walks with seven frames and Its moves lists Walk and Wave. By hand: Cut a sprite sheet on the Choose step, change Columns to 7 (it says the sheet doesn't split evenly and keeps the sheets), Add another sheet, Remove, and Keep; Change frames opens the sheets again.", "imp_sheet"],
+		["Homemade critters", "studio_help", "Studio: every tool has a tooltip, ? lists the shortcuts, the tips show once", "Run: the first-time tips come back. In the Studio: Pick a part, then a shape (1 of 3) sits by the tool rail; put a shape down and Move, resize, turn (2 of 3) follows; Next tip, then Watch it as you go (3 of 3) by the preview; Got it. Close the Studio and open it again: no tips. Hover every tool, button and chip: each says what it does, the tools and commands with their key. ? (or the ? button, or F1) opens Shortcuts with every key; ? or Esc closes it. Pick an empty part (the tail): a card offers two or three shapes and puts one where the part goes; Skip hides it. On a blank start, Save looks off, says which parts are missing, and a click lists them, each opening its part. studio_test.gd checks the tooltips, the keys against the panel and the tips against studio.tips_seen.", "studio_tips"],
 	]
 	return out
 
@@ -309,7 +310,8 @@ func _events_card() -> Control:
 			["Spawn every starter", func(): A().studio_starters()], ["Save the test critter", func(): A().studio_save()],
 			["Edit and save the test critter", func(): A().studio_edit()],
 			["Drag the test template's joints", func(): A().kit_joints_test()], ["Adjust the test template's head", func(): A().kit_head_test()],
-			["Mark the pixel cat's head", func(): A().frame_marks_test()], ["Cut the test sprite sheet", func(): A().sprite_sheet_test()]]:
+			["Mark the pixel cat's head", func(): A().frame_marks_test()], ["Cut the test sprite sheet", func(): A().sprite_sheet_test()],
+			["Show the Studio tips again", func(): A().studio_tips_again()]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
 	return _panel(v)

@@ -1749,7 +1749,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | D4 | Colour and style | code done 2026-11-27 (`gui/studio/style_panel.gd`; the tri corner radius fixed in `shapes.gd`); recolouring by hand on the VM is still to do |
 | D5 | Starters | code done 2026-11-27 (`studio/starters/*.json`, the Start page `gui/studio/start_page.gd`); its done-when (all eight walk on the VM) is still to do |
 | D6 | Preview, pins and save | code done 2026-11-27 (`gui/studio/preview.gd`, `pins_panel.gd`, `save_panel.gd`); its done-when (a changed round cat arrives, is edited and updates on screen, on the VM) is still to do |
-| D7 | Usability pass | not started |
+| D7 | Usability pass | code done 2026-11-27 (`gui/studio/help.gd`); walk-through on the VM to do |
 | R2 | **Release 3.4.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
 | E2 | Frame formats | done 2026-11-24 |
@@ -2224,3 +2224,39 @@ step left needs the developer, or a design that needs them:
   Left for the VM: dragging the dots and the ellipse by hand, the hat
   sitting on the ellipse, the frame stepper and circle, the Kit and Frames
   pages' layout at 100% and 150%, and C4's and E3's done-whens.
+- 2026-11-27: D7's code done; the developer's walk-through on the VM is
+  still to do. New `gui/studio/help.gd`, used by `studio_window.gd`:
+  **tooltips** on every button, the tools and commands with their key (the
+  preview's and the pins panel's buttons get theirs from `BUTTON_TIPS` as
+  they are added, so those files are unchanged), and on every layer row;
+  the **? panel** (the ? button, ? or F1; ? or Esc closes it) drawn from
+  `SHORTCUTS`, the one list of keys, in Builder.html's three groups, with
+  the keys D3 bound that the design left out (Ctrl+A, Ctrl+Shift+Z,
+  Backspace, Esc); the **three first-time tips** from Empty.html (by the
+  rail, over the canvas once a shape is down, by the preview), Skip tips or
+  Got it, shown once: `settings.gd` DEFAULTS gains `studio.tips_seen`
+  (false), set when they are finished, skipped or the Studio is left; a
+  **hint card** on every empty part ("Add a shape to draw the tail") with
+  one to three shapes that suit it, each put where the starter of the same
+  body plan has that part, and Skip; and **Save with parts missing**: Save
+  looks off, its tooltip names the parts, and a click (or Ctrl+S) opens
+  Empty.html's card listing them, each opening its part. From reading the
+  flows as a new player (a starter, recolour, a tail, pins, save, edit,
+  save), fixed: the leave prompt's *Save and go back* was off with no
+  reason (it now names the parts), renaming in the top bar didn't count as
+  a change, Esc left the Studio while a tip was up (it now skips the tips),
+  a shape tool did nothing in Pins mode (it goes back to Shapes with it),
+  Ctrl+Shift with any letter did what Ctrl did (only Ctrl+Shift+Z is
+  bound now), the empty-part line said "empty: pick a shape and click to
+  add one" (now "no shapes yet", with the card), and a faces-you
+  critter's eyes card says the twin comes free. Admin: Show the Studio
+  tips again, and the audit row "Studio: every tool has a tooltip, ? lists
+  the shortcuts, the tips show once". `studio_test.gd` checks every button
+  has a tooltip (Shapes and Pins mode), every key `key()` answers to is in
+  the ? panel, the tips against `studio.tips_seen`, the hint cards and the
+  missing-parts card. Questions for the walk-through: the Save dialog says
+  everything can be changed later in My critters (is the gait?); Esc with
+  nothing picked still leaves the Studio (asking first with changes);
+  the save toast's "Click it to say hello" when a click pops it; whether
+  the tips should wait for the Start page's choice (they show on the
+  Builder only); and the hint card's shapes and wording per part.
