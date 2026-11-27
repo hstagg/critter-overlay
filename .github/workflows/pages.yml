@@ -1,0 +1,55 @@
+# Publishes the landing site (site/) to GitHub Pages:
+# https://hstagg.github.io/critter-overlay/
+# Only site/ is published; docs/ (the internal plans) never is. Before
+# uploading it runs the site checks and zips the press kit's media into
+# press/critter-overlay-press-kit.zip, so the zip is never stored in git.
+# Needs Pages turned on in the repo settings with Source: GitHub Actions.
+
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "tools/site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Site checks
+        run: python3 tools/site/site.py check
+
+      - name: Press kit zip
+        run: |
+          cd site/press
+          mkdir -p "$RUNNER_TEMP/kit/critter-overlay-press-kit"
+          cp -r media/. "$RUNNER_TEMP/kit/critter-overlay-press-kit/"
+          cp ../media/hero.mp4 "$RUNNER_TEMP/kit/critter-overlay-press-kit/clips/kittens-spreadsheet.mp4"
+          (cd "$RUNNER_TEMP/kit" && zip -r -q -X kit.zip critter-overlay-press-kit -x '*-640.webp' '*-poster.jpg')
+          mv "$RUNNER_TEMP/kit/kit.zip" critter-overlay-press-kit.zip
+          ls -l critter-overlay-press-kit.zip
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

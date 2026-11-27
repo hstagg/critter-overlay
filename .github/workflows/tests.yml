@@ -5,7 +5,8 @@
 # the player build's pack and checks the Admin page is not in it, and compiles
 # the installer (against stand-in files) so a broken script shows here, not at
 # release time. It also runs the posting tool's Python tests (tools/post),
-# which replace the network, so nothing is ever sent.
+# which replace the network, so nothing is ever sent, and the landing site's
+# checks (tools/site/site.py check: tags, links, wording).
 
 name: Tests
 
@@ -44,6 +45,10 @@ jobs:
       - name: Posting tool tests
         shell: pwsh
         run: python -m unittest tools/post/test_post.py
+
+      - name: Site checks
+        shell: pwsh
+        run: python tools/site/site.py check
 
       - name: Cache Godot
         id: cache
