@@ -4,7 +4,8 @@
 # needs the native DLL, which is built with godot-cpp and SCons. Then exports
 # the player build's pack and checks the Admin page is not in it, and compiles
 # the installer (against stand-in files) so a broken script shows here, not at
-# release time.
+# release time. It also runs the posting tool's Python tests (tools/post),
+# which replace the network, so nothing is ever sent.
 
 name: Tests
 
@@ -37,6 +38,10 @@ jobs:
           $hits = git grep -l -E -e "-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----"
           if ($LASTEXITCODE -eq 0) { throw "A tracked file holds a private key: $($hits -join ', ')" }
           if ($LASTEXITCODE -gt 1) { throw "git grep failed ($LASTEXITCODE)" }
+
+      - name: Posting tool tests
+        shell: pwsh
+        run: python -m unittest tools/post/test_post.py
 
       - name: Cache Godot
         id: cache

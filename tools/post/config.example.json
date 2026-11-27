@@ -1,15 +1,10 @@
 {
-  "queue": "C:/path/to/Post Queue",
-  "slot": "18:00",
-  "every_days": 2,
   "live": [],
-  "front": {},
-  "summary_key": "",
-  "graph_version": "v23.0",
-  "tiktok": {
-    "client_key": "",
-    "client_secret": "",
-    "port": 8765
+  "zernio": {
+    "api_key": "",
+    "accounts": {},
+    "tiktok": {},
+    "instagram": {}
   },
   "google": {
     "client_file": "C:/path/to/google-client.json",
