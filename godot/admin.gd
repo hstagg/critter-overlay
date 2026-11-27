@@ -296,6 +296,8 @@ func run(action: String, chosen := "kitten") -> void:
 			studio_save()
 		"studio_edit":
 			studio_edit()
+		"studio_tips":
+			studio_tips_again()
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------
@@ -937,3 +939,21 @@ func studio_edit() -> void:
 	sp.send = false
 	sp.press_keep()
 	main.toasts.show_note(Icons.berry(40), "Admin", "Edited and saved", "The test critter is now %s: the ones on the desk should change to it." % next)
+
+
+# --- The Critter Studio (D7) ---------------------------------------------------------------
+
+func studio_tips_again() -> void:
+	# D7: settings.gd's studio.tips_seen back to false, and the first tip
+	# shown: in the Studio as it is, or on the round cat if it isn't open.
+	main.settings.set_value("studio.tips_seen", false)
+	var st: Window = main.studio_win
+	if st == null or not st.visible or st.starting:
+		var cat: Dictionary = load("res://gui/studio/start_page.gd").starter("round-cat")
+		if cat.is_empty():
+			return
+		main.open_studio(cat.doc)
+		st = main.studio_win
+	st.tip_i = -1
+	st.build()
+	main.toasts.show_note(Icons.berry(40), "Admin", "Studio tips again", "The three tips show once more: Next tip, then Got it. Close and reopen the Studio: they don't come back.")

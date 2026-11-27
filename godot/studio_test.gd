@@ -5,7 +5,11 @@ extends SceneTree
 ## rows (gui/studio/layers_panel.gd), the window's size on small screens,
 ## the scripted test critter (fixtures.gd studio_steps) matching
 ## test_data/studio/test_critter.json, and the window itself, built and
-## drawn headless (nothing opens).
+## drawn headless (nothing opens). D7: every button in the window has a
+## tooltip (the tools with their keys), the ? panel lists every key the
+## window answers to, the first-time tips show only while settings.gd's
+## studio.tips_seen is false, an empty part's hint card, and Save with parts
+## missing naming them.
 ## Run: godot --headless --path godot --script res://studio_test.gd
 
 const Tools := preload("res://gui/studio/tools.gd")
@@ -15,7 +19,13 @@ const Shapes := preload("res://studio/shapes.gd")
 const Writer := preload("res://studio/shape_svg.gd")
 const KitData := preload("res://critters/kit/kit_data.gd")
 const Fixtures := preload("res://critters/kit/fixtures.gd")
+const Help := preload("res://gui/studio/help.gd")
+const StartPage := preload("res://gui/studio/start_page.gd")
 const STORED := "res://test_data/studio/test_critter.json"
+
+
+class FakeMain extends Node:
+	var settings: Node
 
 var fails := 0
 var checks := 0
@@ -49,6 +59,7 @@ func _init() -> void:
 	_layers()
 	_window()
 	_script()
+	_help_data()
 	# The window needs the tree running, and a few frames to draw.
 	process_frame.connect(_frame)
 
@@ -56,13 +67,23 @@ func _init() -> void:
 var frame := 0
 var drawn := 0
 var studio: Window
+var helpw: Window
+var fake: FakeMain
 
 
 func _frame() -> void:
 	frame += 1
 	if frame == 1:
 		_gui()
+		_help()
+	elif frame == 3:
+		_tooltips()
 	elif frame == 4:
+		var none := _untipped(helpw)
+		check(none.is_empty(), "in Pins mode too (not: %s)" % [none])
+		helpw.queue_free()
+		fake.settings.free()
+		fake.free()
 		check(drawn > 0, "the canvas draws, with a selection and the guide, without an error (%d)" % drawn)
 		studio.queue_free()
 		print("STUDIO TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
@@ -359,6 +380,150 @@ func _gui() -> void:
 	w.canvas.draw.connect(func(): drawn += 1)
 
 
+func _help_data() -> void:
+	# The hint cards: every part of every plan has one, with 1 to 3 shapes.
+	var bad := []
+	for plan in LP.LAYOUT:
+		var doc := Tools.blank(plan)
+		for g in LP.LAYOUT[plan]:
+			for part in g[2]:
+				var h := Help.hint_for(doc, part)
+				var ok: bool = h.text != "" and str(h.title).begins_with("Add a shape to draw") and h.shapes.size() >= 1 and h.shapes.size() <= 3
+				if not ok or not h.shapes.all(func(t): return t in Shapes.TYPES):
+					bad.append("%s %s" % [plan, part])
+	check(bad.is_empty(), "every part has a hint card with 1 to 3 shapes (%s)" % [bad])
+	var tail := Help.hint_for(Tools.blank("side"), "tail")
+	check(tail.title == "Add a shape to draw the tail" and tail.shapes.size() >= 2, "the tail's card offers two or more shapes (%s)" % [tail.shapes])
+	check(str(Help.hint_for(Tools.blank("side"), "leg-front-far").title).contains("your own"), "an automatic part's card says it's made for you")
+	var head := Help.hint_for(Tools.blank("side"), "head")
+	check(head.at != Vector2(150, 170), "a part goes where the round cat has it (%s)" % head.at)
+	# The tool rail's keys are the ? panel's.
+	var SW = load("res://gui/studio/studio_window.gd")
+	var listed := Help.listed()
+	for t in SW.TOOLS:
+		if not t.is_empty() and t[2] != "":
+			check(t[2] in listed, "the %s tool's key %s is in the ? panel" % [t[1], t[2]])
+
+
+func _help() -> void:
+	# A second window with settings of its own (never saved: not in the tree).
+	var w: Window = load("res://gui/studio/studio_window.gd").new()
+	helpw = w
+	root.add_child(w)
+	fake = FakeMain.new()
+	fake.settings = load("res://settings.gd").new()
+	fake.settings.path = "user://studio_test_settings.json"
+	w.main = fake
+	check(fake.settings.value("studio.tips_seen") == false, "studio.tips_seen starts false")
+	# The tips: once, then never again until the key is reset.
+	w.load_doc({})
+	w.build()
+	check(w.tip_i == 0 and w._tip_box != null, "a first visit shows the first tip")
+	w.place("ellipse", Vector2(160, 200))
+	check(w.tip_i == 1, "putting a shape down moves on to the second tip")
+	w.next_tip()
+	check(w.tip_i == 2 and w._tip_box != null, "Next tip shows the third")
+	w.next_tip()
+	check(w.tip_i == -1 and w._tip_box == null and fake.settings.value("studio.tips_seen") == true, "Got it closes them and remembers")
+	w.build()
+	check(w.tip_i == -1 and w._tip_box == null, "with the key true, the tips don't show again")
+	fake.settings.set_value("studio.tips_seen", false)
+	w.load_doc({})
+	w.build()
+	check(w.tip_i == 0, "with the key false again, they show again")
+	w.key(_key(KEY_ESCAPE))
+	check(w.tip_i == -1 and not w.doc.is_empty() and fake.settings.value("studio.tips_seen") == true, "Esc skips the tips (and doesn't leave)")
+	# The hint card on an empty part.
+	w.pick_part("tail")
+	check(not w.hint_now.is_empty() and w._hint_box != null and w.hint_now.shapes.size() >= 2, "an empty tail shows its hint card")
+	w.use_hint(w.hint_now.shapes[0])
+	check(Tools.layer(w.doc, "tail").size() == 1 and w.hint_now.is_empty(), "a shape from the card draws the tail and the card goes")
+	w.pick_part("nose")
+	w.skip_hint()
+	check(w.hint_now.is_empty() and Tools.layer(w.doc, "nose").is_empty(), "Skip hides the card")
+	# Save with parts missing says which.
+	w.open_save()
+	var said := _texts(w.overlay)
+	var need := LP.needed(w.doc)
+	var named := need.all(func(p): return said.contains(LP.part_name(w.doc.plan, p)))
+	check(w.overlay_kind == "missing" and named and said.contains("more parts and it can walk"), "Save with parts missing names them (%s)" % said.left(160))
+	w.close_overlay()
+	# ? lists every key the window answers to.
+	var cat := StartPage.starter("round-cat")
+	w.load_doc(cat.doc)
+	w.build()
+	w.key(_key(KEY_SLASH, false, true, 63))
+	said = _texts(w.overlay)
+	var rows_ok := true
+	for g in Help.SHORTCUTS:
+		for row in g[1]:
+			rows_ok = rows_ok and said.contains(row[0])
+	check(w.overlay_kind == "keys" and rows_ok, "? opens the shortcuts, with every row")
+	w.key(_key(KEY_SLASH, false, true, 63))
+	check(w.overlay == null, "and ? closes it")
+	w.set_view_mode("pins")
+	w.set_tool("ellipse")
+	check(w.view_mode == "shapes" and w.tool == "ellipse", "a shape tool in Pins mode goes back to Shapes with it")
+	var listed := Help.listed()
+	var unlisted := []
+	var probe: Array = [KEY_DELETE, KEY_BACKSPACE, KEY_PAGEUP, KEY_PAGEDOWN, KEY_ESCAPE, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+		KEY_F1, KEY_HOME, KEY_END, KEY_TAB, KEY_ENTER, KEY_INSERT, KEY_SPACE]
+	for k in range(KEY_A, KEY_Z + 1):
+		probe.append(k)
+	for k in range(KEY_0, KEY_9 + 1):
+		probe.append(k)
+	for k in probe:
+		for mods in [[false, false], [true, false], [true, true]]:
+			if w.doc.is_empty() or w.canvas == null:
+				w.load_doc(cat.doc)
+				w.build()
+			w.close_overlay()
+			if w.view_mode != "shapes":
+				w.set_view_mode("shapes")
+			var e := _key(k, mods[0], mods[1])
+			if w.key(e) and not Help.key_name(e) in listed:
+				unlisted.append(Help.key_name(e))
+	check(unlisted.is_empty(), "every key the Studio answers to is in the ? panel (not listed: %s)" % [unlisted])
+	w.load_doc(cat.doc)
+	w.build()
+
+
+func _tooltips() -> void:
+	# Every button in the window (no dialog open) has a tooltip; a tool's
+	# names its key.
+	var w := helpw
+	var none := _untipped(w)
+	check(none.is_empty(), "every button in the Studio has a tooltip (not: %s)" % [none])
+	for b in w._rail.get_children():
+		if b is Button:
+			var tip := (b as Button).tooltip_text
+			check(tip.contains("(") or tip.begins_with("Pan"), "a tool's tooltip names its key (%s)" % tip)
+	w.set_view_mode("pins")
+
+
+func _untipped(n: Node) -> Array:
+	var out := []
+	for ch in n.get_children():
+		if ch.is_queued_for_deletion():
+			continue
+		if ch is BaseButton and (ch as BaseButton).tooltip_text == "":
+			out.append(str((ch as Button).text) if ch is Button else ch.get_class())
+		out.append_array(_untipped(ch))
+	return out
+
+
+func _texts(n: Node) -> String:
+	# Every label's text under n, joined.
+	if n == null:
+		return ""
+	var out := ""
+	if n is Label:
+		out += (n as Label).text + " | "
+	for ch in n.get_children():
+		out += _texts(ch)
+	return out
+
+
 func _click(at: Vector2, down: bool) -> InputEventMouseButton:
 	var e := InputEventMouseButton.new()
 	e.position = at
@@ -367,9 +532,10 @@ func _click(at: Vector2, down: bool) -> InputEventMouseButton:
 	return e
 
 
-func _key(k: Key, ctrl := false, shift := false) -> InputEventKey:
+func _key(k: Key, ctrl := false, shift := false, uni := 0) -> InputEventKey:
 	var e := InputEventKey.new()
 	e.keycode = k
+	e.unicode = uni
 	e.pressed = true
 	e.ctrl_pressed = ctrl
 	e.shift_pressed = shift

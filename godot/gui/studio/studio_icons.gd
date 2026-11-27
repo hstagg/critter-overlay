@@ -30,6 +30,7 @@ const LINE := {
 	"max": '<rect x="6" y="6" width="12" height="12" rx="2"/>',
 	"snap": '<path d="M4 18h16"/><path d="M12 4v9M8.5 9.5L12 13l3.5-3.5"/>',
 	"sym": '<path d="M12 3.5v17" stroke-dasharray="2 2.5"/><path d="M9 8c-3 0-5 2-5 4s2 4 5 4zM15 8c3 0 5 2 5 4s-2 4-5 4z"/>',
+	"help": '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2.2-2.4 3.7"/><circle cx="12" cy="16.9" r=".6" fill="currentColor"/>',
 	"grip": '<path d="M19 13l-6 6M19 17l-2 2M19 9l-10 10"/>',
 }
 

@@ -143,6 +143,7 @@ func checks() -> Array:
 		["Homemade critters", "studio_starters", "Every starter saves as a kit that walks", "Run: the eight starters are each saved as Keep would and sent out: the round cat and floppy dog trot, the bear plods and the round mouse scurries (each sits facing you, then walks side-on with its front face), the chick and penguin waddle, the slime bounces and the ghost floats. Each sits, naps (its automatic nap), blinks and pops. By hand: open the Studio with nothing to build: the Start page shows the eight with their pictures and the four blank bodies; each opens the Builder. starters_test.gd checks each saves and loads.", "studio_starters"],
 		["Homemade critters", "studio_builder", "Builder critter arrives, walks, naps and blinks", "Run: the test critter is saved through the Studio's Save (Keep) and walks on, with a toast; a second one arrives asleep. Then by hand in the Studio: recolour a shape (the picker, In this critter, Used lately), Outline and Marking, Blush, the four eyes; the preview follows within a second and Walk, Sit, Nap, Blink and Look around work. Pins (P): drag the back hip; it stops at its dashed box; the preview's leg swings from there; Put every pin back. My critters (or close) with changes asks first.", "studio_save"],
 		["Homemade critters", "studio_edit", "Edit then save updates the critter on screen", "Run: the test critter (saved first if needed) is opened from its shapes.json, its body recoloured and saved over: the ones on the desk fade and come back in the new colour, and its card in My critters shows it. By hand: My critters > the critter > Edit shapes opens the Studio on it; change it, Save; Changed since you saved goes.", "studio_edit"],
+		["Homemade critters", "studio_help", "Studio: every tool has a tooltip, ? lists the shortcuts, the tips show once", "Run: the first-time tips come back. In the Studio: Pick a part, then a shape (1 of 3) sits by the tool rail; put a shape down and Move, resize, turn (2 of 3) follows; Next tip, then Watch it as you go (3 of 3) by the preview; Got it. Close the Studio and open it again: no tips. Hover every tool, button and chip: each says what it does, the tools and commands with their key. ? (or the ? button, or F1) opens Shortcuts with every key; ? or Esc closes it. Pick an empty part (the tail): a card offers two or three shapes and puts one where the part goes; Skip hides it. On a blank start, Save looks off, says which parts are missing, and a click lists them, each opening its part. studio_test.gd checks the tooltips, the keys against the panel and the tips against studio.tips_seen.", "studio_tips"],
 	]
 	return out
 
@@ -303,7 +304,7 @@ func _events_card() -> Control:
 			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite],
 			["Open the Studio", func(): A().studio_open()], ["Build the test critter by script", func(): A().studio_script()],
 			["Spawn every starter", func(): A().studio_starters()], ["Save the test critter", func(): A().studio_save()],
-			["Edit and save the test critter", func(): A().studio_edit()]]:
+			["Edit and save the test critter", func(): A().studio_edit()], ["Show the Studio tips again", func(): A().studio_tips_again()]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
 	return _panel(v)
