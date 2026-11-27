@@ -45,12 +45,14 @@ var share_note := ""               # what the last Copy code or Save as a file d
 var staged := {}                   # a critter from someone, before Install (share.gd stage_install)
 const STAGING := "user://custom_staging"
 var importer: RefCounted           # importer.gd
+var kit_screen: RefCounted         # kit_screen.gd: Draw in your own app
 
 
 func _init(win: Window) -> void:
 	w = win
 	importer = Importer.new()
 	importer.w = win
+	kit_screen = load("res://gui/kit_screen.gd").new(win, self)
 
 
 static func badge(d: Dictionary) -> String:
@@ -95,7 +97,9 @@ func build(body: VBoxContainer, header: Callable) -> void:
 			"Take the background out, give it a name and pick which way it faces. Nothing is kept until you press %s." % ("Keep" if editing_new else "Save"))
 		body.add_child(importer.editor())
 		return
-	if view == "install" and not staged.is_empty():
+	if kit_screen.active:
+		kit_screen.build(body, header)
+	elif view == "install" and not staged.is_empty():
 		_install(body)
 	elif view == "detail" and Customs.all.has(selected):
 		_detail(body)
@@ -386,6 +390,8 @@ func _pick_sound(id: String) -> void:
 func _edit(id: String) -> void:
 	if badge(Customs.all[id]) == "Picture":
 		importer.edit(id)
+	elif badge(Customs.all[id]) == "Drawn" and Customs.way_on("kit"):
+		kit_screen.start(id)
 	else:
 		_later(WORDS[badge(Customs.all[id])][0])
 
@@ -650,7 +656,7 @@ func _make(body: VBoxContainer, header: Callable, first: bool) -> void:
 	var ways := []
 	if Customs.way_on("kit"):
 		ways.append(["Draw in your own app", "Get a template, draw each body part on its own layer, then bring the file back.",
-			["Procreate, Krita, Photoshop and more", "Walks, sits and naps"], "Get started", func(): _later("Draw in your own app")])
+			["Procreate, Krita, Photoshop and more", "Walks, sits and naps"], "Get started", func(): kit_screen.start()])
 	if Customs.way_on("frames"):
 		ways.append(["Bring an animation", "A GIF, an animated PNG or a folder of frames. It plays exactly as you drew it.",
 			["Plays your frames", "Pixel art welcome"], "Pick a file", func(): _later("Bring an animation")])

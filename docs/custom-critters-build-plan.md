@@ -1739,7 +1739,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
-| C4 | Kit importer | engine done 2026-11-24; screens wait for C0 |
+| C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`); still to do: dragging the joints, naming an unrecognised layer, Where's its head?, and the VM check |
 | C5 | Drop a file to import | not started |
 | R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
@@ -2053,3 +2053,15 @@ step left needs the developer, or a design that needs them:
   the store until Install or Add, a taken name becomes "<name> 2". A code's
   critter stays from "shapes" with `"friend": true`, so its badge is Shapes
   and its card says From a friend.
+- 2026-11-27: C4's screens, first pass (`gui/kit_screen.gd`, to C0's
+  Choose and Kit pages). Draw in your own app: the body picker, Get the
+  templates (all four, opened in Explorer), Pick a file or a folder; then
+  the kit page with the critter walking from a staging folder, What it can
+  do (`check_lines()`: found, needed, what each missing optional part costs
+  from `Customs.NEEDS`, taken out, not recognised), body, gait, size, sound,
+  the name and Keep (off, with the reason, while a needed part is missing).
+  The file is checked every 2 s and brought in again when it changes;
+  `source.json` remembers it, so a Drawn critter's Bring in a new version
+  reopens it and Save replaces its drawing in place (rev bumped). Left for a
+  second pass: dragging the joints (pins come from the file or the template),
+  giving an unrecognised layer a part name, and Where's its head?.
