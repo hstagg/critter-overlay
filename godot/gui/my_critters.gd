@@ -20,6 +20,7 @@ const UI := preload("res://gui/ui.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 const Importer := preload("res://gui/importer.gd")
 const FrameData := preload("res://critters/kit/frame_data.gd")
+const Share := preload("res://share.gd")
 
 # Each kind's words, everywhere (A0): badge, Edit button, the detail's line.
 const WORDS := {
@@ -39,6 +40,8 @@ var w: Window                      # settings_window.gd
 var view := "list"                 # list | make | detail
 var filter := "All"                # All or a badge
 var selected := ""                 # the critter the detail view shows
+var sharing := false               # the detail view's Share card is open
+var share_note := ""               # what the last Copy code or Save as a file did
 var importer: RefCounted           # importer.gd
 
 
@@ -77,6 +80,8 @@ func open(which := "list", id := "") -> void:
 func _go(which: String, id := "") -> void:
 	view = which
 	selected = id
+	sharing = false
+	share_note = ""
 	w.rebuild(false)
 
 
@@ -290,7 +295,10 @@ func _detail(body: VBoxContainer) -> void:
 	var actions := K.hbox(10)
 	actions.add_child(K.button(WORDS[b][0], "bp", "", true, func(): _edit(id)))
 	if Customs.way_on("share"):
-		actions.add_child(K.button("Share", "bs", "", true, func(): _later("Share")))
+		actions.add_child(K.button("Share", "bs", "", true, func():
+			sharing = not sharing
+			share_note = ""
+			w.rebuild()))
 	actions.add_child(K.button("Make a copy", "bs", "", true, func():
 		var nid := Customs.make_copy(id)
 		if nid != "":
@@ -303,6 +311,8 @@ func _detail(body: VBoxContainer) -> void:
 			Customs.remove(id)
 			_go("list"))))
 	body.add_child(actions)
+	if sharing and Customs.way_on("share"):
+		body.add_child(_share_card(id))
 
 
 static func _made_line(d: Dictionary) -> String:
@@ -379,6 +389,54 @@ func _edit(id: String) -> void:
 func _later(what: String) -> void:
 	# A way that is on (admin build or --studio) but whose screens aren't built.
 	w.confirm(what, "%s comes in a later step of the Studio build. It shows here because every way is on in this build." % what, "OK", func(): pass)
+
+
+# --- Sharing (G1, G2) -----------------------------------------------------------
+
+func _share_card(id: String) -> Control:
+	var c := K.c
+	var d: Dictionary = Customs.all[id]
+	var name := str(d.get("name", "it"))
+	var rows := []
+	var shapes_path := str(d["_dir"]).path_join("shapes.json")
+	if FileAccess.file_exists(shapes_path):
+		rows.append(K.row("Copy its code", "A short CRIT1- code anyone can paste into Make a critter. Send it however you like.",
+			K.button("Copy code", "bs", "check", true, func(): _copy_code(id))))
+	var desc := "A .critter file with everything %s is made of, to send to a friend." % name
+	if Customs.kind(d) == "sticker":
+		desc += " Made from a picture: only share pictures you're happy for others to have."   # decision 5
+	rows.append(K.row("Save as a file", desc, K.button("Save as a file", "bs", "box", true, func(): _save_file(id))))
+	if share_note != "":
+		rows.append(K.margins(UI.label(share_note, 13, c.acc_ink, 700), 20, 10, 20, 14))
+	return K.section("Share %s" % name, K.card(rows))
+
+
+func _copy_code(id: String) -> void:
+	var j = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[id]["_dir"]).path_join("shapes.json")))
+	if typeof(j) != TYPE_DICTIONARY:
+		share_note = "Its shapes can't be read, so there's no code for it."
+	else:
+		DisplayServer.clipboard_set(Share.encode_code(j, str(Customs.all[id].get("name", ""))))
+		share_note = "Copied. Paste it anywhere to send it."
+	w.rebuild()
+
+
+func _save_file(id: String) -> void:
+	var fd := FileDialog.new()
+	fd.use_native_dialog = true
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	fd.filters = PackedStringArray(["*.critter ; Critter files"])
+	fd.current_file = str(Customs.all[id].get("name", "critter")).strip_edges().replace("/", "-").replace("\\", "-") + ".critter"
+	fd.title = "Save as a file"
+	fd.file_selected.connect(func(path):
+		fd.queue_free()
+		var why := Share.export_critter(id, path, str(w.main.VERSION))
+		share_note = why if why != "" else "Saved as %s." % path.get_file()
+		w.rebuild())
+	fd.canceled.connect(fd.queue_free)
+	w.add_child(fd)
+	fd.popup_centered_ratio(0.6)
 
 
 # --- Make a critter -------------------------------------------------------------

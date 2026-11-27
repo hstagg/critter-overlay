@@ -12,6 +12,7 @@ const K := preload("res://gui/controls.gd")
 const MyCritters := preload("res://gui/my_critters.gd")
 const Picker := preload("res://gui/colour_picker.gd")
 const Pages := preload("res://gui/settings_pages.gd")
+const Share := preload("res://share.gd")
 
 var fails := 0
 var checks := 0
@@ -135,6 +136,25 @@ func _init() -> void:
 	my.selected = kit
 	t = page(my)
 	check("Bring in a new version" in t and "Open the Shop" in t, "a drawn kit's detail: Bring in a new version, and Clothes")
+	# --- Share (G1, G2): a file for every kind, a code for builder critters.
+	my.selected = sticker
+	my.sharing = true
+	t = page(my)
+	check("Save as a file" in t and not "Copy code" in t, "a picture shares as a file, with no code")
+	check(t.any(func(x): return "only share pictures" in x), "with decision 5's note")
+	var built := Share.write_builder_kit(preload("res://share_test.gd").CRITTER, "Lilac", root.path_join("src/lilac"))
+	var lilac := Customs.add_folder(built)
+	my.selected = lilac
+	my.sharing = true
+	t = page(my)
+	check("Copy code" in t and "Save as a file" in t, "a builder critter offers its code too")
+	my._copy_code(lilac)
+	check(my.share_note.begins_with("Copied"), "Copy code copies it (%s)" % my.share_note)
+	var file := ProjectSettings.globalize_path(root.path_join("lilac.critter"))
+	check(Share.export_critter(lilac, file, "3.1.1") == "" and FileAccess.file_exists(file), "and Save as a file writes one")
+	Customs.remove(lilac)
+	my.sharing = false
+
 	Customs.ways = {}
 	my.selected = sticker
 	t = page(my)
