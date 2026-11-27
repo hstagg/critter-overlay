@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Install a critter</title>
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="./import.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false"><defs>
+<g id="duck"><ellipse cx="88" cy="104" rx="44" ry="30" fill="#FFD45C" stroke="#6B4A3A" stroke-width="4"/><path d="M128 92 q16 -10 12 8 q-4 10 -14 6" fill="#FFD45C" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/><ellipse cx="96" cy="104" rx="20" ry="12" fill="#F7C24A" stroke="#6B4A3A" stroke-width="3.5"/><circle cx="56" cy="62" r="26" fill="#FFD45C" stroke="#6B4A3A" stroke-width="4"/><path d="M31 62 L14 67 L31 73 Z" fill="#F4A14A" stroke="#6B4A3A" stroke-width="3.5" stroke-linejoin="round"/><ellipse cx="47" cy="58" rx="4.5" ry="6" fill="#3A2A22"/><circle cx="48.5" cy="55.5" r="1.8" fill="#FFFFFF"/><ellipse cx="56" cy="72" rx="7" ry="4" fill="#F29C9C" opacity=".7"/></g>
+</defs></svg>
+<style>
+@media (prefers-reduced-motion:no-preference){.pace-img{animation:pace 7s ease-in-out infinite}}
+.who{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--ink2)}
+.who b{color:var(--ink);font-weight:800}
+</style>
+<div class="win th-light" style="width: 1100px; height: 1080px; position: relative; overflow: hidden">
+
+<div aria-hidden="true" style="position: absolute; inset: 0; display: flex">
+<div style="width: 232px; background: var(--side)"></div>
+<div style="flex: 1; padding: 62px 40px"><div class="h1">My critters</div><p class="sub">Every critter you have made or been given.</p></div>
+</div>
+<div aria-hidden="true" style="position: absolute; inset: 0; background: var(--scrim)"></div>
+
+<div role="dialog" aria-modal="true" aria-labelledby="in-title" class="card" style="position: absolute; left: 220px; top: 120px; width: 660px; padding: 26px 28px 24px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 4px 0 var(--lip); border-color: var(--outline)">
+
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px">
+<div>
+<h2 id="in-title" class="h1" style="font-size: 28px"><span data-when="file same">Install Noodle?</span><span data-when="code">Add Pebble?</span><span data-when="picture">Install Sunny?</span><span data-when="newer">Noodle needs a newer version</span><span data-when="damaged">This file can't be opened</span></h2>
+<p class="sub" style="font-size: 14.5px" data-when="file same">Someone sent you a critter. Here it is walking. Nothing is added until you press Install.</p>
+<p class="sub" style="font-size: 14.5px" data-when="code">Someone sent you a critter code. Here's the critter it makes. Nothing is added until you press Add.</p>
+<p class="sub" style="font-size: 14.5px" data-when="picture">Someone sent you a critter made from a picture. Nothing is added until you press Install.</p>
+<p class="sub" style="font-size: 14.5px" data-when="newer">It was made with Critter Overlay 3.5, and you have 3.3. Update, then open the file again.</p>
+<p class="sub" style="font-size: 14.5px" data-when="damaged">gift.critter may be damaged, or it isn't a critter file. Ask for it to be sent again.</p>
+</div>
+<a href="../my-critters/Main.html" class="ib" aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></a>
+</div>
+
+<div data-when="file code picture same" style="display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: center">
+<div class="wellbox" style="height: 220px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px" id="well">
+<img class="pace-img" data-when="file same" src="../my-critters/art/snake.svg" width="160" height="166" alt="Noodle sliding along, a preview">
+<img class="pace-img" data-when="code" src="../my-critters/art/shapes-critter.svg" width="160" height="166" alt="Pebble walking, a preview">
+<svg class="pace-img" data-when="picture" viewBox="0 20 160 120" width="150" height="112" role="img" aria-label="Sunny sliding along, a preview"><use href="#duck"/></svg>
+<span class="ground-line" style="bottom: 16px"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div>
+<div class="disp" style="font-weight: 600; font-size: 26px; line-height: 1.1"><span data-when="file same">Noodle</span><span data-when="code">Pebble</span><span data-when="picture">Sunny</span></div>
+<div style="display: flex; align-items: center; gap: 6px; margin-top: 8px">
+<span class="how" data-when="file same"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>Drawn</span>
+<span class="how" data-when="code"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="4"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M4 20l4-7 4 7z"/></svg>Shapes</span>
+<span class="how" data-when="picture"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/></svg>Picture</span>
+</div>
+</div>
+<div class="who" data-when="file same picture">
+<span>Made by <b data-when="file same">pebblepaws</b><b data-when="picture">duckpond</b></span>
+<span data-when="file same">Free to share, with credit</span>
+<span data-when="picture">No licence given</span>
+</div>
+<div class="who" data-when="code"><span>Codes don't say who made them.</span></div>
+<div class="facts">
+<span class="fact" data-when="file same">Slithers, sits and naps</span>
+<span class="fact" data-when="code">Walks, sits and naps</span>
+<span class="fact" data-when="picture">Slides along</span>
+<span class="fact" data-when="file same code">Can wear clothes</span>
+</div>
+</div>
+</div>
+
+<div class="banner note" data-when="same"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M8 8h11v11H8z"/><path d="M5 16V5h11"/></svg><span><b>You already have a Noodle</b>This one will be added next to it as Noodle 2. Yours stays as it is.</span></div>
+
+<div class="banner tip" data-when="picture"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; color: var(--acc-ink)"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/></svg><span><b>Made from a picture</b>It's someone's own picture, so only pass it on if they're happy for others to have it.</span></div>
+
+<div data-when="newer damaged" style="display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 18px; background: var(--dng-bg); border: 2px solid var(--dng-line); color: var(--dng-ink)">
+<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>
+<span style="font-size: 13.5px; line-height: 1.45" data-when="newer">Nothing was added. Updates come through the System page, and your critters all stay.</span>
+<span style="font-size: 13.5px; line-height: 1.45" data-when="damaged">Nothing was added. If a code came with it, you can paste that into Make a critter instead.</span>
+</div>
+
+<div data-when="file code picture same" style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); font-weight: 700">
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M12 3.5l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9v-5z"/></svg>
+Only install critters from people you trust.
+</div>
+
+<div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end">
+<button class="btn bs" data-when="code" style="margin-right: auto"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="4"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M4 20l4-7 4 7z"/></svg>Edit in the Studio first</button>
+<a href="../my-critters/Main.html" class="btn bq" data-when="file code picture same newer">Cancel</a>
+<button class="btn bp" data-when="file picture same"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Install</button>
+<button class="btn bp" data-when="code"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Add</button>
+<button class="btn bp" data-when="newer">Check for updates</button>
+<a href="../my-critters/Main.html" class="btn bp" data-when="damaged" style="color: var(--btn-ink)">OK</a>
+</div>
+</div>
+</div>
+</x-dc>
+<script src="./mock.js"></script>
+<script>
+mock([["file", "A .critter file"], ["code", "A CRIT1- code"], ["picture", "Made from a picture"], ["same", "Name taken"], ["newer", "Needs newer"], ["damaged", "Damaged"]]);
+// The preview well takes the critter's own colour, as the My critters cards do.
+const tints = {file: '--w-amber', same: '--w-amber', code: '--w-lilac', picture: '--w-yellow'};
+const paint = () => { const k = document.querySelector('.win').dataset.state; document.getElementById('well').style.background = 'var(' + (tints[k] || '--ph-bg') + ')'; };
+paint(); document.querySelector('.mock').addEventListener('click', paint);
+</script>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1100,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themeClass: this.props.dark ? 'th-dark' : 'th-light' };
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+/* The import pages (C0). Adds to ../my-critters/critter.css; nothing here
+   changes a token, so every colour still comes from the A0 themes. */
+
+/* Page shell: the main column scrolls, the Keep bar stays at the bottom. */
+.scroll{flex:1;min-height:0;overflow:auto;padding:0 40px 24px;display:flex;flex-direction:column;gap:18px}
+.back{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:14px;text-decoration:none;align-self:flex-start}
+.keepbar{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 40px;background:var(--surface);border-top:2px solid var(--line)}
+.keepbar .why{font-size:13px;font-weight:700;color:var(--ink2)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+/* The file this came from, with Reload and the watching note. */
+.src{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:18px;background:var(--ground);border:2px solid var(--div)}
+.src .fn{font-weight:800;font-size:14.5px;color:var(--ink)}
+.src .fd{font-size:12.5px;color:var(--ink2);margin-top:2px;display:flex;align-items:center;gap:6px}
+.live{width:8px;height:8px;border-radius:4px;background:var(--fresh-ink);flex-shrink:0}
+@media (prefers-reduced-motion:no-preference){.live{animation:livepulse 2s ease-in-out infinite}}
+@keyframes livepulse{50%{opacity:.35}}
+
+/* Wells: the art and the live preview. */
+.wellbox{position:relative;border-radius:18px;overflow:hidden;box-sizing:border-box}
+.ground-line{position:absolute;left:14px;right:14px;height:3px;border-radius:2px;background:var(--outline);opacity:.15}
+.cap{font-weight:800;font-size:13px;color:var(--ink2);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tag{position:absolute;top:10px;left:10px}
+
+/* Section titles inside cards. */
+.ct{font-family:'Fredoka','Nunito',sans-serif;font-weight:600;font-size:18px;color:var(--ink);margin:0}
+.cd{font-size:13px;line-height:1.45;color:var(--ink2);margin:3px 0 0}
+.grp{font-weight:800;font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+
+/* The checklist. */
+.ck{display:flex;align-items:flex-start;gap:10px;padding:7px 0}
+.ck .ic{width:24px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.ck .t{font-weight:800;font-size:13.5px;color:var(--ink)}
+.ck .d{font-size:12.5px;line-height:1.4;color:var(--ink2);margin-top:1px}
+.ok .ic{background:var(--fresh-tint);color:var(--fresh-ink)}
+.warn .ic{background:var(--leg-tint);color:var(--leg-ink)}
+.info .ic{background:var(--track);color:var(--acc-ink)}
+.bad .ic{background:var(--dng-bg);color:var(--dng-ink)}
+.found{display:flex;flex-wrap:wrap;gap:6px}
+.found .fact{gap:4px}
+.found .fact svg{color:var(--fresh-ink)}
+.chunk + .chunk{margin-top:14px;padding-top:14px;border-top:2px solid var(--div)}
+
+/* Banners for errors and notes. */
+.banner{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:16px;font-size:13.5px;line-height:1.45}
+.banner b{display:block;font-size:14px;margin-bottom:2px}
+.banner.err{background:var(--dng-bg);color:var(--dng-ink);border:2px solid var(--dng-line)}
+.banner.note{background:var(--leg-tint);color:var(--leg-ink)}
+.banner.tip{background:var(--chip-sel);color:var(--ink-body)}
+
+/* Setting blocks, as in Detail.html's right column. */
+.blk{padding:12px 0;display:flex;flex-direction:column;gap:9px}
+.blk + .blk{border-top:2px solid var(--div)}
+.blk .hd{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* Number stepper (fps, loops, nudge). */
+.step{display:inline-flex;align-items:center;gap:0;height:34px;border-radius:12px;border:2px solid var(--sec-line);background:var(--raised);overflow:hidden}
+.step button{width:30px;height:100%;border:0;background:transparent;color:var(--ink2);font-weight:800;font-size:16px;cursor:pointer;padding:0}
+.step span{min-width:46px;text-align:center;font-weight:800;font-size:13.5px;color:var(--ink)}
+
+/* Pins on the art. */
+.pin{cursor:grab}
+.pin circle{fill:var(--knob);stroke:var(--btn);stroke-width:3}
+.pin.moved circle{stroke:var(--leg-ink)}
+.pin text{font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;fill:var(--acc-ink);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.pin:active{cursor:grabbing}
+.nopins .pin{display:none}
+
+/* The walking preview. Walks to and fro inside its well, as the importer's
+   CritterView does. Still under reduced motion. */
+@media (prefers-reduced-motion:no-preference){
+  .walker{animation:pace 7s ease-in-out infinite}
+  .walker .lg-a{animation:legA .5s ease-in-out infinite alternate}
+  .walker .lg-b{animation:legB .5s ease-in-out infinite alternate}
+  .walker .bob{animation:bob .25s ease-in-out infinite alternate}
+  .slider-pic{animation:pace 9s linear infinite}
+  .blinking .eyes{animation:blink .35s ease-in-out 2}
+}
+.lg-a,.lg-b{transform-box:fill-box;transform-origin:50% 0}
+@keyframes pace{0%{transform:translateX(-46px) scaleX(1)}46%{transform:translateX(46px) scaleX(1)}50%{transform:translateX(46px) scaleX(-1)}96%{transform:translateX(-46px) scaleX(-1)}100%{transform:translateX(-46px) scaleX(1)}}
+@keyframes legA{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+@keyframes legB{from{transform:rotate(16deg)}to{transform:rotate(-16deg)}}
+@keyframes bob{to{transform:translateY(-3px)}}
+@keyframes blink{50%{transform:scaleY(.1)}}
+.eyes{transform-box:fill-box;transform-origin:50% 50%}
+.pose-sit .walker,.pose-nap .walker,.pose-look .walker{animation:none}
+.pose-sit .lg-a,.pose-sit .lg-b,.pose-nap .lg-a,.pose-nap .lg-b,.pose-look .lg-a,.pose-look .lg-b,.pose-sit .bob,.pose-nap .bob,.pose-look .bob{animation:none}
+.pose-nap .body-all{transform:translateY(22px) scaleY(.85);transform-box:fill-box;transform-origin:50% 100%}
+.pose-nap .eyes{display:none}
+.shut{display:none}
+.pose-nap .shut{display:inline}
+.pose-nap .legs{display:none}
+.headturn{transform-box:fill-box;transform-origin:80% 80%;transition:transform .3s}
+.pose-look .headturn{transform:rotate(-12deg)}
+
+/* Pixel art. */
+.px{shape-rendering:crispEdges;image-rendering:pixelated}
+
+/* Mock-up controls: not part of the app. */
+.mock{position:fixed;left:12px;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-width:200px;padding:8px 10px;border-radius:12px;background:#2B2233;color:#F4EEF9;font:700 12px/1.2 system-ui,sans-serif;box-shadow:0 6px 20px rgba(20,10,30,.3)}
+.mock span{opacity:.7;margin-right:2px}
+.mock button{font:700 12px system-ui,sans-serif;border:1px solid #5A4A6B;background:#3A2E46;color:#F4EEF9;border-radius:8px;padding:5px 9px;cursor:pointer}
+.mock button.on{background:#F4EEF9;color:#2B2233}
+[data-when]:not(.show){display:none !important}
