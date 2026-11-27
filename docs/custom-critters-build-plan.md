@@ -1761,7 +1761,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | G1 | Builder codes | done 2026-11-27: Copy code on a builder critter's page, a pasted code opens the install view |
 | G2 | `.critter` v3 files | screens done 2026-11-27 (Save as a file, Open a .critter file, the install view); dropping a file waits for C5 |
 | G3 | Hostile-file pass | done 2026-11-24 |
-| H1 | Collection | not started |
+| H1 | Collection | done 2026-11-27 (badges since A2; live cards capped at 12); the VM check is still to do |
 | H2 | Docs | not started |
 | H3 | Performance and soak | not started |
 | H4 | **R4: release 3.6.0** | not started |
@@ -2260,3 +2260,16 @@ step left needs the developer, or a design that needs them:
   the save toast's "Click it to say hello" when a click pops it; whether
   the tips should wait for the Start page's choice (they show on the
   Builder only); and the hint card's shapes and wording per part.
+- 2026-11-27: H1 done: the Homemade row draws its first 12 cards live and
+  the rest as thumb.png, each waking once when hovered (`collection.gd
+  LIVE_CAP`); the badges came with A2. Admin: twenty test pictures and the
+  Collection (`homemade20`).
+
+**Where it stands (2026-11-27, evening).** Every step's code is written, on
+stacked PRs #67, #68, #70 to #78, and together on `studio-all` (all 24
+headless tests pass there). Waiting on the developer: a look at C0 and D0's
+designs; the D7 walk-through; signing in the VM, after which every "on the
+VM" check runs (the A2 tour, C4/C5/E3 done-whens, every new audit row, the
+Studio at 100% and 150%, and that critters still click through with drops
+on); then H3's soak, and each release (R1 to R4) by the developer's say.
+The code system (3.2.0) merges first; these branches are rebased on it then.

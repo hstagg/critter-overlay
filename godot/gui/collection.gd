@@ -14,6 +14,7 @@ const TIERS := ["common", "rare", "epic", "legendary"]
 const COLUMNS := 3
 const CARD_W := 248
 const WELL_H := 112
+const LIVE_CAP := 12           # homemade cards drawn live; the rest wake when hovered (H1)
 
 var economy: Node
 var filter := "all"            # all | found | missing
@@ -165,8 +166,8 @@ func _build() -> void:
 		hg.columns = COLUMNS
 		hg.add_theme_constant_override("h_separation", 14)
 		hg.add_theme_constant_override("v_separation", 14)
-		for id in homemade:
-			hg.add_child(_homemade_card(id, c))
+		for i in homemade.size():
+			hg.add_child(_homemade_card(homemade[i], c, i < LIVE_CAP))
 		col.add_child(hg)
 
 	var dh := HBoxContainer.new()
@@ -179,8 +180,10 @@ func _build() -> void:
 	col.add_child(_diary(c))
 
 
-func _homemade_card(id: String, c: Dictionary) -> Control:
+func _homemade_card(id: String, c: Dictionary, live := true) -> Control:
 	# The picture idling in its well, its name and how often it has visited.
+	# Past LIVE_CAP cards (H1) the well shows thumb.png and the critter only
+	# comes to life when the pointer is over it.
 	var d: Dictionary = Customs.all[id]
 	var card := PanelContainer.new()
 	card.custom_minimum_size.x = CARD_W
@@ -194,6 +197,32 @@ func _homemade_card(id: String, c: Dictionary) -> Control:
 	ws.corner_radius_top_right = 16
 	well.add_theme_stylebox_override("panel", ws)
 	well.custom_minimum_size = Vector2(CARD_W - 4, WELL_H)
+	if live:
+		well.add_child(_homemade_view(id))
+	else:
+		var tex: Texture2D = null
+		if FileAccess.file_exists(Customs.thumb(id)):
+			var img := Image.load_from_file(Customs.thumb(id))
+			if img != null and not img.is_empty():
+				tex = ImageTexture.create_from_image(img)
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(CARD_W - 4, WELL_H - 16)
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(pic)
+		well.mouse_filter = Control.MOUSE_FILTER_STOP
+		well.mouse_entered.connect(func():
+			if is_instance_valid(pic):
+				pic.queue_free()
+				well.add_child(_homemade_view(id)), CONNECT_ONE_SHOT)
+	col.add_child(well)
+	_homemade_body(id, d, c, col)
+	return card
+
+
+func _homemade_view(id: String) -> SubViewportContainer:
 	var view := SubViewportContainer.new()
 	view.stretch = true
 	view.custom_minimum_size = Vector2(CARD_W - 4, WELL_H)
@@ -216,8 +245,10 @@ func _homemade_card(id: String, c: Dictionary) -> Control:
 	critter.tick(1.0 / 30.0)
 	CritterView.fit(critter, holder, floor, CARD_W - 4, WELL_H - 2)
 	_previews.append(critter)
-	well.add_child(view)
-	col.add_child(well)
+	return view
+
+
+func _homemade_body(id: String, d: Dictionary, c: Dictionary, col: VBoxContainer) -> void:
 	var body := MarginContainer.new()
 	for side in ["left", "right"]:
 		body.add_theme_constant_override("margin_" + side, 12)
@@ -235,7 +266,7 @@ func _homemade_card(id: String, c: Dictionary) -> Control:
 	bc.add_child(nr)
 	bc.add_child(UI.label("Yours · " + Customs.badge(d), 12, c.ink3, 700))
 	col.add_child(body)
-	return card
+	return
 
 
 func _filter_bar(c: Dictionary) -> Control:

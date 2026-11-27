@@ -306,6 +306,18 @@ func run(action: String, chosen := "kitten") -> void:
 			sprite_sheet_test()
 		"studio_tips":
 			studio_tips_again()
+		"homemade20":
+			twenty_homemade()
+
+
+func twenty_homemade() -> void:
+	# H1: twenty test pictures, then the Collection: 12 cards move, the rest
+	# show their picture until the pointer is over them.
+	for i in 20:
+		var img := test_picture(false)
+		img.adjust_bcs(1.0, 1.0, 0.5 + i * 0.05)
+		Customs.add("Test %d" % (i + 1), [img])
+	main.open_settings("collection")
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------

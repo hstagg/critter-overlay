@@ -399,6 +399,18 @@ func _init() -> void:
 	my._end_install()
 	Customs.ways = {}
 
+	# --- The Collection's Homemade row (H1): live past 12 only when hovered.
+	var shelf = preload("res://gui/collection.gd").new()
+	var live_card: Control = shelf._homemade_card(sticker, K.c, true)
+	var still_card: Control = shelf._homemade_card(sticker, K.c, false)
+	check(shelf._previews.size() == 1, "a capped card draws no live critter until hovered")
+	var well: Control = still_card.get_child(0).get_child(0)
+	well.mouse_entered.emit()
+	check(shelf._previews.size() == 2, "and wakes when the pointer is over it")
+	live_card.free()
+	still_card.free()
+	shelf.free()
+
 	# --- The colour picker.
 	check(Picker.parse_hex("#abc") == "#AABBCC" and Picker.parse_hex("8cc46c") == "#8CC46C", "hex in short and long forms")
 	check(Picker.parse_hex("#12345") == "" and Picker.parse_hex("#GG0000") == "", "not a colour: nothing")
