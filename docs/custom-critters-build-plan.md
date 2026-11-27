@@ -1739,7 +1739,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
-| C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`); still to do: dragging the joints, naming an unrecognised layer, Where's its head?, and the VM check |
+| C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`), naming an unrecognised layer too; still to do: dragging the joints (with D2's canvas), Where's its head? (R4), and the VM check |
 | C5 | Drop a file to import | done 2026-11-27 (behind the kit way); the VM check is still to do |
 | R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
@@ -2167,3 +2167,7 @@ step left needs the developer, or a design that needs them:
   toggles by hand, dragging pins, and D6's done-when (a changed round cat
   arrives, is edited, and updates on screen). Left for D7: everything a
   new player finds confusing in these flows.
+- 2026-11-27: C4, second pass: a layer the kit page didn't recognise gets a
+  drop-down (Leave it out, or each part the file lacks), passed to
+  `kit_import.gd stage()` as `assign`. Dragging the joints waits for D2's
+  canvas, so the kit page and the Studio share one.

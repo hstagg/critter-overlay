@@ -38,7 +38,9 @@ static func guess_plan(parts: Array) -> String:
 	return "side"
 
 
-static func stage(path: String, plan_hint := "") -> Dictionary:
+static func stage(path: String, plan_hint := "", assign := {}) -> Dictionary:
+	# assign: {layer name: part} for layers the player has named on the kit
+	# page (C4); a layer given a part the file already has replaces it.
 	var out := {"plan": "", "gait": "", "parts": {}, "pins": {}, "unmatched": [], "missing": [],
 		"dropped": [], "warnings": [], "error": "", "template": "", "made_with": ""}
 	var found := {}
@@ -83,6 +85,11 @@ static func stage(path: String, plan_hint := "") -> Dictionary:
 		plan = guess_plan(found.keys())
 	out.plan = plan
 	var pl: Dictionary = KitData.PLANS[plan]
+	for layer in assign:
+		var to := str(assign[layer])
+		if found.has(layer) and (to in pl.required or to in pl.optional):
+			found[to] = found[layer]
+			found.erase(layer)
 	for p in found:
 		if p in pl.required or p in pl.optional:
 			out.parts[p] = found[p]
