@@ -288,6 +288,8 @@ func run(action: String, chosen := "kitten") -> void:
 			share_code_test()
 		"kit_import":
 			kit_import_test(arg if arg != "" else "side")
+		"drop":
+			drop_test()
 		"share_file":
 			share_file_test(arg if arg != "" else "kit")
 		"own_sound":
@@ -714,6 +716,16 @@ func kit_import_test(plan: String) -> void:
 <!-- saved again -->
 ")
 	f.close()
+
+
+func drop_test() -> void:
+	# C5: the upright template, as if dropped on a critter window.
+	var file := ProjectSettings.globalize_path("user://admin_drop_upright-1.svg")
+	var f := FileAccess.open(file, FileAccess.WRITE)
+	f.store_string(FileAccess.get_file_as_string("res://templates/upright-1.svg"))
+	f.close()
+	Customs.all_ways_on()
+	main.drop_files(PackedStringArray([file]))
 
 
 func share_code_test() -> void:

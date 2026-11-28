@@ -18,6 +18,7 @@ const AWAY := Vector2i(-30000, -30000)   # off every screen
 
 var keep := 8                  # spare windows kept; any more are freed
 var close_request := Callable()   # main.gd: Windows asked a window to close
+var drop := Callable()            # main.gd drop_files(): files dropped on a critter (plan C5)
 var spare: Array[Window] = []
 var made := 0                  # windows made, for the Admin page
 var reused := 0                # and handed out again
@@ -53,6 +54,8 @@ func take() -> Window:
 	add_child(win)
 	if close_request.is_valid():
 		win.close_requested.connect(close_request)
+	if drop.is_valid():
+		win.files_dropped.connect(drop)
 	made += 1
 	held[win] = [AWAY, _drawn() + HOLD_FRAMES]
 	return win

@@ -1740,7 +1740,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
 | C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`); still to do: dragging the joints, naming an unrecognised layer, Where's its head?, and the VM check |
-| C5 | Drop a file to import | not started |
+| C5 | Drop a file to import | done 2026-11-27 (behind the kit way); the VM check is still to do |
 | R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
 | D1 | Shape model and SVG writer | done 2026-11-24 |
@@ -2065,3 +2065,13 @@ step left needs the developer, or a design that needs them:
   reopens it and Save replaces its drawing in place (rev bumped). Left for a
   second pass: dragging the joints (pins come from the file or the template),
   giving an unrecognised layer a part name, and Where's its head?.
+- 2026-11-27: C5 done. Critter windows (through `win_pool.gd`'s `drop`) and
+  the Settings window send dropped files to `main.drop_files()`, which does
+  nothing until the kit way is on and then opens My critters with
+  `my_critters.gd drop()`: pictures to the picture importer, SVG, zip, .ora
+  and a folder of layers to the kit page, GIF, APNG, Aseprite and a folder of
+  numbered frames to the frame importer (E3; a placeholder for now),
+  .critter to the install view, and anything else gets a line saying what
+  can be brought in. A template's own body wins over the one picked, unless
+  it is changed on the kit page. Needs the VM: that critters still click
+  through where they are see-through once their windows accept drops.
