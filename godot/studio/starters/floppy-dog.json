@@ -1,0 +1,24 @@
+{
+	"name": "Floppy dog", "gait": "trot",
+	"schema": 1, "plan": "side", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"walk-body": [
+			{"t": "ellipse", "x": 162, "y": 202, "w": 150, "h": 76, "fill": "#F9DDBF"},
+			{"t": "ellipse", "x": 190, "y": 190, "w": 56, "h": 50, "fill": "#A98468", "inside": true}
+		],
+		"head": [
+			{"t": "ellipse", "x": 104, "y": 146, "w": 106, "h": 96, "fill": "#F9DDBF"},
+			{"t": "ellipse", "x": 66, "y": 170, "w": 50, "h": 36, "fill": "#F9DDBF"},
+			{"t": "ellipse", "x": 118, "y": 134, "w": 34, "h": 30, "fill": "#A98468", "inside": true}
+		],
+		"head-front": [{"t": "drop", "x": 144, "y": 164, "w": 32, "h": 62, "rot": 16, "fill": "#A98468"}],
+		"eyes": [
+			{"t": "eye", "preset": "round", "x": 86, "y": 142, "w": 16, "h": 20, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "round", "x": 118, "y": 140, "w": 16, "h": 20, "fill": "#3A2A22"}
+		],
+		"nose": [{"t": "ellipse", "x": 46, "y": 164, "w": 18, "h": 13, "fill": "#3B3437", "line": false}],
+		"leg-front": [{"t": "rect", "x": 120, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#F9DDBF"}],
+		"leg-back": [{"t": "rect", "x": 206, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#F9DDBF"}],
+		"tail": [{"t": "stroke", "pts": [[230, 192], [246, 176], [252, 154]], "width": 12, "fill": "#F9DDBF"}]
+	}
+}

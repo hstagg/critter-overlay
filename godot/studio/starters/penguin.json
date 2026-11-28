@@ -1,0 +1,22 @@
+{
+	"name": "Penguin", "gait": "waddle",
+	"schema": 1, "plan": "upright", "style": {"outline": "#5B3A29", "width": 6, "blush": true},
+	"layers": {
+		"leg-near": [{"t": "ellipse", "x": 128, "y": 254, "w": 32, "h": 12, "fill": "#F7A04A"}],
+		"body": [
+			{"t": "ellipse", "x": 150, "y": 188, "w": 128, "h": 132, "fill": "#4F4A5E"},
+			{"t": "ellipse", "x": 150, "y": 204, "w": 86, "h": 100, "fill": "#FBF4EC", "inside": true}
+		],
+		"wing-l": [{"t": "drop", "x": 90, "y": 194, "w": 26, "h": 64, "rot": 336, "fill": "#4F4A5E"}],
+		"head": [
+			{"t": "ellipse", "x": 150, "y": 118, "w": 112, "h": 96, "fill": "#4F4A5E"},
+			{"t": "ellipse", "x": 132, "y": 124, "w": 46, "h": 50, "fill": "#FBF4EC", "inside": true},
+			{"t": "ellipse", "x": 168, "y": 124, "w": 46, "h": 50, "fill": "#FBF4EC", "inside": true},
+			{"t": "tri", "x": 150, "y": 146, "w": 22, "h": 15, "apex": 0.5, "r": 3, "rot": 180, "fill": "#F7A04A"}
+		],
+		"eyes": [
+			{"t": "eye", "preset": "big", "x": 133, "y": 120, "w": 15, "h": 19, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 167, "y": 120, "w": 15, "h": 19, "fill": "#3A2A22"}
+		]
+	}
+}

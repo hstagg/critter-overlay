@@ -326,6 +326,12 @@ func run(action: String, chosen := "kitten") -> void:
 			studio_open(arg == "min", arg if arg in ["side", "front", "upright", "blob"] else "")
 		"studio_script":
 			studio_script()
+		"studio_starters":
+			studio_starters()
+		"studio_save":
+			studio_save()
+		"studio_edit":
+			studio_edit()
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------
@@ -926,3 +932,91 @@ func studio_script() -> void:
 	for part in st.doc.layers:
 		n += st.doc.layers[part].size()
 	main.toasts.show_note(Icons.berry(40), "Admin", "Test critter built", "%d shapes on %d layers, by the tools." % [n, st.doc.layers.size()])
+
+
+# --- The Critter Studio (D5, D6) ------------------------------------------------------
+
+const STUDIO_TEST_NAME := "Studio test"
+
+
+func studio_starters() -> void:
+	# D5: every starter saved as a kit (as Keep would) and sent onto the desk.
+	# Each should arrive, walk its gait, sit and nap. They stay in My critters
+	# (named after the starter) until removed there.
+	Customs.all_ways_on()
+	var SP = load("res://gui/studio/save_panel.gd")
+	var Start = load("res://gui/studio/start_page.gd")
+	var made := []
+	var failed := []
+	for s in Start.STARTERS:
+		var st: Dictionary = Start.starter(s[0])
+		var id: String = SP.keep(st.doc, st.name, st.gait, {"size": 1.0, "sound": "kitten"}) if not st.is_empty() else ""
+		if id == "":
+			failed.append(s[0])
+			continue
+		made.append(id)
+		spawn(id, "common")
+	main.toasts.show_note(Icons.berry(40), "Admin", "Every starter",
+		"%d saved and sent out%s." % [made.size(), (", %s failed" % ", ".join(failed)) if not failed.is_empty() else ""])
+
+
+func _studio_test_id() -> String:
+	for id in Customs.ids():
+		if str(Customs.all[id].get("name", "")) == STUDIO_TEST_NAME and Customs.badge(Customs.all[id]) == "Shapes":
+			return id
+	return ""
+
+
+func studio_save() -> void:
+	# D6: the scripted test critter (Build the test critter by script's doc,
+	# test_critter.json) opened in the Studio and kept through the Save
+	# dialog: it walks on, and a second one arrives asleep. Saving again
+	# saves over the same critter.
+	Customs.all_ways_on()
+	var doc: Dictionary = load("res://gui/studio/tools.gd").blank("side")
+	var hist: RefCounted = load("res://gui/studio/history.gd").new()
+	for step in load("res://critters/kit/fixtures.gd").studio_steps():
+		step.call(doc, hist)
+	main.open_studio(doc, _studio_test_id())
+	var st: Window = main.studio_win
+	st.critter_name = STUDIO_TEST_NAME
+	st.changed = true
+	var sp = load("res://gui/studio/save_panel.gd").new(st)
+	sp.send = true
+	var id: String = sp.press_keep()
+	if id == "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Save the test critter", "It couldn't be saved: see the log.")
+		return
+	spawn(id, "common", "", "", 1, "loaf")
+
+
+func studio_edit() -> void:
+	# D6: the saved test critter (saved first if there is none) opened from
+	# its shapes.json, its body and legs recoloured, and saved over: the ones
+	# on the desk fade and come back in the new colour.
+	if _studio_test_id() == "":
+		studio_save()
+	var id := _studio_test_id()
+	if id == "":
+		return
+	if not main.hosts.any(func(h): return h.species == id):
+		spawn(id, "common", "", "", 1, "sit")
+	var j = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[id]["_dir"]).path_join("shapes.json")))
+	if typeof(j) != TYPE_DICTIONARY:
+		return
+	main.open_studio(j, id)
+	var st: Window = main.studio_win
+	var colours := ["#A9D99B", "#C9A0E8", "#F7A9A2", "#FFE07A"]
+	var now := str(st.doc.layers.get("walk-body", [{}])[0].get("fill", ""))
+	var next: String = colours[(colours.find(now) + 1) % colours.size()]
+	for part in ["walk-body", "body", "leg-front", "leg-back"]:
+		if st.doc.layers.has(part):
+			st.hist.record(st.doc, [part])
+			for s in st.doc.layers[part]:
+				if not s.inside:
+					s.fill = next
+			st.changed_parts([part])
+	var sp = load("res://gui/studio/save_panel.gd").new(st)
+	sp.send = false
+	sp.press_keep()
+	main.toasts.show_note(Icons.berry(40), "Admin", "Edited and saved", "The test critter is now %s: the ones on the desk should change to it." % next)

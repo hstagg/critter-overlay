@@ -8,11 +8,17 @@ extends Window
 ## The top bar: back to My critters, the name, Shapes / Pins, undo and redo,
 ## Save. Below, left to right: the layers grouped by pose (layers_panel.gd),
 ## the tool rail, the canvas (canvas.gd) with the selection's commands above
-## it, and the right column, kept for the colour panel (D4) and the live
-## preview (D6). Pins and Save come with D6.
+## it, and the right column: the colour panel (style_panel.gd, D4) and the
+## live preview (preview.gd, D6). In Pins mode the layers give way to the
+## joints (pins_panel.gd) and the canvas drags them. Save opens a short
+## dialog over the window (save_panel.gd); so does leaving with changes.
+## Opened with nothing to build, it shows the Start page (start_page.gd, D5).
 ##
 ## The window holds the doc being built (shapes.json, 5.3) and the history;
 ## every change goes through tools.gd. Shortcuts are the design's ? panel's.
+## Leaving (My critters, the close button, Esc) asks first if anything has
+## changed since it was saved, and then forgets the doc, so the next visit
+## starts on the Start page.
 
 const Palette := preload("res://gui/palette.gd")
 const UI := preload("res://gui/ui.gd")
@@ -26,6 +32,13 @@ const History := preload("res://gui/studio/history.gd")
 const LayersPanel := preload("res://gui/studio/layers_panel.gd")
 const Canvas := preload("res://gui/studio/canvas.gd")
 const Customs := preload("res://customs.gd")
+const KitData := preload("res://critters/kit/kit_data.gd")
+const StylePanel := preload("res://gui/studio/style_panel.gd")
+const PinsPanel := preload("res://gui/studio/pins_panel.gd")
+const Preview := preload("res://gui/studio/preview.gd")
+const SavePanel := preload("res://gui/studio/save_panel.gd")
+const StartPage := preload("res://gui/studio/start_page.gd")
+const Picker := preload("res://gui/colour_picker.gd")
 
 const W := 1280                    # the design's size
 const H := 800
@@ -56,7 +69,22 @@ var others_on := true
 var snap_on := true
 var guide_on := true
 var sym_on := true
-var changed := false
+var changed := false              # since it was last saved (or opened)
+var starting := false              # the Start page is showing
+var view_mode := "shapes"          # shapes | pins
+var pin_sel := ""                  # the pin picked in Pins mode
+var gait := ""                     # for Save: kit.json's gait
+var size_i := 1                    # SavePanel.SIZES
+var sound := "kitten"
+var style: RefCounted
+var pins_panel: RefCounted
+var preview: Control
+var overlay: Control               # the dialog over the window, or null
+var _overlay_build := Callable()
+var _style_box: VBoxContainer
+var _save_b: Button
+var _colour_key := ""              # the selection a picker drag is recording for
+var _last_fill := ""
 var canvas: Control
 var layers: RefCounted
 var _layers_box: Control
@@ -81,7 +109,7 @@ func _init() -> void:
 	wrap_controls = false
 	visible = false
 	initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
-	close_requested.connect(hide)
+	close_requested.connect(func(): leave(Callable()))
 
 
 static func fit_for(usable: Vector2, display: float) -> Dictionary:
@@ -94,8 +122,13 @@ static func fit_for(usable: Vector2, display: float) -> Dictionary:
 
 func open(main_ref: Node, shapes_doc := {}, id := "") -> void:
 	main = main_ref
-	if doc.is_empty() or not shapes_doc.is_empty() or id != editing_id:
+	if visible and changed and id != "" and id == editing_id:
+		pass                         # already open on it, with changes: kept
+	elif not shapes_doc.is_empty() or (id != "" and id != editing_id):
 		load_doc(shapes_doc, id)
+		starting = false
+	elif doc.is_empty():
+		starting = true              # nothing to build: the Start page
 	build()
 	if not visible:
 		var usable := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
@@ -113,19 +146,32 @@ func open(main_ref: Node, shapes_doc := {}, id := "") -> void:
 	if mode == Window.MODE_MINIMIZED:
 		mode = Window.MODE_WINDOWED
 	grab_focus()
-	canvas.grab_focus()
+	if canvas != null:
+		canvas.grab_focus()
 
 
-func load_doc(shapes_doc: Dictionary, id := "") -> void:
+func load_doc(shapes_doc: Dictionary, id := "", starter_gait := "") -> void:
 	# A starter, a saved critter's shapes.json, or {} for a blank side-on one.
 	doc = Writer.clean_doc(shapes_doc).doc if not shapes_doc.is_empty() else Tools.blank()
 	editing_id = id
-	critter_name = str(Customs.all.get(id, {}).get("name", "")) if id != "" else ""
+	var d: Dictionary = Customs.all.get(id, {}) if id != "" else {}
+	critter_name = str(d.get("name", ""))
+	gait = str(d.get("_kit", {}).get("gait", starter_gait))
+	if not gait in SavePanel.gaits(doc.plan):
+		gait = SavePanel.gaits(doc.plan)[0]
+	size_i = 1
+	for i in SavePanel.SIZES.size():
+		if absf(float(d.get("size", 1.0)) - SavePanel.SIZES[i][1]) < 0.01:
+			size_i = i
+	sound = str(d.get("sound", "kitten"))
 	hist.clear()
 	sel = []
 	hidden.clear()
 	locked.clear()
 	changed = false
+	view_mode = "shapes"
+	pin_sel = ""
+	_colour_key = ""
 	var need := LayersPanel.needed(doc)
 	part = need[0] if not need.is_empty() else (doc.layers.keys()[0] if not doc.layers.is_empty() else "head")
 	pose = LayersPanel.pose_of(doc.plan, part) if LayersPanel.pose_of(doc.plan, part) != "" else "walk"
@@ -149,10 +195,27 @@ func build() -> void:
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(col)
 	col.add_child(_top())
+	overlay = null
+	if starting:
+		# The Start page: no canvas, nothing to undo or save.
+		canvas = null
+		_layers_box = null
+		_ctx = null
+		_rail = null
+		_style_box = null
+		_undo = null
+		preview = null
+		var sp: Control = StartPage.new(self).build()
+		sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(sp)
+		add_child(_grip())
+		return
 	var body := K.hbox(0)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(body)
 	layers = LayersPanel.new(self)
+	style = StylePanel.new(self)
+	pins_panel = PinsPanel.new(self)
 	_layers_box = K.vbox(0)
 	_layers_box.custom_minimum_size.x = LayersPanel.W
 	body.add_child(_layers_box)
@@ -168,6 +231,8 @@ func build() -> void:
 	refresh_rail()
 	refresh_ctx()
 	refresh_top()
+	refresh_style()
+	preview.restage()
 
 
 func _line(vertical: bool) -> ColorRect:
@@ -206,6 +271,10 @@ func _top() -> Control:
 	ttl.add_child(UI.label("Built from shapes", 11, c.ink3, 700))
 	_draggable(ttl)
 	h.add_child(ttl)
+	if starting:
+		h.add_child(_grow(true))
+		_window_buttons(h)
+		return v
 	var nl := UI.label("Name", 11, c.ink2, 700)
 	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(K.margins(nl, 10, 0, 0, 0))
@@ -217,30 +286,31 @@ func _top() -> Control:
 	_top_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(_top_note)
 	h.add_child(_grow(true))
-	var mode_seg := K.seg(["Shapes", "Pins"], 0, func(i):
-		if i == 1:
-			say("Pins aren't built yet."))
+	var mode_seg := K.seg(["Shapes", "Pins"], 1 if view_mode == "pins" else 0, func(i): set_view_mode("pins" if i == 1 else "shapes"))
 	mode_seg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mode_seg.tooltip_text = "Shapes or Pins (P)"
 	h.add_child(mode_seg)
 	h.add_child(_grow(true))
 	_undo = _ib("undo", "Undo (Ctrl+Z)", undo)
 	_redo = _ib("redo", "Redo (Ctrl+Y)", redo)
 	h.add_child(_undo)
 	h.add_child(_redo)
-	var save := K.button("Save", "bp", "", false)
-	save.disabled = true
-	save.tooltip_text = "Saving isn't built yet."
-	save.focus_mode = Control.FOCUS_NONE
-	save.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(save)
+	_save_b = K.button("Save", "bp", "", false, func(): open_save())
+	_save_b.focus_mode = Control.FOCUS_NONE
+	_save_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(_save_b)
 	h.add_child(_sep())
+	_window_buttons(h)
+	return v
+
+
+func _window_buttons(h: HBoxContainer) -> void:
 	for wb in [["min", "Minimise", func(): mode = Window.MODE_MINIMIZED],
 			["max", "Maximise", func(): mode = Window.MODE_WINDOWED if mode == Window.MODE_MAXIMIZED else Window.MODE_MAXIMIZED],
-			["close", "Close", hide]]:
+			["close", "Close", func(): leave(Callable())]]:
 		var b := _ib(wb[0], wb[1], wb[2])
 		b.custom_minimum_size = Vector2(36, 32)
 		h.add_child(b)
-	return v
 
 
 func _sep() -> Control:
@@ -371,31 +441,28 @@ func _zb(text: String, tip: String, cb: Callable) -> Button:
 
 
 func _side() -> Control:
-	# Kept for the colour panel (D4) and the live preview (D6).
+	# The colour panel (D4) over the live preview (D6). The colour panel
+	# scrolls if the window is short.
 	var c := K.c
 	var p := PanelContainer.new()
 	p.custom_minimum_size.x = SIDE_W
 	p.add_theme_stylebox_override("panel", K.box(c.surface, 0))
 	var v := K.vbox(10)
 	p.add_child(K.margins(v, 12, 12, 12, 12))
-	for sec in [["Colour", "The colour of the picked shape, its outline and marking, and the eyes and blush.", false],
-			["How it moves", "The critter itself, walking, sitting and napping as you build it.", true]]:
-		var head := K.hbox(8)
-		head.add_child(UI.label(sec[0], 15, c.ink, 600, true))
-		head.add_child(_grow())
-		head.add_child(K.soon_pill())
-		v.add_child(head)
-		var well := PanelContainer.new()
-		well.add_theme_stylebox_override("panel", K.box(c.ground, 16, c.line, 2))
-		if sec[2]:
-			well.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		else:
-			well.custom_minimum_size.y = 300
-		var note := UI.wrap(sec[1], 12, c.ink3, SIDE_W - 60)
-		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		well.add_child(K.margins(note, 14, 14, 14, 14))
-		v.add_child(well)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_stretch_ratio = 1.6
+	_style_box = K.vbox(0)
+	_style_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_style_box)
+	v.add_child(scroll)
+	var rule := ColorRect.new()
+	rule.color = c.div
+	rule.custom_minimum_size.y = 2
+	v.add_child(rule)
+	preview = Preview.new(self)
+	v.add_child(preview)
 	return p
 
 
@@ -431,7 +498,7 @@ func refresh_layers() -> void:
 		return
 	for ch in _layers_box.get_children():
 		ch.queue_free()
-	var p: Control = layers.build()
+	var p: Control = pins_panel.build() if view_mode == "pins" else layers.build()
 	p.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_layers_box.add_child(p)
 
@@ -537,7 +604,38 @@ func refresh_top() -> void:
 	_redo.disabled = not hist.can_redo()
 	_undo.modulate.a = 1.0 if hist.can_undo() else 0.4
 	_redo.modulate.a = 1.0 if hist.can_redo() else 0.4
-	_top_note.text = "Changed since you opened it" if changed else ""
+	_top_note.text = ("Changed since you saved" if editing_id != "" else "Not saved yet") if changed else ""
+	var need := LayersPanel.needed(doc)
+	_save_b.disabled = not need.is_empty()
+	_save_b.tooltip_text = "Save (Ctrl+S)" if need.is_empty() else (
+		"%s more part%s and it can walk: %s." % [_count_word(need.size()), "" if need.size() == 1 else "s",
+		", ".join(need.map(func(p): return LayersPanel.part_name(doc.plan, p).to_lower()))])
+
+
+static func _count_word(n: int) -> String:
+	return ["No", "One", "Two", "Three", "Four", "Five", "Six"][n] if n < 7 else str(n)
+
+
+func refresh_style() -> void:
+	# The colour panel, for the picked shapes. The colour a picker drag
+	# left is remembered under Used lately.
+	if _style_box == null:
+		return
+	if _last_fill != "":
+		Picker.remember(_last_fill)
+		_last_fill = ""
+	_colour_key = ""
+	for ch in _style_box.get_children():
+		_style_box.remove_child(ch)
+		ch.queue_free()
+	if view_mode == "pins":
+		var c := K.c
+		var v := K.vbox(6)
+		v.add_child(UI.label("Pins mode", 15, c.ink, 600, true))
+		v.add_child(UI.wrap("Drag a dot on the canvas. Each pin stays inside its dashed box, so every move still looks like a critter. Watch the preview below to see if it looks right.", 12, c.ink2, SIDE_W - 40))
+		_style_box.add_child(v)
+		return
+	_style_box.add_child(style.build())
 
 
 func zoom_changed() -> void:
@@ -566,18 +664,23 @@ func changed_parts(parts: Array, final := true) -> void:
 	# After any change: those layers are drawn again; when it is done (not
 	# mid-drag), the panels follow.
 	changed = true
-	canvas.mark(parts)
+	if parts.has("@style"):
+		canvas.mark_all()
+	canvas.mark(parts.filter(func(p): return not str(p).begins_with("@")))
 	if final:
 		sel = sel.filter(func(i): return i < Tools.layer(doc, part).size())
 		refresh_layers()
 		refresh_ctx()
 		refresh_top()
+		refresh_style()
+		preview.changed()
 
 
 func selection_changed(final := true) -> void:
 	canvas.queue_redraw()
 	if final:
 		refresh_ctx()
+		refresh_style()
 
 
 # --- What the controls do --------------------------------------------------------------
@@ -598,6 +701,7 @@ func pick_part(p: String) -> void:
 		pose = ps
 	refresh_layers()
 	refresh_ctx()
+	refresh_style()
 	canvas.queue_redraw()
 
 
@@ -636,7 +740,10 @@ func place(t: String, u: Vector2) -> void:
 		say("Show and unlock %s to draw on it." % LayersPanel.part_name(doc.plan, part))
 		return
 	var at := Tools.snap_point(u, Tools.SNAP / canvas.zoom) if snap_on else u
+	var eyes_now := StylePanel.eye_preset(doc)
 	var i := Tools.place(doc, hist, part, t, at, sym_here())
+	if t == "eye" and i >= 0:
+		StylePanel.set_eyes(doc, eyes_now)   # a new eye matches the others
 	if i < 0:
 		say("That's as many shapes as a critter can have here.")
 		return
@@ -753,16 +860,20 @@ func redo() -> void:
 
 
 func back_to_my_critters() -> void:
-	hide()
-	if main != null:
-		main.open_settings("my_critters")
+	leave(func():
+		if main != null:
+			main.open_settings("my_critters"))
 
 
 func key(e: InputEventKey) -> bool:
 	# The shortcuts (the design's ? panel). True when one was used.
 	var k := e.keycode
+	if overlay != null and k != KEY_ESCAPE:
+		return false
 	if e.ctrl_pressed:
 		match k:
+			KEY_S:
+				open_save()
 			KEY_Z:
 				if e.shift_pressed:
 					redo()
@@ -792,6 +903,8 @@ func key(e: InputEventKey) -> bool:
 		set_tool(letters[k])
 		return true
 	match k:
+		KEY_P:
+			set_view_mode("shapes" if view_mode == "pins" else "pins")
 		KEY_DELETE, KEY_BACKSPACE:
 			delete_sel()
 		KEY_PAGEUP:
@@ -803,11 +916,248 @@ func key(e: InputEventKey) -> bool:
 		KEY_0:
 			canvas.fit()
 		KEY_ESCAPE:
+			if overlay != null:
+				close_overlay()
+				return true
 			if sel.is_empty() and tool == "move":
-				hide()
+				leave(Callable())
+				return true
 			sel = []
 			set_tool("move")
 			selection_changed()
 		_:
 			return false
 	return true
+
+
+# --- Colour and style (D4) ---------------------------------------------------------------
+
+func set_fill(hex: String) -> void:
+	# The picker moved: the picked shapes take its colour. A drag is one
+	# undo step (recorded once for this selection).
+	if sel.is_empty() or not editable(part):
+		return
+	var key := "%s:%s" % [part, sel]
+	if key != _colour_key:
+		hist.record(doc, [part])
+		_colour_key = key
+	_last_fill = hex
+	_one_or_all(func(s):
+		var o: Dictionary = s.duplicate(true)
+		o.fill = hex
+		return Shapes.clean(o))
+	changed = true
+	canvas.mark([part])
+	refresh_top()
+	preview.changed()
+
+
+func set_shape_flag(flag: String, on: bool) -> void:
+	# Outline ("line") or Marking ("inside") on the picked shapes.
+	if sel.is_empty() or not editable(part):
+		return
+	_sel_action(func(): _one_or_all(func(s):
+		var o: Dictionary = s.duplicate(true)
+		o[flag] = on
+		return Shapes.clean(o)))
+
+
+func set_blush(on: bool) -> void:
+	hist.record(doc, ["@style"])
+	doc.style.blush = on
+	changed_parts(["@style"])
+
+
+func set_eye_preset(preset: String) -> void:
+	var parts := StylePanel.eye_parts(doc)
+	if parts.is_empty():
+		return
+	hist.record(doc, parts)
+	StylePanel.set_eyes(doc, preset)
+	changed_parts(parts)
+
+
+# --- Pins (D6) --------------------------------------------------------------------------
+
+func set_view_mode(m: String) -> void:
+	if m == view_mode or canvas == null:
+		return
+	view_mode = m
+	sel = []
+	pin_sel = ""
+	if m == "pins":
+		set_tool("move")
+	build()
+
+
+func pick_pin(p: String) -> void:
+	pin_sel = p
+	# The pose the joint is seen in.
+	pose = "sit" if p in ["neck-sit", "wing-l", "tuft"] else "walk"
+	refresh_layers()
+	canvas.queue_redraw()
+
+
+func pins_changed(final := true) -> void:
+	# A pin was dragged (or put back).
+	changed = true
+	canvas.queue_redraw()
+	if final:
+		refresh_layers()
+		refresh_top()
+		preview.changed()
+
+
+func reset_pins(p: String) -> void:
+	if doc.pins.is_empty():
+		return
+	hist.record(doc, ["@pins"])
+	PinsPanel.reset(doc, p)
+	pins_changed()
+
+
+# --- Saving and leaving (D6) ---------------------------------------------------------------
+
+func open_save(after := Callable()) -> void:
+	# The Save dialog, if every needed part is drawn.
+	if starting or canvas == null:
+		return
+	var need := LayersPanel.needed(doc)
+	if not need.is_empty():
+		say("Draw the needed parts first: %s." % ", ".join(need.map(func(p): return LayersPanel.part_name(doc.plan, p).to_lower())))
+		return
+	var sp := SavePanel.new(self, after)
+	show_overlay(sp.build)
+
+
+func show_overlay(make: Callable) -> void:
+	# A dialog over the window: a scrim and a card, built by make().
+	close_overlay()
+	_overlay_build = make
+	var c := K.c
+	overlay = Control.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.32)
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(scrim)
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(centre)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", K.box(c.surface, 22, c.outline, 2, c.lip, 4))
+	card.add_child(K.margins(make.call(), 26, 22, 26, 22))
+	centre.add_child(card)
+	add_child(overlay)
+
+
+func rebuild_overlay() -> void:
+	# The dialog drawn again (a choice in it changed).
+	if overlay != null and _overlay_build.is_valid():
+		show_overlay(_overlay_build)
+
+
+func close_overlay() -> void:
+	if overlay != null:
+		overlay.queue_free()
+		overlay = null
+	_overlay_build = Callable()
+
+
+func kept(id: String, send: bool, after: Callable) -> void:
+	# After Keep: saved, on the desk if asked, and the critters already out
+	# drawn again with the new art.
+	if id == "":
+		close_overlay()
+		say("It couldn't be saved. Check every needed part is drawn.")
+		return
+	var was := editing_id
+	editing_id = id
+	changed = false
+	close_overlay()
+	refresh_top()
+	if main != null:
+		if was != "":
+			main.refresh_homemade(id)
+		if send:
+			main.spawn_homemade(id)
+		if main.get("toasts") != null:
+			var img := Image.load_from_file(Customs.thumb(id)) if FileAccess.file_exists(Customs.thumb(id)) else null
+			var icon: Texture2D = ImageTexture.create_from_image(img) if img != null else Icons.berry(40)
+			if send:
+				main.toasts.show_note(icon, "Saved", "%s is on your desk" % critter_name, "It visits with the rest from now on. Click it to say hello.")
+			else:
+				main.toasts.show_note(icon, "Saved", "%s is saved" % critter_name, "It's in My critters, and visits with the rest.")
+	if after.is_valid():
+		after.call()
+
+
+func leave(then: Callable) -> void:
+	# Going back or closing: with changes since it was saved, ask first
+	# (Save and go back, Don't save, Stay here).
+	if not changed or starting or canvas == null:
+		_go(then)
+		return
+	show_overlay(func() -> Control:
+		var c := K.c
+		var v := K.vbox(12)
+		v.custom_minimum_size.x = 460
+		var who := critter_name if critter_name != "" else "your critter"
+		v.add_child(UI.label("Save your changes to %s?" % who, 22, c.ink, 600, true))
+		var why := "You've changed %s since you last saved. If you go back without saving, those changes are lost." % who if editing_id != "" \
+			else "%s hasn't been saved yet. If you go back without saving, it's lost." % who.capitalize()
+		v.add_child(UI.wrap(why, 13, c.ink2, 440))
+		var bar := K.hbox(10)
+		bar.add_child(K.button("Stay here", "bq", "", false, close_overlay))
+		var g := Control.new()
+		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.add_child(g)
+		bar.add_child(K.button("Don't save", "bs", "", false, func():
+			close_overlay()
+			_go(then)))
+		var save_b := K.button("Save and go back", "bp", "check", false, func():
+			close_overlay()
+			open_save(func(): _go(then)))
+		save_b.disabled = not LayersPanel.needed(doc).is_empty()
+		bar.add_child(save_b)
+		v.add_child(bar)
+		return v)
+
+
+func _go(then: Callable) -> void:
+	# Leaves: the window hides and forgets the doc.
+	forget()
+	hide()
+	if then.is_valid():
+		then.call()
+
+
+func forget() -> void:
+	close_overlay()
+	if preview != null:
+		preview.clear()
+	doc = {}
+	editing_id = ""
+	critter_name = ""
+	changed = false
+	hist.clear()
+
+
+# --- Starting (D5) -------------------------------------------------------------------------
+
+func start_from(file: String) -> void:
+	var s := StartPage.starter(file)
+	if s.is_empty():
+		return
+	load_doc(s.doc, "", s.gait)
+	starting = false
+	build()
+	if canvas != null:
+		canvas.grab_focus()
+
+
+func start_blank(plan: String) -> void:
+	load_doc(Tools.blank(plan))
+	starting = false
+	build()
