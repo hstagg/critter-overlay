@@ -129,6 +129,23 @@ func _init() -> void:
 	check(saved != null and int(saved.focus.max_out) == 5, "flush writes a pending change at once")
 	s.free()
 
+	# --- Economy keys this version doesn't know survive a load and a save
+	# (a later version's, such as its codes' purses).
+	clean()
+	put(ep, JSON.stringify({"version": Economy.SAVE_VERSION, "berries": 5, "from_later": {"a": [1, 2]}, "later_n": 3}))
+	e = Economy.new()
+	e.save_path = ep
+	e.infinite_flag = NO_FLAG
+	e.load_save()
+	e.berries += 1
+	e.save()
+	var kept = SaveFile.read(ep)
+	check(kept.get("from_later") == {"a": [1.0, 2.0]} and kept.get("later_n") == 3.0, "economy keys this version doesn't know survive a load and a save")
+	check(kept.berries == 6.0 and kept.version == float(Economy.SAVE_VERSION), "beside its own, which win")
+	e.from_dict({"berries": 1, "version": Economy.SAVE_VERSION})
+	check(not e.to_dict().has("from_later"), "a save loaded later brings only its own")
+	e.free()
+
 	# --- Start over: everything new, the old saves kept beside the new ones.
 	clean()
 	e = Economy.new()
