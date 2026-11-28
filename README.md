@@ -47,6 +47,14 @@ critters.
   plus the Legendary visitors, which stay secret until you meet them.
 - **Rare Hour**: once a day, for an hour you pick, rarer critters turn up more
   often.
+- **Codes**: paste one in Settings › System › Codes (or **Have a code?** in
+  the Shop) and press Redeem. The
+  [Supporter Pack](https://critteroverlay.itch.io/supporter-pack) is the
+  Starlight set: a moon nightcap, a starry capelet, star glasses, the Moon
+  cradle showpiece and a Royal blue dye. It's looks only, and it's how you can
+  support the app. Creator codes, for people who feature Critter Overlay in
+  videos, add creator mode: **Call a critter** from the tray, in any everyday
+  look, without it counting in your Collection.
 
 Everything is in **Settings**: Home, Critters, Focus, World, Sound,
 Collection, Shop and System.
@@ -58,7 +66,8 @@ working, it checks how long it's been since your last key press or mouse
 movement; it never records which keys you press, what you type or where you
 click. Once a day it asks GitHub whether there's a newer version, and when
 there is, downloads it (Settings › System › Updates: download, only tell
-you, or never check). Nothing about you or your critters is sent.
+you, or never check). Codes are checked on your computer, with no account and
+no sign-in. Nothing about you or your critters is sent.
 
 ## Updates
 

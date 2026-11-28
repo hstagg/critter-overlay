@@ -1,10 +1,12 @@
 # Runs the v3 headless tests (godot/*_test.gd, through run-tests.ps1) on every
-# push to main and every pull request into it. native_test.gd is left out: it
+# push to main and every pull request into it, after checking that no tracked
+# file holds a private key. native_test.gd is left out: it
 # needs the native DLL, which is built with godot-cpp and SCons. Then exports
 # the player build's pack and checks the Admin page is not in it, and compiles
 # the installer (against stand-in files) so a broken script shows here, not at
 # release time. It also runs the posting tool's Python tests (tools/post),
-# which replace the network, so nothing is ever sent.
+# which replace the network, so nothing is ever sent, and the landing site's
+# checks (tools/site/site.py check: tags, links, wording).
 
 name: Tests
 
@@ -29,9 +31,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: No private key is tracked
+        shell: pwsh
+        run: |
+          # The codes' signing key lives outside every repo (docs/codes-plan.md).
+          # Fail if any tracked file holds a PEM private-key header.
+          $hits = git grep -l -E -e "-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----"
+          if ($LASTEXITCODE -eq 0) { throw "A tracked file holds a private key: $($hits -join ', ')" }
+          if ($LASTEXITCODE -gt 1) { throw "git grep failed ($LASTEXITCODE)" }
+          # git grep's 1 means no match; GitHub ends a pwsh step with $LASTEXITCODE.
+          exit 0
+
       - name: Posting tool tests
         shell: pwsh
         run: python -m unittest tools/post/test_post.py
+
+      - name: Site checks
+        shell: pwsh
+        run: python tools/site/site.py check
 
       - name: Cache Godot
         id: cache
