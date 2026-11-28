@@ -19,6 +19,12 @@ extends Window
 ## Leaving (My critters, the close button, Esc) asks first if anything has
 ## changed since it was saved, and then forgets the doc, so the next visit
 ## starts on the Start page.
+##
+## D7's help (help.gd): every button has a tooltip (the ones built by the
+## preview and the pins panel get theirs from BUTTON_TIPS as they are
+## added), ? opens the shortcuts, three first-time tips show once (kept in
+## settings.gd's studio.tips_seen), an empty part shows a hint card, and
+## Save with parts missing says which ones.
 
 const Palette := preload("res://gui/palette.gd")
 const UI := preload("res://gui/ui.gd")
@@ -39,6 +45,7 @@ const Preview := preload("res://gui/studio/preview.gd")
 const SavePanel := preload("res://gui/studio/save_panel.gd")
 const StartPage := preload("res://gui/studio/start_page.gd")
 const Picker := preload("res://gui/colour_picker.gd")
+const Help := preload("res://gui/studio/help.gd")
 
 const W := 1280                    # the design's size
 const H := 800
@@ -49,6 +56,12 @@ const SIDE_W := 316
 const TOOLS := [["move", "Move, turn and resize", "V"], [], ["ellipse", "Oval", "E"], ["rect", "Rounded box", "R"],
 	["tri", "Triangle", "T"], ["drop", "Drop", "D"], ["heart", "Heart", "H"], ["star", "Star", "S"],
 	["blob", "Blob", "B"], ["stroke", "Line", "L"], ["eye", "Eye", "I"], [], ["pan", "Pan (hold Space)", ""]]
+# Tooltips for buttons built by panels that set none, by their text.
+const BUTTON_TIPS := {"Shapes": "Draw with shapes (P)", "Pins": "Place the joints it bends at (P)",
+	"Walk": "Show it walking", "Sit": "Show it sitting", "Nap": "Show it napping", "Blink": "Watch it blink",
+	"Look around": "Watch it look around", "Swish tail": "Watch it swish its tail",
+	"Put every pin back": "Every joint back where we suggested it"}
+const HINT_TEXT := "Hold Space and drag to move around. Ctrl and the wheel zoom. Press ? for every key."
 const SHAPE_NAMES := {"ellipse": "oval", "rect": "rounded box", "tri": "triangle", "drop": "drop", "heart": "heart",
 	"star": "star", "blob": "blob", "stroke": "line", "eye": "eye"}
 
@@ -100,6 +113,14 @@ var _drag_from := Vector2i(-1, -1)
 var _resize_from := Vector2i(-1, -1)
 var _resize_size := Vector2i.ZERO
 var _taskbar_done := false
+var overlay_kind := ""             # what the dialog is: keys, missing, save, leave
+var tip_i := -1                    # the first-time tip showing, or -1
+var _tip_box: Control
+var _tips_seen_here := false       # with no settings (tests)
+var _holder: Control               # the canvas's box, where the hint card sits
+var hint_now := {}                 # the hint card showing (help.gd hint_for), or {}
+var _hint_box: Control
+var _hint_skipped := {}            # parts whose hint card was skipped
 
 
 func _init() -> void:
@@ -110,6 +131,35 @@ func _init() -> void:
 	visible = false
 	initial_position = Window.WINDOW_INITIAL_POSITION_ABSOLUTE
 	close_requested.connect(func(): leave(Callable()))
+
+
+func _notification(what: int) -> void:
+	# Buttons that come without a tooltip get one (tip_for()).
+	if what == NOTIFICATION_ENTER_TREE and not get_tree().node_added.is_connected(_on_node_added):
+		get_tree().node_added.connect(_on_node_added)
+	elif what == NOTIFICATION_EXIT_TREE and get_tree().node_added.is_connected(_on_node_added):
+		get_tree().node_added.disconnect(_on_node_added)
+
+
+func _on_node_added(n: Node) -> void:
+	if n is BaseButton and is_ancestor_of(n):
+		_give_tip.call_deferred(n)
+
+
+func _give_tip(b: BaseButton) -> void:
+	if is_instance_valid(b) and b.tooltip_text == "":
+		b.tooltip_text = tip_for(b)
+
+
+func tip_for(b: BaseButton) -> String:
+	var t: String = (b as Button).text if b is Button else ""
+	if BUTTON_TIPS.has(t):
+		return BUTTON_TIPS[t]
+	if t.begins_with("Put the ") and t.ends_with(" back"):
+		return "Back where we suggested it"
+	if t == "" and view_mode == "pins" and _layers_box != null and _layers_box.is_ancestor_of(b):
+		return "Pick this joint, then drag its dot on the canvas"
+	return ""
 
 
 static func fit_for(usable: Vector2, display: float) -> Dictionary:
@@ -196,6 +246,11 @@ func build() -> void:
 	add_child(col)
 	col.add_child(_top())
 	overlay = null
+	overlay_kind = ""
+	_tip_box = null
+	_hint_box = null
+	_holder = null
+	hint_now = {}
 	if starting:
 		# The Start page: no canvas, nothing to undo or save.
 		canvas = null
@@ -233,6 +288,9 @@ func build() -> void:
 	refresh_top()
 	refresh_style()
 	preview.restage()
+	if tip_i < 0 and not tips_seen():
+		tip_i = 0
+	_show_tip()
 
 
 func _line(vertical: bool) -> ColorRect:
@@ -255,6 +313,7 @@ func _top() -> Control:
 	p.add_child(K.margins(h, 14, 0, 10, 0))
 	var back := K.button("My critters", "bq", "", true, back_to_my_critters)
 	back.icon = SI.line("back", 18, c.ink2)
+	back.tooltip_text = "Back to My critters. If you've changed something, it asks first."
 	back.focus_mode = Control.FOCUS_NONE
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(back)
@@ -278,8 +337,12 @@ func _top() -> Control:
 	var nl := UI.label("Name", 11, c.ink2, 700)
 	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(K.margins(nl, 10, 0, 0, 0))
-	var name_field := K.text_field(critter_name, "Name it", 24, func(t): critter_name = t)
+	var name_field := K.text_field(critter_name, "Name it", 24, func(t):
+		critter_name = t
+		changed = true
+		refresh_top())
 	name_field.custom_minimum_size.x = 180
+	name_field.tooltip_text = "Its name. You can change it when you save, too."
 	name_field.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(name_field)
 	_top_note = UI.label("", 12, c.ink3, 700)
@@ -295,6 +358,7 @@ func _top() -> Control:
 	_redo = _ib("redo", "Redo (Ctrl+Y)", redo)
 	h.add_child(_undo)
 	h.add_child(_redo)
+	h.add_child(_ib("help", "Shortcuts (?)", show_help))
 	_save_b = K.button("Save", "bp", "", false, func(): open_save())
 	_save_b.focus_mode = Control.FOCUS_NONE
 	_save_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -376,6 +440,7 @@ func _stage() -> Control:
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	holder.clip_contents = true
 	v.add_child(holder)
+	_holder = holder
 	var keep_zoom: float = canvas.zoom if canvas != null else -1.0
 	var keep_origin: Vector2 = canvas.origin if canvas != null else Vector2.ZERO
 	canvas = Canvas.new(self)
@@ -391,16 +456,16 @@ func _stage() -> Control:
 	zp.add_theme_stylebox_override("panel", K.box(c.raised, 14, c.sec_line, 2, c.sec_line, 2))
 	var zh := K.hbox(4)
 	zp.add_child(K.margins(zh, 3, 3, 3, 3))
-	zh.add_child(_zb("-", "Zoom out", func(): canvas.set_zoom(canvas.zoom / 1.25)))
+	zh.add_child(_zb("-", "Zoom out (Ctrl and the wheel)", func(): canvas.set_zoom(canvas.zoom / 1.25)))
 	_zoom_pct = UI.label("100%", 13, c.ink, 800)
 	_zoom_pct.custom_minimum_size.x = 44
 	_zoom_pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	zh.add_child(_zoom_pct)
-	zh.add_child(_zb("+", "Zoom in", func(): canvas.set_zoom(canvas.zoom * 1.25)))
+	zh.add_child(_zb("+", "Zoom in (Ctrl and the wheel)", func(): canvas.set_zoom(canvas.zoom * 1.25)))
 	zh.add_child(_zb("Fit", "Fit the frame (0)", func(): canvas.fit()))
 	_corner(zp, false, 14, 14)
 	holder.add_child(zp)
-	_hint = UI.label("Hold Space and drag to move around. Ctrl and the wheel zoom.", 12, c.ink3, 700)
+	_hint = UI.label(HINT_TEXT, 12, c.ink3, 700)
 	_corner(_hint, false, 230, 24)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(_hint)
@@ -521,6 +586,9 @@ func refresh_rail() -> void:
 		var b := Button.new()
 		b.icon = SI.line("hand" if t[0] == "pan" else t[0], 20, c.acc_ink if on else c.ink2)
 		b.tooltip_text = "%s (%s)" % [t[1], t[2]] if t[2] != "" else t[1]
+		if view_mode == "pins" and t[0] in Shapes.TYPES:
+			b.modulate.a = 0.45
+			b.tooltip_text += ": back to Shapes to draw"
 		b.custom_minimum_size = Vector2(42, 40)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.focus_mode = Control.FOCUS_NONE
@@ -558,7 +626,7 @@ func refresh_ctx() -> void:
 	elif sel.size() > 1:
 		detail = "%d shapes" % sel.size()
 	elif shapes.is_empty():
-		detail = "empty: pick a shape and click to add one"
+		detail = "no shapes yet"
 	what.add_child(UI.label(detail, 13, c.ink3, 700))
 	_ctx.add_child(K.margins(what, 0, 0, 6, 0))
 	var any := not sel.is_empty()
@@ -586,6 +654,7 @@ func refresh_ctx() -> void:
 		guide_on = not guide_on
 		refresh_ctx()
 		canvas.queue_redraw()))
+	refresh_hint()
 
 
 func _chip(icon: String, text: String, tip: String, on: bool, cb: Callable) -> Button:
@@ -605,10 +674,11 @@ func refresh_top() -> void:
 	_undo.modulate.a = 1.0 if hist.can_undo() else 0.4
 	_redo.modulate.a = 1.0 if hist.can_redo() else 0.4
 	_top_note.text = ("Changed since you saved" if editing_id != "" else "Not saved yet") if changed else ""
+	# With parts missing, Save looks off and says which; a click shows them.
 	var need := LayersPanel.needed(doc)
-	_save_b.disabled = not need.is_empty()
+	_save_b.modulate.a = 1.0 if need.is_empty() else 0.5
 	_save_b.tooltip_text = "Save (Ctrl+S)" if need.is_empty() else (
-		"%s more part%s and it can walk: %s." % [_count_word(need.size()), "" if need.size() == 1 else "s",
+		"%s more part%s and it can walk: %s. Click to see them." % [_count_word(need.size()), "" if need.size() == 1 else "s",
 		", ".join(need.map(func(p): return LayersPanel.part_name(doc.plan, p).to_lower()))])
 
 
@@ -656,7 +726,7 @@ func _process(delta: float) -> void:
 	if _hint_left > 0.0:
 		_hint_left -= delta
 		if _hint_left <= 0.0 and _hint != null:
-			_hint.text = "Hold Space and drag to move around. Ctrl and the wheel zoom."
+			_hint.text = HINT_TEXT
 			_hint.add_theme_color_override("font_color", K.c.ink3)
 
 
@@ -706,6 +776,9 @@ func pick_part(p: String) -> void:
 
 
 func set_tool(t: String) -> void:
+	# A shape tool in Pins mode goes back to Shapes to draw with it.
+	if view_mode == "pins" and t in Shapes.TYPES:
+		set_view_mode("shapes")
 	tool = t
 	refresh_rail()
 	canvas.mouse_default_cursor_shape = Control.CURSOR_CROSS if t in Shapes.TYPES else Control.CURSOR_ARROW
@@ -750,6 +823,8 @@ func place(t: String, u: Vector2) -> void:
 	sel = [i]
 	set_tool("move")
 	changed_parts([part])
+	if tip_i == 0:
+		next_tip()                   # the second tip is about the new shape
 
 
 func draw_pose(p: String, from: String) -> void:
@@ -868,9 +943,19 @@ func back_to_my_critters() -> void:
 func key(e: InputEventKey) -> bool:
 	# The shortcuts (the design's ? panel). True when one was used.
 	var k := e.keycode
+	if Help.is_help_key(e) and not e.ctrl_pressed:
+		if overlay == null:
+			show_help()
+		elif overlay_kind == "keys":
+			close_overlay()
+		else:
+			return false
+		return true
 	if overlay != null and k != KEY_ESCAPE:
 		return false
 	if e.ctrl_pressed:
+		if e.shift_pressed and k != KEY_Z:
+			return false             # only Ctrl+Shift+Z (redo) is bound
 		match k:
 			KEY_S:
 				open_save()
@@ -918,6 +1003,9 @@ func key(e: InputEventKey) -> bool:
 		KEY_ESCAPE:
 			if overlay != null:
 				close_overlay()
+				return true
+			if tip_i >= 0:
+				skip_tips()
 				return true
 			if sel.is_empty() and tool == "move":
 				leave(Callable())
@@ -1024,16 +1112,17 @@ func open_save(after := Callable()) -> void:
 		return
 	var need := LayersPanel.needed(doc)
 	if not need.is_empty():
-		say("Draw the needed parts first: %s." % ", ".join(need.map(func(p): return LayersPanel.part_name(doc.plan, p).to_lower())))
+		show_overlay(func(): return Help.missing_card(self, need), "missing")
 		return
 	var sp := SavePanel.new(self, after)
-	show_overlay(sp.build)
+	show_overlay(sp.build, "save")
 
 
-func show_overlay(make: Callable) -> void:
+func show_overlay(make: Callable, kind := "") -> void:
 	# A dialog over the window: a scrim and a card, built by make().
 	close_overlay()
 	_overlay_build = make
+	overlay_kind = kind
 	var c := K.c
 	overlay = Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1055,7 +1144,7 @@ func show_overlay(make: Callable) -> void:
 func rebuild_overlay() -> void:
 	# The dialog drawn again (a choice in it changed).
 	if overlay != null and _overlay_build.is_valid():
-		show_overlay(_overlay_build)
+		show_overlay(_overlay_build, overlay_kind)
 
 
 func close_overlay() -> void:
@@ -1063,6 +1152,7 @@ func close_overlay() -> void:
 		overlay.queue_free()
 		overlay = null
 	_overlay_build = Callable()
+	overlay_kind = ""
 
 
 func kept(id: String, send: bool, after: Callable) -> void:
@@ -1099,7 +1189,7 @@ func leave(then: Callable) -> void:
 	if not changed or starting or canvas == null:
 		_go(then)
 		return
-	show_overlay(func() -> Control:
+	var make := func() -> Control:
 		var c := K.c
 		var v := K.vbox(12)
 		v.custom_minimum_size.x = 460
@@ -1108,6 +1198,10 @@ func leave(then: Callable) -> void:
 		var why := "You've changed %s since you last saved. If you go back without saving, those changes are lost." % who if editing_id != "" \
 			else "%s hasn't been saved yet. If you go back without saving, it's lost." % who.capitalize()
 		v.add_child(UI.wrap(why, 13, c.ink2, 440))
+		var need := LayersPanel.needed(doc)
+		if not need.is_empty():
+			var names := need.map(func(p): return LayersPanel.part_name(doc.plan, p).to_lower())
+			v.add_child(UI.wrap("It can't be saved yet: draw the %s first. Stay here to draw them." % _and_list(names), 13, c.dng_ink, 440))
 		var bar := K.hbox(10)
 		bar.add_child(K.button("Stay here", "bq", "", false, close_overlay))
 		var g := Control.new()
@@ -1119,14 +1213,18 @@ func leave(then: Callable) -> void:
 		var save_b := K.button("Save and go back", "bp", "check", false, func():
 			close_overlay()
 			open_save(func(): _go(then)))
-		save_b.disabled = not LayersPanel.needed(doc).is_empty()
+		save_b.disabled = not need.is_empty()
 		bar.add_child(save_b)
 		v.add_child(bar)
-		return v)
+		return v
+	show_overlay(make, "leave")
 
 
 func _go(then: Callable) -> void:
-	# Leaves: the window hides and forgets the doc.
+	# Leaves: the window hides and forgets the doc. Tips shown on this
+	# visit count as seen.
+	if tip_i >= 0:
+		skip_tips()
 	forget()
 	hide()
 	if then.is_valid():
@@ -1142,6 +1240,87 @@ func forget() -> void:
 	critter_name = ""
 	changed = false
 	hist.clear()
+
+
+# --- Help (D7) ------------------------------------------------------------------------------
+
+static func _and_list(words: Array) -> String:
+	if words.size() < 2:
+		return "".join(words)
+	return "%s and %s" % [", ".join(words.slice(0, -1)), words[-1]]
+
+
+func show_help() -> void:
+	# The ? panel.
+	if starting or canvas == null:
+		return
+	show_overlay(func(): return Help.shortcuts(self), "keys")
+
+
+func tips_seen() -> bool:
+	if main != null and main.get("settings") != null:
+		return bool(main.settings.value("studio.tips_seen", false))
+	return _tips_seen_here
+
+
+func _set_tips_seen() -> void:
+	_tips_seen_here = true
+	if main != null and main.get("settings") != null:
+		main.settings.set_value("studio.tips_seen", true)
+
+
+func _show_tip() -> void:
+	if _tip_box != null:
+		_tip_box.queue_free()
+		_tip_box = null
+	if tip_i < 0 or starting or canvas == null:
+		return
+	_tip_box = Help.tip_bubble(self, tip_i)
+	add_child(_tip_box)
+	if overlay != null:
+		move_child(overlay, -1)
+
+
+func next_tip() -> void:
+	tip_i += 1
+	if tip_i >= Help.TIPS.size():
+		skip_tips()
+		return
+	_show_tip()
+
+
+func skip_tips() -> void:
+	tip_i = -1
+	_set_tips_seen()
+	_show_tip()
+
+
+func refresh_hint() -> void:
+	# The hint card on an empty part, with shapes that suit it.
+	if _hint_box != null:
+		_hint_box.queue_free()
+		_hint_box = null
+	hint_now = {}
+	if _holder == null or starting or view_mode != "shapes" or _hint_skipped.has(part) or not Tools.layer(doc, part).is_empty():
+		return
+	hint_now = Help.hint_for(doc, part)
+	_hint_box = CenterContainer.new()
+	_hint_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hint_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_box.add_child(Help.hint_card(self, hint_now))
+	_holder.add_child(_hint_box)
+
+
+func use_hint(t: String) -> void:
+	# A shape from the hint card, put where the part usually goes.
+	if hint_now.is_empty():
+		return
+	place(t, hint_now.at)
+
+
+func skip_hint() -> void:
+	_hint_skipped[part] = true
+	refresh_hint()
 
 
 # --- Starting (D5) -------------------------------------------------------------------------

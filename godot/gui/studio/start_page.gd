@@ -168,5 +168,6 @@ func _plan(p: Array) -> Control:
 	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	b.add_child(m)
 	var plan: String = p[0]
+	b.tooltip_text = "Start a blank critter: %s" % str(p[1]).to_lower()
 	b.pressed.connect(func(): st.start_blank(plan))
 	return b

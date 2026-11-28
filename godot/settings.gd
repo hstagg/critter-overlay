@@ -65,6 +65,7 @@ const DEFAULTS := {
 		"update_dismissed": "",    # a version the user closed the note for
 		"creator_mode": true,      # with a creator code: System > Creator and the tray's Call a critter
 	},
+	"studio": {"tips_seen": false},   # the Critter Studio's first-time tips (gui/studio/help.gd)
 }
 
 const SaveFile := preload("res://save_file.gd")
