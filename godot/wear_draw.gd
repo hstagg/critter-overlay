@@ -40,6 +40,7 @@ const IDS := [
 	"frog_hood", "dino_hood", "bear_hood", "astronaut_helmet", "viking_helmet", "knight_helmet",
 	"tricorn", "top_hat", "jester_hat", "mortarboard", "flower_bonnet", "lion_mane", "garden_hat",
 	"disco_headphones", "aviator_cap", "confetti_crown", "lucky_charm",
+	"moon_nightcap", "star_cape", "star_glasses", "director_beret",
 ]
 
 
@@ -372,6 +373,14 @@ static func _call(id: String, m: Dictionary) -> String:
 			return i_confetti_crown(m)
 		"lucky_charm":
 			return i_lucky_charm(m)
+		"moon_nightcap":
+			return i_moon_nightcap(m)
+		"star_cape":
+			return i_star_cape(m)
+		"star_glasses":
+			return i_star_glasses(m)
+		"director_beret":
+			return i_director_beret(m)
 	return ""
 
 # --- Helpers (common.py) --------------------------------------------------------------
@@ -1419,3 +1428,72 @@ static func i_lucky_charm(m: Dictionary) -> String:
 	var leaves = ''.join(PackedStringArray(_j2))
 	var shine = fmt('<path d="M{:.1f} {:.1f} q 3 -5 8 -6" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round"/>', [(cx - 9), (py - 6)])
 	return svg((((chain + disc) + leaves) + shine))
+
+
+# --- Items (items_pack.py: the Supporter Pack and the creator hat) --------------------
+static func i_moon_nightcap(m: Dictionary) -> String:
+	var cx = m.cx
+	var hw = (m.rx * 0.8)
+	var brim_y = (top(m, cx) + (m.ry * 0.36))
+	var crown = (top(m, cx) - 34)
+	var tip_x = (cx + (hw * 1.22))
+	var tip_y = (brim_y - 2)
+	var cap = fmt('<path d="M{:.1f} {:.1f} C {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} C {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} C {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} C {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} {:.1f} Z" fill="#4B4C9A" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>', [(cx - hw), brim_y, (cx - hw), (crown - 10), (cx + (hw * 0.5)), (crown - 34), (cx + (hw * 0.95)), (crown + 2), (cx + (hw * 1.12)), (crown + 18), (tip_x + 4), (tip_y - 20), tip_x, tip_y, (tip_x - 14), (tip_y - 18), (cx + (hw * 0.86)), (crown + 26), (cx + (hw * 0.7)), (crown + 22), (cx + (hw * 0.86)), (brim_y - 20), (cx + hw), (brim_y - 10), (cx + hw), brim_y])
+	var mx = (cx - (hw * 0.3))
+	var my = (crown + 24)
+	var moon = fmt('<path d="M{:.1f} {:.1f} A 13 13 0 1 0 {:.1f} {:.1f} A 10 10 0 1 1 {:.1f} {:.1f} Z" fill="#FFE58A" stroke="#6B4A3A" stroke-width="3" stroke-linejoin="round"/>', [(mx + 4), (my - 13), (mx + 4), (my + 13), (mx + 4), (my - 13)])
+	var dots = (star((cx + (hw * 0.18)), (crown + 10), 6, '#FFD45C', LINE, 2) + star((cx + (hw * 0.5)), (crown + 30), 4.5, '#FFF0C2', LINE, 2, 15))
+	var brim = fmt('<rect x="{:.1f}" y="{:.1f}" width="{:.1f}" height="22" rx="11" fill="#E9E4F7" stroke="#6B4A3A" stroke-width="4"/>', [((cx - hw) - 6), (brim_y - 12), ((2 * hw) + 12)])
+	var tassel = star((tip_x + 2), (tip_y + 10), 14, '#FFD45C', LINE, (W - 1), 10)
+	return svg(((((cap + moon) + dots) + brim) + tassel))
+
+static func i_star_cape(m: Dictionary) -> String:
+	var cx = m.cx
+	var y = (m.chin - 4)
+	var half = (m.rx * 0.6)
+	var cape = fmt('<path d="M{:.1f} {:.1f} Q {} {:.1f} {:.1f} {:.1f} L {:.1f} {:.1f} Q {:.1f} {:.1f} {:.1f} {:.1f} Q {:.1f} {:.1f} {:.1f} {:.1f} Z" fill="#4B4C9A" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/>', [(cx - half), (y - 10), cx, (y + 18), (cx + half), (y - 10), ((cx + half) + 16), (y + 30), (cx + (half * 0.5)), (y + 44), cx, (y + 40), (cx - (half * 0.5)), (y + 44), ((cx - half) - 16), (y + 30)])
+	var collar = fmt('<path d="M{:.1f} {:.1f} Q {} {:.1f} {:.1f} {:.1f}" stroke="#E9E4F7" stroke-width="7" fill="none" stroke-linecap="round"/>', [(cx - half), (y - 10), cx, (y + 18), (cx + half), (y - 10)])
+	var _j1 = []
+	for _t2 in [[(-0.85), 22, 4.5], [(-0.4), 30, 3.5], [0.45, 28, 4], [0.9, 20, 3.5]]:
+		var dx = _t2[0]
+		var dy = _t2[1]
+		var r = _t2[2]
+		_j1.append(star((cx + (dx * half)), (y + dy), r, '#FFF0C2', LINE, 1.6, (dx * 40)))
+	var dots = ''.join(PackedStringArray(_j1))
+	var clasp = star(cx, (y + 12), 11, '#FFD45C', LINE, 3)
+	return svg((((cape + collar) + dots) + clasp))
+
+static func i_star_glasses(m: Dictionary) -> String:
+	var y = m.eye_y
+	var r = (m.eye_r + 15)
+	var lx = (m.cx - m.eye_dx)
+	var rx_ = (m.cx + m.eye_dx)
+	var pts = func(x):
+		var out = []
+		for i in range(10):
+			var a = deg_to_rad(((-90) + (i * 36)))
+			var rr = (r if ((i % 2) == 0) else (r * 0.58))
+			out.append(fmt('{:.1f},{:.1f}', [(x + (rr * cos(a))), ((y + 2) + (rr * sin(a)))]))
+		return ' '.join(PackedStringArray(out))
+	var _j1 = []
+	for x in [lx, rx_]:
+		_j1.append(fmt('<polygon points="{}" fill="#FFF3B0" fill-opacity="0.28" stroke="#6B4A3A" stroke-width="9" stroke-linejoin="round"/><polygon points="{}" fill="none" stroke="#FFC93C" stroke-width="4" stroke-linejoin="round"/>', [pts.call(x), pts.call(x)]))
+	var lens = ''.join(PackedStringArray(_j1))
+	var bridge = fmt('<path d="M{:.1f} {:.1f} Q {} {:.1f} {:.1f} {:.1f}" stroke="#6B4A3A" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M{:.1f} {:.1f} Q {} {:.1f} {:.1f} {:.1f}" stroke="#FFC93C" stroke-width="3" fill="none" stroke-linecap="round"/>', [(lx + (r * 0.5)), (y - 4), m.cx, (y - 12), (rx_ - (r * 0.5)), (y - 4), (lx + (r * 0.5)), (y - 4), m.cx, (y - 12), (rx_ - (r * 0.5)), (y - 4)])
+	var _j2 = []
+	for x in [lx, rx_]:
+		_j2.append(fmt('<path d="M{:.1f} {:.1f} l 5 -6" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>', [(x - (r * 0.35)), (y - (r * 0.2))]))
+	var shine = ''.join(PackedStringArray(_j2))
+	return svg(((bridge + lens) + shine))
+
+static func i_director_beret(m: Dictionary) -> String:
+	var cx = (m.cx - 4)
+	var base = (top(m, cx) + 18)
+	var beret = fmt('<path d="M{} {} C {} {} {} {} {} {} C {} {} {} {} {} {} Q {} {} {} {} Z" fill="#3B3346" stroke="#6B4A3A" stroke-width="4" stroke-linejoin="round"/><path d="M{} {} q 2 -8 8 -10" stroke="#6B4A3A" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M{} {} q 20 -16 48 -16" stroke="#57506A" stroke-width="4" fill="none" stroke-linecap="round"/>', [(cx - 58), base, (cx - 72), (base - 40), (cx - 8), (base - 58), (cx + 34), (base - 46), (cx + 72), (base - 36), (cx + 64), (base - 4), (cx + 52), (base + 2), cx, (base + 10), (cx - 58), base, (cx + 2), (base - 52), (cx - 40), (base - 30)])
+	var px = (cx + 22)
+	var py = (base - 26)
+	var _j1 = []
+	for i in range(4):
+		_j1.append(fmt('<path d="M{} {} l 4 8" stroke="#FFFFFF" stroke-width="3"/>', [((px - 12) + (i * 8)), (py - 14)]))
+	var clap = ((fmt('<g transform="rotate(-12 {} {})"><rect x="{}" y="{}" width="32" height="22" rx="3" fill="#FFFFFF" stroke="#6B4A3A" stroke-width="3"/><path d="M{} {} H {} M{} {} H {}" stroke="#C9C2D6" stroke-width="2.4" stroke-linecap="round"/><g transform="rotate(-16 {} {})"><rect x="{}" y="{}" width="32" height="8" rx="2" fill="#2B2330" stroke="#6B4A3A" stroke-width="2.5"/>', [px, py, (px - 16), (py - 6), (px - 14), (py + 4), (px + 14), (px - 14), (py + 10), (px + 6), (px - 16), (py - 6), (px - 16), (py - 14)]) + ''.join(PackedStringArray(_j1))) + '</g></g>')
+	return svg((beret + clap))
