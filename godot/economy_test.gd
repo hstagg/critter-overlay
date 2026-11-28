@@ -4,6 +4,8 @@ extends SceneTree
 
 const Economy := preload("res://economy.gd")
 const Wear := preload("res://wear.gd")
+const Codes := preload("res://codes.gd")
+const Admin := preload("res://admin.gd")   # the test key and its codes
 
 var clock := 0.0
 var fails := 0
@@ -407,7 +409,120 @@ func _init() -> void:
 	check(gift_b.pay_spawn() and gift_b.berries == gift_left - Economy.SPAWN_PRICE, "off again, spending counts")
 	gift_b.free()
 
+	codes_checks(path)
+
 	print("ECONOMY TEST: %d checks, %d fails -> %s" % [checks, fails, "PASS" if fails == 0 else "FAIL"])
 	for x in [e, e2, e3, r]:
 		x.free()
 	quit(0 if fails == 0 else 1)
+
+
+func code_store(file: String) -> RefCounted:
+	var c = Codes.new()
+	c.path = file
+	c.trust(Admin.TEST_KEYS)
+	c.load_file()
+	return c
+
+
+func codes_checks(path: String) -> void:
+	# Codes (codes.gd, docs/codes-plan.md): a pack's things are owned through
+	# the codes store, never sold, never given.
+	var cfile := path.get_base_dir().path_join("codes.json")
+	var cs = code_store(cfile)
+	var pe = fresh(path + ".codes")
+	pe.codes = cs
+	var pack: Dictionary = Codes.PACKS.supporter
+	var things: Array = pack.clothes + pack.showpieces
+	var shop_item := ""
+	for id in Wear.ITEMS:
+		if Wear.ITEMS[id][2] == "small" and Wear.only(id) == "":
+			shop_item = id
+			break
+	pe.berries = 100000
+	check(pe.buy(shop_item, Wear.price(shop_item)), "a Shop item is bought as before")
+	for id in things:
+		check(not pe.owns(id), "without the pack, %s isn't owned" % id)
+		check(not pe.buy(id, 0) and not pe.buy(id, 8000), "and can't be bought, at no price or any")
+	for dye in pack.dyes:
+		check(not pe.owns_dye(shop_item, dye), "without the pack, the dye %s isn't owned" % dye)
+		check(not pe.buy_dye(shop_item, dye), "and can't be bought")
+	check(pe.berries == 100000 - Wear.price(shop_item) and pe.owned == [shop_item], "nothing else was spent or bought")
+	cs.redeem(Admin.TEST_CODES.supporter)
+	for id in things:
+		check(pe.owns(id), "with the pack, %s is owned" % id)
+		check(not id in pe.owned and not id in pe.gift_items, "through the codes, never copied into the save")
+		check(not pe.buy(id, 0), "and still not bought")
+	for dye in pack.dyes:
+		check(pe.owns_dye(shop_item, dye), "the pack's dye %s colours any item" % dye)
+	for id in Codes.PACKS.creator.clothes:
+		check(not pe.owns(id), "the Supporter Pack holds no creator hat")
+	for id in Wear.ITEMS:
+		var is_pack: bool = Wear.ITEMS[id][2] == "pack"
+		check(is_pack == (Codes.pack_of(id) != ""), "%s: tier pack exactly when a pack holds it" % id)
+		if is_pack:
+			check(Wear.price(id) == 0, "%s has no price" % id)
+	# Wearing a pack item; the code gone, it comes off and the id stays.
+	if pack.clothes.is_empty() or not Wear.has(pack.clothes[0]):
+		print("PENDING: the pack's clothes are not in the catalogue yet (docs/codes-plan.md, step 5)")
+	else:
+		var hat: String = pack.clothes[0]
+		pe.set_worn("kitten", [hat])
+		check(pe.outfit("kitten") == [hat], "a pack item is worn")
+		cs.forget()
+		check(pe.outfit("kitten").is_empty() and pe.worn.kitten == [hat], "without the pack it comes off, and stays in the save")
+		cs.redeem(Admin.TEST_CODES.supporter)
+		check(pe.outfit("kitten") == [hat], "owning it again brings it back")
+	pe.free()
+
+	# 10,000 gifts and presents never give a pack item (with the pack not owned).
+	cs.forget()
+	var ge = fresh(path + ".packgifts")
+	ge.codes = cs
+	var given := 0
+	var packed := 0
+	for i in 10000:
+		ge.gift_items = []
+		ge.gifts_since_item = Economy.GIFT_PITY - 1   # an item every time
+		ge._open_gift(0)
+		for id in ge.gift_items:
+			given += 1
+			packed += int(Codes.pack_of(id) != "")
+	check(given == 10000 and packed == 0, "10,000 gifts, no pack item (%d items, %d from a pack)" % [given, packed])
+	var brought := 0
+	packed = 0
+	var kinds := ["kitten", "rabbit", "duckling", "hedgehog", "turtle", "squirrel", "otter", "panda", "unicorn", "golden_kitten"]
+	for i in 10000:
+		var id: String = ge.roll_brought_item("legendary", kinds[i % kinds.size()])
+		if id != "":
+			brought += 1
+			packed += int(Codes.pack_of(id) != "")
+	check(brought > 100 and packed == 0, "10,000 visitors, no pack item among their presents (%d presents)" % brought)
+	ge.free()
+
+	# The creator purse: paid once, survives a reload, paid again after Start over.
+	cs.forget()
+	var purse_path := path + ".purse"
+	var ce = fresh(purse_path)
+	ce.codes = cs
+	cs.redeem(Admin.TEST_CODES.creator)
+	check(ce.pay_purses(cs.purses()) == 25000 and ce.berries == 25000, "a creator code pays 25,000 berries")
+	check(ce.pay_purses(cs.purses()) == 0 and ce.berries == 25000, "once")
+	var ce2 = fresh(purse_path)
+	ce2.load_save()
+	ce2.codes = cs
+	check(ce2.berries == 25000 and ce2.pay_purses(cs.purses()) == 0, "and not again after a reload")
+	cs.redeem(Admin.TEST_CODES.creator_2)
+	check(ce2.pay_purses(cs.purses()) == 25000 and ce2.berries == 50000, "a second creator code pays its own")
+	ce2.start_over()
+	check(ce2.berries == 0 and ce2.code_purses_paid.is_empty(), "Start over takes the berries back")
+	var after = code_store(cfile)
+	check(after.has_pack("creator") and after.held().size() == 2, "Start over leaves the codes alone")
+	var ce3 = fresh(purse_path)
+	ce3.load_save()
+	ce3.codes = after
+	check(ce3.pay_purses(after.purses()) == 50000 and ce3.berries == 50000, "the next launch pays them again, for a fresh start")
+	check(ce3.pay_purses(after.purses()) == 0, "once")
+	cs.forget()
+	for x in [ce, ce2, ce3]:
+		x.free()

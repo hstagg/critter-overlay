@@ -137,6 +137,14 @@ func checks() -> Array:
 		["The app", "v2", "Your v2.0 settings carried over", "Rare Hour, behaviour frequency, size, trails, and the old Seen Log in the Collection.", ""],
 		["The app", "install", "Installer and update check", "Install over the old copy; System > Check for updates.", ""],
 		["The app", "build", "Telling builds apart", "The tray icon's tooltip, About and the sidebar show the full version (3.0.0); the installer's name carries it too. Copy diagnostics shows arrivals and arrivals an hour.", "open:system"],
+		["Codes", "code_redeem", "Redeem a code", "Run opens System > Codes with the test Supporter code pasted. Redeem: the thank-you note, then the Shop shows the moon nightcap, starry capelet and star glasses marked Supporter Pack, the moon cradle puts out, and Royal blue is on offer for owned clothes. About says \"Supporter: thank you.\" Redeem the code again: already redeemed.", "code:supporter"],
+		["Codes", "code_wrong", "A code that isn't right", "Run pastes the test code with one letter changed: Redeem says it doesn't look right. Delete a few characters and Redeem again: the same. Nothing unlocks.", "code:wrong"],
+		["Codes", "code_creator", "Creator code", "Run pastes the test creator code. Redeem: the note lists 25,000 berries, the director's beret, the Supporter Pack and creator mode, and the berries arrive once (quit and relaunch: no more). The beret is in the Shop marked Creator pack; System has a Creator section and the tray a Call a critter item.", "code:creator"],
+		["Codes", "code_later", "A code for a later version", "Run pastes a test code of a kind this version doesn't know. Redeem: kept and listed, the note says it unlocks after an update, and nothing unlocks now.", "code:later_pack"],
+		["Codes", "code_creator_mode", "Creator mode", "Run turns creator mode on (a session creator pack if no code gave it), opens System > Creator and calls each everyday species in each look: each walks in wearing its outfit, and the Collection and berries don't change. Call more past 25: it says no more can come. Switch Creator mode off: the tray's Call a critter goes. No Legendary visitor can be called.", "creator"],
+		["Codes", "code_stay", "Codes stay", "With a creator code redeemed: Start over, quit and relaunch. The pack and creator mode are still there, and the creator berries come once more for the fresh start.", ""],
+		["Codes", "code_none", "Without a code", "Run forgets this PC's codes (codes.json.before-forget is kept). No pack item anywhere in the Shop, no Royal blue among the colours, and System > Codes has the one line and the link to the pack's page. The Shop's \"Have a code?\" opens System > Codes.", "forget"],
+		["Codes", "code_real", "A real code", "On the VM: one code from the developer's range of the real batch redeems in the installed player build.", ""],
 		["The app", "credits", "Credits and notices", "System > About > Credits and licences lists Godot and its components, both fonts and godot-cpp. THIRD-PARTY-NOTICES.txt sits beside the installed exe.", "open:system"],
 		["Homemade critters", "studio_min", "Studio opens at minimum size on a 1366 x 768 screen", "On the VM at 1366 x 768 (100%), and again on a bigger screen at 150%: Run opens the Studio at its smallest, centred. The top bar, the layers, the tool rail, the canvas and the right column all show, nothing cut off or overlapping. It drags by its title, resizes from the corner grip but no smaller, maximises and comes back; the canvas zooms (Ctrl and the wheel, or the buttons: 50% to 400%, a grid from 200%, Fit) and pans (Space and drag, or the middle button). The layers list Every pose, Walking, Sitting, Napping and Extras with 5 needed to walk; the guide kitten switches off.", "studio:min"],
 		["Homemade critters", "studio_tools", "The shape tools build the test critter", "Run: the Studio builds a small side-on critter step by step (body, head and cheek, two eyes, legs snapped onto the ground, an ear turned 15 degrees, a curled tail, a nose undone, the sitting pose drawn from walking). Then by hand: each shape button and a click; click, Shift-click and drag-select; scale (Shift keeps the ratio), turn (Shift: 15 degree steps), blob and line points, a box's corner radius; Page Up, Page Down, M, Ctrl+D, Del, the arrows (Shift: 10); Ctrl+C on one layer, Ctrl+V on another; Ctrl+Z and Ctrl+Y. Run studio:front for a blank faces-you critter: on its head and eyes, the other side follows (Symmetry). studio_test.gd checks the doc the script ends with.", "studio_script"],
@@ -301,6 +309,21 @@ func _events_card() -> Control:
 			["Open the Studio", func(): A().studio_open()], ["Build the test critter by script", func(): A().studio_script()]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
+	# Codes (codes.gd): packs for this session only, and forgetting this PC's codes.
+	var r4 := HFlowContainer.new()
+	r4.add_theme_constant_override("h_separation", 10)
+	r4.add_theme_constant_override("v_separation", 10)
+	var codes = w.main.codes
+	for p in [["supporter", "Supporter Pack"], ["creator", "Creator"]]:
+		var pack: String = p[0]
+		var on: bool = codes.session.has(pack)
+		r4.add_child(K.button("%s: %s" % [p[1], "on" if on else "off"], "bs", "", true, func():
+			A().set_pack(pack, not on)
+			w.rebuild()))
+	r4.add_child(K.button("Forget codes", "bq", "reset", true, func():
+		A().forget_codes()
+		w.rebuild()))
+	v.add_child(r4)
 	return _panel(v)
 
 
