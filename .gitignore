@@ -30,5 +30,12 @@ google-client*.json
 client_secret*.json
 tokens.json
 
+# The codes' signing key, batches and ledger live outside every repo
+# (docs/codes-plan.md); tools/codes/mint.py refuses paths in a work tree too
+*.pem
+*.key
+codes-*.txt
+codes-ledger*.csv
+
 # Built by the Site workflow (pages.yml), never stored
 site/press/critter-overlay-press-kit.zip

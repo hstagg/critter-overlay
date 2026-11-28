@@ -81,6 +81,7 @@ const Host := preload("res://host.gd")
 const WinPool := preload("res://win_pool.gd")
 const Region := preload("res://region.gd")
 const Economy := preload("res://economy.gd")
+const Codes := preload("res://codes.gd")
 const Tray := preload("res://gui/tray.gd")
 const Collection := preload("res://gui/collection.gd")
 const Toasts := preload("res://gui/toast.gd")
@@ -159,6 +160,7 @@ var custom_v2_dir := ""            # --custom-v2
 var customs_back := 0              # v2.0 custom critters carried over this launch
 var prop_dragging := false         # a showpiece is being dragged: full frame rate (prop.gd)
 var economy: Node
+var codes: RefCounted             # codes.gd: what this PC's codes unlock
 var tray: Node
 var toasts: Node
 var force_tier := ""
@@ -407,6 +409,17 @@ func _ready() -> void:
 	var fresh_economy := not (FileAccess.file_exists(esave) or FileAccess.file_exists(esave + ".tmp") or FileAccess.file_exists(esave + ".bak"))
 	add_child(economy)
 	economy.load_save()
+	# Codes (codes.gd): their own file. A run with its own economy save keeps
+	# its codes beside it, away from the player's. A creator code's berries
+	# are paid here, once per code, and again after Start over.
+	codes = Codes.new()
+	if esave != "user://economy.json":
+		codes.path = esave.get_basename() + "_codes.json"
+	if admin != null:
+		codes.trust(admin.TEST_KEYS)   # the test key: the admin build only
+	codes.load_file()
+	economy.codes = codes
+	economy.pay_purses(codes.purses())
 	# v2.0's Seen Log comes over once, into a new Collection. It is not tied to
 	# the settings import: settings may have been saved before the economy was.
 	if real_run and fresh_economy and not settings.value("system.v2_seen_done", false):
@@ -479,6 +492,7 @@ func _ready() -> void:
 	tray.pause_pressed.connect(toggle_pause)
 	tray.collection_pressed.connect(func(): open_settings("collection"))
 	tray.desktop_pressed.connect(toggle_on_desktop)
+	tray.call_pressed.connect(func(): open_settings_at("system", "creator"))
 	tray.settings_pressed.connect(func(): open_settings("home"))
 	tray.quit_pressed.connect(quit_app)
 	if open_on_start != "":
@@ -569,14 +583,15 @@ func _customs_note() -> void:
 
 
 func sync_props() -> void:
-	# The showpieces put out in the Shop, standing on the taskbar.
+	# The showpieces put out in the Shop, standing on the taskbar. A pack's
+	# showpiece whose code is gone goes away, and comes back out with it.
 	for pid in props.keys():
-		if not economy.props_out.has(pid):
+		if not economy.props_out.has(pid) or not economy.owns(pid):
 			props[pid].release_all()
 			props[pid].queue_free()
 			props.erase(pid)
 	for pid in economy.props_out:
-		if props.has(pid) or not Prop.PROPS.has(pid):
+		if props.has(pid) or not Prop.PROPS.has(pid) or not economy.owns(pid):
 			continue
 		var p = Prop.new()
 		add_child(p)
@@ -672,7 +687,7 @@ func _spawn(kind: String, start_mode: String, at := Vector2(-1, -1), sp := "", k
 	h.gone.connect(_on_gone)
 	hosts.append(h)
 	_personalise(h)
-	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.worn.get(sp, []), economy.dyed.get(sp, {}))
+	h.critter.wear(wear_flag if not wear_flag.is_empty() else economy.outfit(sp), economy.dyed.get(sp, {}))
 	if tier != "":
 		h.tier = tier
 	if rolled and custom:
@@ -841,7 +856,7 @@ func _maybe_bring(h) -> void:
 	var item: String = economy.roll_brought_item(h.tier, h.species)
 	if item == "":
 		return
-	var outfit: Array = economy.worn.get(h.species, []).filter(func(x): return Wear.slot(x) != Wear.slot(item))
+	var outfit: Array = economy.outfit(h.species).filter(func(x): return Wear.slot(x) != Wear.slot(item))
 	h.critter.wear(outfit + [item], economy.dyed.get(h.species, {}))
 	var got_it: bool = economy.receive_brought(item)
 	if got_it:
@@ -1830,7 +1845,79 @@ func set_dye(sp: String, item: String, dye: String) -> void:
 func _redress(sp: String) -> void:
 	for h in hosts:
 		if h.species == sp and h.state != "popping":
-			h.critter.wear(economy.worn.get(sp, []), economy.dyed.get(sp, {}))
+			h.critter.wear(economy.outfit(sp), economy.dyed.get(sp, {}))
+
+
+# --- Codes (codes.gd, docs/codes-plan.md) ---------------------------------------------
+
+func redeem_code(text: String) -> Dictionary:
+	# System > Codes > Redeem: what codes.redeem() says, after paying any
+	# creator berries and showing the note. A Supporter code then opens the
+	# Shop (settings_pages.gd does that).
+	var r: Dictionary = codes.redeem(text)
+	if r.result != "ok":
+		return r
+	var paid: int = economy.pay_purses(codes.purses())
+	codes_changed()
+	if r.kind == Codes.CREATOR:
+		var gave := ["%s berries" % SettingsWindow._thousands(paid)] if paid > 0 else []
+		gave.append("the %s" % Wear.item_name(Codes.PACKS.creator.clothes[0]).to_lower())
+		gave.append("the Supporter Pack")
+		gave.append("creator mode, in System > Creator")
+		toasts.show_note(Icons.line("star", 40, Color("#D9961A")), "Creator code", "Thank you for showing your critters",
+			"It gave you %s." % _and(gave), "#D9961A")
+	else:
+		toasts.show_note(Icons.line("heart", 40, Color("#C0548A")), "Supporter Pack", "Thank you for supporting Critter Overlay",
+			"Your starry clothes, the moon cradle and the Royal blue dye are in the Shop.", "#C0548A")
+	return r
+
+
+static func _and(parts: Array) -> String:
+	# "a, b and c".
+	if parts.size() < 2:
+		return "".join(parts)
+	return ", ".join(parts.slice(0, -1)) + " and " + parts[-1]
+
+
+func codes_changed() -> void:
+	# A pack came or went (a code, or the Admin page): clothes it held come
+	# back on (or off), its showpiece back out (or away), the tray follows.
+	for sp in Species.DATA:
+		_redress(sp)
+	sync_props()
+	_update_tray()
+
+
+func creator_on() -> bool:
+	# Creator mode: a creator code, and the switch in System > Creator on.
+	return codes != null and codes.has_pack("creator") and bool(settings.value("system.creator_mode"))
+
+
+func call_critter(sp: String, tier: String) -> bool:
+	# Creator mode's Call: an everyday critter in the look asked for, through
+	# the same path as the Admin page's spawns. It wears the player's outfit
+	# and stays for a normal visit, but takes no banked roll, records no
+	# sighting, pays no first-find berries and doesn't count in the
+	# Collection. The Legendary visitors can't be called: they stay a
+	# surprise. False when it can't come (the cap of 25 among them).
+	if not creator_on() or not Species.has(sp) or Species.is_special(sp) or hosts.size() >= HARD_MAX:
+		return false
+	var top: String = Species.row(sp).get("rarity_max", "epic")
+	if not tier in ["common", "rare", "epic"] or Economy.TIERS.find(tier) > Economy.TIERS.find(top):
+		return false
+	var h = _spawn("roam", "walk", Vector2(-1, -1), sp, tier)
+	if h == null:
+		return false
+	h.stay_left = randf_range(STAY_MIN, STAY_MAX) * stay_scale
+	_update_tray()
+	return true
+
+
+func open_settings_at(page: String, section: String) -> void:
+	# Settings on a page, scrolled to one of its sections (settings_pages.gd jump).
+	open_settings(page)
+	settings_win.pages.jump = section
+	settings_win.rebuild()
 
 
 func start_over() -> void:
@@ -1959,6 +2046,8 @@ func _on_setting(key: String) -> void:
 			updater.download()
 	if under.call("system.seen_log"):
 		economy.seen_log_enabled = settings.value("system.seen_log")
+	if under.call("system.creator_mode") and tray != null:
+		_update_tray()
 	if under.call("world.on_desktop"):
 		var was := on_desktop
 		on_desktop = bool(settings.value("world.on_desktop")) and desktop_ok()
@@ -2054,7 +2143,7 @@ func _update_tray() -> void:
 		"away_min": presence.idle_s / 60.0, "found": counts[0],
 		"found_total": counts[1], "berries": economy.berries, "spawn_price": Economy.SPAWN_PRICE,
 		"pause_key": "+".join(Settings.key_text(settings.value("system.pause_key"))),
-		"desktop_ok": desktop_ok(), "on_desktop": on_desktop})
+		"desktop_ok": desktop_ok(), "on_desktop": on_desktop, "creator": creator_on()})
 
 
 func note_pop() -> void:
