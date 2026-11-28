@@ -46,6 +46,7 @@ var staged := {}                   # a critter from someone, before Install (sha
 const STAGING := "user://custom_staging"
 var importer: RefCounted           # importer.gd
 var kit_screen: RefCounted         # kit_screen.gd: Draw in your own app
+var frames_screen: RefCounted      # frames_screen.gd: Bring an animation
 
 
 func _init(win: Window) -> void:
@@ -53,6 +54,7 @@ func _init(win: Window) -> void:
 	importer = Importer.new()
 	importer.w = win
 	kit_screen = load("res://gui/kit_screen.gd").new(win, self)
+	frames_screen = load("res://gui/frames_screen.gd").new(win, self)
 
 
 static func badge(d: Dictionary) -> String:
@@ -99,6 +101,8 @@ func build(body: VBoxContainer, header: Callable) -> void:
 		return
 	if kit_screen.active:
 		kit_screen.build(body, header)
+	elif frames_screen.active:
+		frames_screen.build(body, header)
 	elif view == "install" and not staged.is_empty():
 		_install(body)
 	elif view == "detail" and Customs.all.has(selected):
@@ -392,6 +396,8 @@ func _edit(id: String) -> void:
 		importer.edit(id)
 	elif badge(Customs.all[id]) == "Drawn" and Customs.way_on("kit"):
 		kit_screen.start(id)
+	elif badge(Customs.all[id]) == "Animated" and Customs.way_on("frames"):
+		frames_screen.start(id)
 	else:
 		_later(WORDS[badge(Customs.all[id])][0])
 
@@ -481,7 +487,8 @@ func drop(path: String) -> String:
 			kit_screen.start()
 			kit_screen.open_file(path)
 		"frames":
-			_later("Bring an animation")
+			frames_screen.start()
+			frames_screen.open_file(path)
 		"install":
 			install_file(path)
 		_:
@@ -700,7 +707,7 @@ func _make(body: VBoxContainer, header: Callable, first: bool) -> void:
 			["Procreate, Krita, Photoshop and more", "Walks, sits and naps"], "Get started", func(): kit_screen.start()])
 	if Customs.way_on("frames"):
 		ways.append(["Bring an animation", "A GIF, an animated PNG or a folder of frames. It plays exactly as you drew it.",
-			["Plays your frames", "Pixel art welcome"], "Pick a file", func(): _later("Bring an animation")])
+			["Plays your frames", "Pixel art welcome"], "Pick a file", func(): frames_screen.start()])
 	ways.append(["Use a picture", "One picture of a critter, with the background taken out. It slides along as it is. The quickest way.",
 		["PNG, JPG or WebP", "Slides along"], "Pick a picture", func():
 			view = "list"   # once kept, the new critter shows in the grid

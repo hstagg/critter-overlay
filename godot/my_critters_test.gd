@@ -230,6 +230,32 @@ func _init() -> void:
 	Customs.remove(kid)
 	Customs.ways = {}
 
+	# --- Bring an animation (E3): the frames screen.
+	Customs.all_ways_on()
+	var fs: RefCounted = my.frames_screen
+	fs.start()
+	t = page(my)
+	check(fs.active and "Bring an animation" in t and "Pick a folder" in t, "Bring an animation opens its choose page")
+	var cat_src: String = Fixtures.pixel_cat(root.path_join("src/cat"))
+	fs.open_file(ProjectSettings.globalize_path(cat_src.path_join("clips")))
+	check(fs.error == "" and fs.staged.clips.has("walk") and fs.preview == Customs.STAGED, "a folder of frames comes in and walks (%s)" % fs.error)
+	t = page(my)
+	check("ITS MOVES" in t and "Walk" in t and "Sit" in t and "Wave" in t, "its moves are listed, its own wave too")
+	check(t.any(func(x): return x.begins_with("Nap: borrows")), "and a missing move says what it borrows")
+	fs.info.walk.fps = 12
+	fs.faces = "right"
+	fs.apply()
+	var cj = JSON.parse_string(FileAccess.get_file_as_string(fs.STAGING.path_join("clips.json")))
+	check(int(cj.clips.walk.fps) == 12 and cj.faces == "right", "settings go into its clips.json")
+	fs.name = "Pixel"
+	var fid: String = fs.keep()
+	check(fid != "" and Customs.badge(Customs.all[fid]) == "Animated" and Customs.all[fid]["name"] == "Pixel", "Keep adds it as Animated")
+	my._edit(fid)
+	check(fs.active and fs.replacing == fid and not fs.staged.is_empty(), "Change frames opens its frames again")
+	check(fs.keep() == fid, "and Save keeps the same critter")
+	Customs.remove(fid)
+	Customs.ways = {}
+
 	# --- Dropping a file (C5): each kind to its importer, behind its way.
 	Customs.ways = {}
 	check(MyCritters.route("a/b.png") == "picture" and MyCritters.route("a/b.svg") == "" and MyCritters.route("a/b.critter") == "", "with the ways off only pictures go anywhere")
