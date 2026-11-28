@@ -19,6 +19,11 @@ extends Node
 ##     sixth gift without one.
 ##   - Coming back from a 5 to 30 minute break: the critters found something.
 ##   - Nothing is ever taken away.
+##   - Codes (codes.gd, docs/codes-plan.md): a pack's things are owned through
+##     the codes store, never copied into `owned`, and are never sold, given
+##     as gifts or brought as presents. A creator code's berries are paid once
+##     per code (code_purses_paid), in the same save as the berries; Start
+##     over pays them again on the next launch.
 ##   - Rare Hour: an hour a day, 15:00 by default, when rare, epic and
 ##     legendary are twice as likely, on top of luck.
 ##   - The day's first rarity roll is Rare or better (78% Rare, 20% Epic,
@@ -41,6 +46,7 @@ signal row_completed(species: String, berries: int)
 signal bond_grew(species: String, level: int)
 
 const SaveFile := preload("res://save_file.gd")
+const Codes := preload("res://codes.gd")
 
 const TIERS := ["common", "rare", "epic", "legendary"]
 # Epic 0.7%: a medium player (4 focus h a day, 5 days) fills the 24 everyday
@@ -134,6 +140,10 @@ var early_day := ""                # the last day counted
 var infinite := false             # infinite_flag exists: spending never lowers the count
 var infinite_flag := INFINITE_FLAG  # the tests point this elsewhere, so the developer's own flag doesn't reach them
 var v2_custom_seen := {}           # v2.0's Seen Log for custom critters, kept until they come back
+var code_purses_paid := []         # codes ("key:kind:serial") whose creator berries are paid
+
+var codes = null                   # codes.gd: what this PC's codes unlock (main.gd sets it)
+var _unknown := {}                 # keys of the save this version doesn't know, written back
 
 var rng := RandomNumberGenerator.new()
 var _frac := 0.0                   # berries not yet whole
@@ -466,8 +476,8 @@ func roll_brought_item(tier: String, species: String) -> String:
 	var weights := []
 	var total := 0.0
 	for id in Wear.ITEMS:
-		if not Wear.fits(id, species) or not Wear.unlocked(id, collection):
-			continue
+		if not Wear.fits(id, species) or not Wear.unlocked(id, collection) or Codes.pack_of(id) != "":
+			continue   # (a pack item has no price to weigh by, and is never given)
 		var w := pow(50.0 / float(Wear.price(id)), Wear.BRING_PRICE_POWER)
 		ids.append(id)
 		weights.append(w)
@@ -591,7 +601,15 @@ func gift_progress() -> float:
 
 
 func owns(item: String) -> bool:
-	return item in owned or item in gift_items
+	# Clothes and showpieces: bought, found, or in a pack this PC's codes give.
+	return item in owned or item in gift_items or (codes != null and codes.owns(item))
+
+
+func outfit(species: String) -> Array:
+	# What a species wears, without anything this PC no longer owns (a pack
+	# whose code is gone): the id stays in `worn`, so owning it again brings
+	# it back.
+	return worn.get(species, []).filter(func(i): return owns(i))
 
 
 func set_worn(species: String, items: Array) -> void:
@@ -604,12 +622,13 @@ func set_worn(species: String, items: Array) -> void:
 
 
 func owns_dye(item: String, dye: String) -> bool:
-	return dye in dyes_owned.get(item, [])
+	# A pack's dye colours any item.
+	return dye in dyes_owned.get(item, []) or (codes != null and codes.owns_dye(dye))
 
 
 func buy_dye(item: String, dye: String) -> bool:
 	# A colour for an item already owned, bought once.
-	if not owns(item) or owns_dye(item, dye) or berries < Wear.DYE_PRICE:
+	if not owns(item) or owns_dye(item, dye) or berries < Wear.DYE_PRICE or Codes.pack_of(dye) != "":
 		return false
 	berries -= Wear.DYE_PRICE
 	if not dyes_owned.has(item):
@@ -647,7 +666,8 @@ func buy_treat(species: String) -> bool:
 
 
 func buy(item: String, price: int) -> bool:
-	if owns(item) or berries < price:
+	# Never a pack's thing: its price of 0 doesn't mean free.
+	if owns(item) or berries < price or Codes.pack_of(item) != "":
 		return false
 	berries -= price
 	owned.append(item)
@@ -657,17 +677,33 @@ func buy(item: String, price: int) -> bool:
 	return true
 
 
+func pay_purses(purses: Dictionary) -> int:
+	# A creator code's berries ({"key:kind:serial": berries}, codes.purses()),
+	# each once, saved with the berries so a crash can't pay twice or lose
+	# them. Returns how many were paid now.
+	var paid := 0
+	for id in purses:
+		if not id in code_purses_paid:
+			code_purses_paid.append(id)
+			paid += int(purses[id])
+	if paid > 0:
+		_earn(paid)
+		save()
+	return paid
+
+
 # --- Saving -----------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
-	return {"version": SAVE_VERSION, "berries": berries, "lifetime_berries": lifetime_berries,
+	# Keys from a later version first, so they survive a run of this one.
+	return _unknown.merged({"version": SAVE_VERSION, "berries": berries, "lifetime_berries": lifetime_berries,
 		"session_min": session_min, "next_gift": next_gift, "day": day, "day_focus_min": day_focus_min,
 		"paid_first_session": paid_first_session, "gifts_since_item": gifts_since_item,
 		"gift_items": gift_items, "owned": owned, "collection": collection, "sightings": sightings,
 		"first_bonus_day": first_bonus_day, "worn": worn, "dyes_owned": dyes_owned, "dyed": dyed,
 		"treats": treats, "props_out": props_out, "bond": bond, "v2_custom_seen": v2_custom_seen,
 		"early_paid": early_paid, "early_min": early_min, "early_days": early_days, "early_day": early_day,
-		"rolls_banked": rolls_banked, "saved_at": int(now())}
+		"rolls_banked": rolls_banked, "code_purses_paid": code_purses_paid, "saved_at": int(now())}, true)
 
 
 func save() -> void:
@@ -720,6 +756,12 @@ func from_dict(d: Dictionary) -> void:
 		# 3.1.0's one-off Shop gift was the whole ladder's worth: none again.
 		early_paid = range(EARLY_GIFTS.size())
 	rolls_banked = clampf(_num(d, "rolls_banked", 1.0), 0.0, ROLL_BANK_MAX)
+	code_purses_paid = _typed(d, "code_purses_paid", []).map(func(x): return str(x))
+	_unknown = {}
+	var known := to_dict()
+	for k in d:
+		if not known.has(k) and k != "shop_gift_given":   # (3.1.0's, folded into early_paid)
+			_unknown[k] = d[k]
 	_frac = 0.0
 	# A long gap since the last save is a long break.
 	var gap := now() - _num(d, "saved_at", now())
