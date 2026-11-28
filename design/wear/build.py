@@ -15,6 +15,7 @@ import items_small  # noqa: E402
 import items_medium  # noqa: E402
 import items_large  # noqa: E402
 import items_perk  # noqa: E402
+import items_pack  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parents[2] / "godot" / "art" / "wear"
 # Head metrics in SVG units (from each species' head.svg, eyes.svg, ears).
@@ -437,6 +438,7 @@ ITEMS.update(items_small.ITEMS)
 ITEMS.update(items_medium.ITEMS)
 ITEMS.update(items_large.ITEMS)
 ITEMS.update(items_perk.ITEMS)
+ITEMS.update(items_pack.ITEMS)   # tier "pack": never sold (godot/codes.gd)
 
 
 # Where the first coloured fill is not the item's main colour.
@@ -449,7 +451,7 @@ MAIN = {"bell_collar": "#E2554F", "beanie": "#7FB3E8", "scarf": "#E86A5C", "carr
         "knight_helmet": "#C5CEDA", "astronaut_helmet": "#E8EEF7", "garden_hat": "#F2D58A",
         "flower_bonnet": "#FFF0C2", "sailor_hat": "#3E6FC2", "strawberry_hat": "#F2575D", "star_clip": "#FFD84D",
         "monocle": "#D9961A", "plaster": "#F7D3B0", "clover_clip": "#6CC27A", "lily_pad": "#6CC27A",
-        "dino_hood": "#86C9E8", "cowboy_hat": "#D99A5B"}
+        "dino_hood": "#86C9E8", "cowboy_hat": "#D99A5B", "star_glasses": "#FFC93C"}
 # No dyes where the main colour is white (it would recolour every highlight).
 NO_DYE = {"chef_hat", "flower_clip", "daisy_chain", "glasses", "sunglasses"}
 
