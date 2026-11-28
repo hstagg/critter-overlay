@@ -216,6 +216,20 @@ func _init() -> void:
 	check(lines.any(func(l): return "a script" in l[1]) and lines.any(func(l): return "doodle" in l[1]), "what was taken out and not recognised is said")
 	var need: Array = ks.check_lines({"plan": "side", "parts": {"head": 1}, "missing": ["walk-body"], "dropped": [], "unmatched": []})
 	check(need.any(func(l): return l[0] == "need" and "walking body" in l[1]), "a needed part is said")
+	# A layer it didn't recognise, named as a part.
+	var odd := FileAccess.get_file_as_string("res://templates/side-1.svg").replace('inkscape:label="tail (optional)"', 'inkscape:label="swishy"').replace('id="tail"', 'id="swishy"')
+	var odd_path := root.path_join("odd-side.svg")
+	var of := FileAccess.open(odd_path, FileAccess.WRITE)
+	of.store_string(odd)
+	of.close()
+	ks.open_file(odd_path)
+	check("swishy" in ks.staged.unmatched and not ks.staged.parts.has("tail"), "a layer named oddly isn't recognised (%s)" % str(ks.staged.unmatched))
+	check(ks.name_rows().size() == ks.staged.unmatched.size(), "each gets a which-part drop-down")
+	ks.assign["swishy"] = "tail"
+	ks.reload()
+	check(ks.staged.parts.has("tail") and not "swishy" in ks.staged.unmatched, "named as the tail, it is the tail")
+	ks.assign = {}
+	ks.open_file("res://templates/side-1.svg")
 	ks.name = "Biscuit"
 	var kid: String = ks.keep()
 	check(kid != "" and Customs.all[kid]["name"] == "Biscuit" and Customs.badge(Customs.all[kid]) == "Drawn", "Keep adds it as Drawn")
