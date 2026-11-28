@@ -442,5 +442,25 @@
   "Lucky charm",
   "neck",
   "perk"
+ ],
+ "moon_nightcap": [
+  "Moon nightcap",
+  "head",
+  "pack"
+ ],
+ "star_cape": [
+  "Starry capelet",
+  "neck",
+  "pack"
+ ],
+ "star_glasses": [
+  "Star glasses",
+  "face",
+  "pack"
+ ],
+ "director_beret": [
+  "Director's beret",
+  "head",
+  "pack"
  ]
 }
