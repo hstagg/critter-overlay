@@ -3,7 +3,8 @@ extends SceneTree
 ## E1): the pixel cat loads, its act clips become behaviours the evaluator
 ## can pick, each state plays its clip or the fallback, walking frames follow
 ## the distance, the atlas stays within 2048, and its frames are freed a
-## minute after the last one goes.
+## minute after the last one goes; with its head marked (F3) it wears
+## clothes that follow the marks, and without marks nothing fits.
 ## Run: godot --headless --path godot --script res://frames_test.gd
 
 const Customs := preload("res://customs.gd")
@@ -11,6 +12,7 @@ const Species := preload("res://species.gd")
 const Behaviours := preload("res://behaviours.gd")
 const FrameData := preload("res://critters/kit/frame_data.gd")
 const Fixtures := preload("res://critters/kit/fixtures.gd")
+const Wear := preload("res://wear.gd")
 
 var fails := 0
 var checks := 0
@@ -136,6 +138,36 @@ func _init() -> void:
 	w.tick(0.1)
 	check(w.clip == "walk" and w.sheet.region_rect == w.atlas.regions.walk[0], "with only walk frames it sits on the first")
 	w.free()
+
+	# Clothes (F3): head marks, joined between frames.
+	check(not FrameData.has_head(Customs.all[id]["_clips"]), "an unmarked cat has no head")
+	check(not Wear.fits("party_hat", id), "and nothing fits it")
+	var marked := {"clips": {"walk": {"head": {"0": [125, 150, 42], "2": [125, 154, 42], "x": [1, 2, 3], "3": [1, 2]}}}}
+	check(FrameData.head_marks(marked, "walk").size() == 2, "bad marks are skipped")
+	check(FrameData.head_at(marked, "walk", 1) == Vector3(125, 152, 42), "a frame between two marks is between them")
+	check(FrameData.head_at(marked, "walk", 3) == Vector3(125, 154, 42), "after the last mark the head stays put")
+	check(FrameData.head_at(marked, "sit", 0) == null, "an unmarked clip has no head")
+	Fixtures.pixel_cat(root.path_join("dressed"), true, true)
+	var did := Customs.add_folder(root.path_join("dressed"))
+	var hat := ""
+	for item in Wear.ITEMS:
+		if Wear.slot(item) == "head" and Wear.for_kits(item):
+			hat = item
+			break
+	check(did != "" and hat != "" and Wear.fits(hat, did), "a marked cat can wear a hat (%s)" % hat)
+	var dc = spawn(did, "walk")
+	dc.wear([hat])
+	dc.tick(0.05)
+	check(dc._wear_nodes.size() == 1 and dc.wear_pivot.visible, "it wears it on a marked clip")
+	var hd = FrameData.head_at(dc.clips, dc.clip, 0)
+	check(hd != null and dc.wear_pivot.scale.x > 0.5 and dc.wear_pivot.scale.x < 0.8, "scaled to the marked head (%.2f)" % dc.wear_pivot.scale.x)
+	dc._show("walk", 2)
+	var p2: Vector2 = dc.wear_pivot.position
+	dc._show("walk", 0)
+	check(is_equal_approx(p2.y - dc.wear_pivot.position.y, 4.0 * FrameData.PART_SCALE), "and it follows the head down a frame")
+	dc._show("act-wave", 0)
+	check(not dc.wear_pivot.visible, "on an unmarked clip it is hidden")
+	dc.free()
 
 	# Frames are freed a minute after the last one goes.
 	var key := Customs.tex_key(id)

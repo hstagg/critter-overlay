@@ -282,6 +282,8 @@ func run(action: String, chosen := "kitten") -> void:
 			carry_test()
 		"kit":
 			kit_test(arg)
+		"dress_pixelcat":
+			dress_pixel_cat()
 		"own_sound":
 			own_sound()
 		"colour_picker":
@@ -677,6 +679,25 @@ func kit_test(which: String) -> void:
 	spawn(id, "common", "", "", 1, "sit")
 	if which in ["kitten", "otter", "duckling"]:
 		spawn(which, "common")
+
+
+func dress_pixel_cat() -> void:
+	# F3: the pixel cat with its head marked walks and sits in a hat; the hat
+	# follows its head, and goes while it waves (an unmarked clip).
+	var src := "user://admin_kits/pixelcat_head"
+	load("res://critters/kit/fixtures.gd").pixel_cat(src, true, true)
+	var id: String = Customs.add_folder(src)
+	if id == "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Pixel cat", "It didn't load: see the log.")
+		return
+	spawn(id, "common")
+	spawn(id, "common", "", "", 1, "sit")
+	var hat := ""
+	for item in Wear.ITEMS:
+		if Wear.slot(item) == "head" and Wear.fits(item, id):
+			hat = item
+			break
+	dress(id, [hat])
 
 
 static func test_picture(with_background: bool) -> Image:
