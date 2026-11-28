@@ -87,6 +87,7 @@ const Collection := preload("res://gui/collection.gd")
 const Toasts := preload("res://gui/toast.gd")
 const Settings := preload("res://settings.gd")
 const SettingsWindow := preload("res://gui/settings_window.gd")
+const StudioWindow := preload("res://gui/studio/studio_window.gd")
 const Onboarding := preload("res://gui/onboarding.gd")
 const Palette := preload("res://gui/palette.gd")
 const Aura := preload("res://aura.gd")
@@ -144,6 +145,7 @@ var busy_hidden := false      # hidden while a full-screen app has the screen
 var busy_check := 0.0
 var settings: Node
 var settings_win: Window
+var studio_win: Window             # the Critter Studio (gui/studio/studio_window.gd), once opened
 var pace := 1.0               # World > Day and night pacing: how lively now
 var spawn_rate := 1.0         # and how often they arrive
 var night_sleep := 0.0        # and how sleepy
@@ -958,6 +960,7 @@ func _pace_frames() -> void:
 	# deltas add up to real time only because project.godot runs 10 physics
 	# ticks a second, not 60 (see delta_test.gd).
 	var ui_open: bool = waiting_welcome or prop_dragging or (settings_win != null and settings_win.visible) \
+		or (studio_win != null and studio_win.visible) \
 		or (tray != null and tray.panel != null and tray.panel.visible) or (toasts != null and not toasts.toasts.is_empty())
 	var cap := 0 if ui_open else 30
 	if not ui_open and (paused or busy_hidden or hosts.is_empty()):
@@ -1502,6 +1505,17 @@ func open_settings(page := "", sp := "") -> void:
 		settings_win.files_dropped.connect(drop_files)
 		add_child(settings_win)
 	settings_win.open(self, page, sp)
+
+
+func open_studio(shapes_doc := {}, editing_id := "") -> void:
+	# The Critter Studio (plan D2), its own window: a shapes.json to build
+	# from (a starter or a saved critter's), or {} to carry on with what is
+	# open, or start blank.
+	if studio_win == null:
+		studio_win = StudioWindow.new()
+		add_child(studio_win)
+	studio_win.open(self, shapes_doc, editing_id)
+	_pace_frames()
 
 
 func _set_paused(p: bool) -> void:

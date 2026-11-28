@@ -146,6 +146,8 @@ func checks() -> Array:
 		["Codes", "code_none", "Without a code", "Run forgets this PC's codes (codes.json.before-forget is kept). No pack item anywhere in the Shop, no Royal blue among the colours, and System > Codes has the one line and the link to the pack's page. The Shop's \"Have a code?\" opens System > Codes.", "forget"],
 		["Codes", "code_real", "A real code", "On the VM: one code from the developer's range of the real batch redeems in the installed player build.", ""],
 		["The app", "credits", "Credits and notices", "System > About > Credits and licences lists Godot and its components, both fonts and godot-cpp. THIRD-PARTY-NOTICES.txt sits beside the installed exe.", "open:system"],
+		["Homemade critters", "studio_min", "Studio opens at minimum size on a 1366 x 768 screen", "On the VM at 1366 x 768 (100%), and again on a bigger screen at 150%: Run opens the Studio at its smallest, centred. The top bar, the layers, the tool rail, the canvas and the right column all show, nothing cut off or overlapping. It drags by its title, resizes from the corner grip but no smaller, maximises and comes back; the canvas zooms (Ctrl and the wheel, or the buttons: 50% to 400%, a grid from 200%, Fit) and pans (Space and drag, or the middle button). The layers list Every pose, Walking, Sitting, Napping and Extras with 5 needed to walk; the guide kitten switches off.", "studio:min"],
+		["Homemade critters", "studio_tools", "The shape tools build the test critter", "Run: the Studio builds a small side-on critter step by step (body, head and cheek, two eyes, legs snapped onto the ground, an ear turned 15 degrees, a curled tail, a nose undone, the sitting pose drawn from walking). Then by hand: each shape button and a click; click, Shift-click and drag-select; scale (Shift keeps the ratio), turn (Shift: 15 degree steps), blob and line points, a box's corner radius; Page Up, Page Down, M, Ctrl+D, Del, the arrows (Shift: 10); Ctrl+C on one layer, Ctrl+V on another; Ctrl+Z and Ctrl+Y. Run studio:front for a blank faces-you critter: on its head and eyes, the other side follows (Symmetry). studio_test.gd checks the doc the script ends with.", "studio_script"],
 	]
 	return out
 
@@ -303,7 +305,8 @@ func _events_card() -> Control:
 			["Make the clothes contact sheet", func(): A().wear_sheet()], ["Dress the pixel cat", func(): A().dress_pixel_cat()],
 			["Copy and paste the test critter", func(): A().share_code_test()], ["Import the test template", func(): A().kit_import_test("side")], ["Simulate a drop of the test template", func(): A().drop_test()], ["Import the pixel cat's frames", func(): A().frames_import_test()], ["Export and re-install a test kit", func(): A().share_file_test("kit")],
 			["Open My critters", func(): A().run("open:my_critters")], ["Colour picker test", func(): A().colour_picker_test()],
-			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
+			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite],
+			["Open the Studio", func(): A().studio_open()], ["Build the test critter by script", func(): A().studio_script()]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)
 	# Codes (codes.gd): packs for this session only, and forgetting this PC's codes.

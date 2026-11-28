@@ -1,0 +1,170 @@
+{
+	"auto": {},
+	"layers": {
+		"body": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 70.0,
+				"inside": false,
+				"line": true,
+				"rot": 0.0,
+				"t": "ellipse",
+				"w": 140.0,
+				"x": 160.0,
+				"y": 200.0
+			}
+		],
+		"ear-l": [
+			{
+				"apex": 0.5,
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 44.0,
+				"inside": false,
+				"line": true,
+				"r": 0.0,
+				"rot": 345.0,
+				"t": "tri",
+				"w": 34.0,
+				"x": 88.0,
+				"y": 101.0
+			}
+		],
+		"eyes": [
+			{
+				"fill": "#3A2A22",
+				"flip": false,
+				"h": 22.0,
+				"inside": false,
+				"line": false,
+				"preset": "big",
+				"rot": 0.0,
+				"t": "eye",
+				"w": 18.0,
+				"x": 84.0,
+				"y": 147.0
+			},
+			{
+				"fill": "#3A2A22",
+				"flip": false,
+				"h": 22.0,
+				"inside": false,
+				"line": false,
+				"preset": "big",
+				"rot": 0.0,
+				"t": "eye",
+				"w": 18.0,
+				"x": 118.0,
+				"y": 147.0
+			}
+		],
+		"head": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 96.0,
+				"inside": false,
+				"line": true,
+				"rot": 0.0,
+				"t": "ellipse",
+				"w": 110.0,
+				"x": 100.0,
+				"y": 150.0
+			},
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 26.0,
+				"inside": false,
+				"line": true,
+				"rot": 0.0,
+				"t": "ellipse",
+				"w": 31.2,
+				"x": 110.400001525879,
+				"y": 188.0
+			}
+		],
+		"leg-back": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 42.0,
+				"inside": false,
+				"line": true,
+				"r": 9.0,
+				"rot": 0.0,
+				"t": "rect",
+				"w": 22.0,
+				"x": 204.0,
+				"y": 241.0
+			}
+		],
+		"leg-front": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 42.0,
+				"inside": false,
+				"line": true,
+				"r": 9.0,
+				"rot": 0.0,
+				"t": "rect",
+				"w": 22.0,
+				"x": 116.0,
+				"y": 241.0
+			}
+		],
+		"tail": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 40.0,
+				"inside": false,
+				"line": true,
+				"pts": [
+					[
+						226.0,
+						196.0
+					],
+					[
+						252.0,
+						176.0
+					],
+					[
+						262.0,
+						150.0
+					]
+				],
+				"rot": 0.0,
+				"t": "stroke",
+				"w": 40.0,
+				"width": 8.0,
+				"x": 240.0,
+				"y": 175.0
+			}
+		],
+		"walk-body": [
+			{
+				"fill": "#F6C28F",
+				"flip": false,
+				"h": 70.0,
+				"inside": false,
+				"line": true,
+				"rot": 0.0,
+				"t": "ellipse",
+				"w": 140.0,
+				"x": 160.0,
+				"y": 200.0
+			}
+		]
+	},
+	"pins": {},
+	"plan": "side",
+	"schema": 1,
+	"style": {
+		"blush": true,
+		"outline": "#5B3A29",
+		"width": 6.0
+	}
+}

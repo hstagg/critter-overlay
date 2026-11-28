@@ -700,7 +700,7 @@ func _make(body: VBoxContainer, header: Callable, first: bool) -> void:
 	if Customs.way_on("shapes"):
 		body.add_child(_way_card("Build from shapes",
 			"Put a critter together from circles, ovals, hearts and other shapes, right here. Pick its colours, eyes and how it walks.",
-			["Walks, sits and naps", "Nothing to install"], "Start building", func(): _later("Build from shapes"), "No drawing app? Start here"))
+			["Walks, sits and naps", "Nothing to install"], "Start building", func(): w.main.open_studio(),"No drawing app? Start here"))
 	var ways := []
 	if Customs.way_on("kit"):
 		ways.append(["Draw in your own app", "Get a template, draw each body part on its own layer, then bring the file back.",
