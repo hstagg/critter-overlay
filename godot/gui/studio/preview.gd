@@ -10,8 +10,8 @@ extends VBoxContainer
 ## Walk, Sit and Nap hold it in that pose; Blink, Look around and Swish tail
 ## play once (only the moves it has). It turns at the well's sides.
 ##
-## Customs has one staged slot, shared with the importers' previews: the
-## Studio takes it while it is open.
+## It is shown in its own staged slot (SLOT), so the importers' previews and
+## the install view can be live beside it.
 
 const Customs := preload("res://customs.gd")
 const Share := preload("res://share.gd")
@@ -21,12 +21,13 @@ const K := preload("res://gui/controls.gd")
 const UI := preload("res://gui/ui.gd")
 
 const STAGING := "user://studio_preview"
+const SLOT := "studio"             # Customs.show_staged()
 const DEBOUNCE := 0.5
 const SIDE := 22.0                 # px kept clear at each side of the well
 
 var st: Window                     # studio_window.gd
 var pose := "walk"
-var id := ""                       # Customs.STAGED once written, else ""
+var id := ""                       # Customs.staged_id(SLOT) once written, else ""
 var view: Control
 var _well: PanelContainer
 var _moves: HBoxContainer
@@ -104,7 +105,7 @@ func restage() -> void:
 	if Share.write_builder_kit(st.doc, st.critter_name if st.critter_name != "" else "My critter", STAGING, st.gait) == "":
 		_buttons()
 		return
-	id = Customs.show_staged(STAGING)
+	id = Customs.show_staged(STAGING, SLOT)
 	if id == "":
 		_buttons()
 		return
@@ -199,6 +200,6 @@ func clear() -> void:
 	# The Studio is closing: the staged slot is let go.
 	_wait = -1.0
 	if id != "":
-		Customs.clear_staged()
+		Customs.clear_staged(SLOT)
 	id = ""
 	Share.clear_dir(STAGING)

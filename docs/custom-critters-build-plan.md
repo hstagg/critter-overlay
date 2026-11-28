@@ -1739,7 +1739,7 @@ ships clothes, sharing, the Collection badges and the docs.
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
-| C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`); still to do: dragging the joints, naming an unrecognised layer, Where's its head?, and the VM check |
+| C4 | Kit importer | screens done 2026-11-27 (`gui/kit_screen.gd`): naming an unrecognised layer, dragging the joints, Where's its head? (behind the share way, R4); the VM check is still to do |
 | C5 | Drop a file to import | done 2026-11-27 (behind the kit way); the VM check is still to do |
 | R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
@@ -1753,11 +1753,11 @@ ships clothes, sharing, the Collection badges and the docs.
 | R2 | **Release 3.4.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
 | E2 | Frame formats | done 2026-11-24 |
-| E3 | Frame importer | screens done 2026-11-27 (`gui/frames_screen.gd`); still to do: cutting a single sprite sheet, and the VM check |
+| E3 | Frame importer | screens done 2026-11-27 (`gui/frames_screen.gd`), cutting sprite sheets too (one per move); the VM check is still to do |
 | R3 | **Release 3.5.0** | not started |
-| F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
+| F1 | Head metrics | done 2026-11-24; the kit page's Where's its head? (move and size the ellipse, a hat to try on, into kit.json `head`) done 2026-11-27; checking it by eye on the VM is still to do |
 | F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
-| F3 | Clothes on frame critters | engine done 2026-11-27; the *Where's its head?* marking screen comes with E3's importer (after C0) |
+| F3 | Clothes on frame critters | engine done 2026-11-27; the *Where's its head?* marking screen on the frames page done 2026-11-27; its done-when (the audit row on the VM) is still to do |
 | G1 | Builder codes | done 2026-11-27: Copy code on a builder critter's page, a pasted code opens the install view |
 | G2 | `.critter` v3 files | screens done 2026-11-27 (Save as a file, Open a .critter file, the install view); dropping a file waits for C5 |
 | G3 | Hostile-file pass | done 2026-11-24 |
@@ -2167,3 +2167,60 @@ step left needs the developer, or a design that needs them:
   toggles by hand, dragging pins, and D6's done-when (a changed round cat
   arrives, is edited, and updates on screen). Left for D7: everything a
   new player finds confusing in these flows.
+- 2026-11-27: C4, second pass: a layer the kit page didn't recognise gets a
+  drop-down (Leave it out, or each part the file lacks), passed to
+  `kit_import.gd stage()` as `assign`. Dragging the joints waits for D2's
+  canvas, so the kit page and the Studio share one.
+- 2026-11-27: the importers finished: C4's joints, F1's and F3's Where's
+  its head?, E3's sprite sheets, built to C0's Kit and Frames pages (still a
+  draft). **Staged slots:** `Customs.show_staged(folder, slot)` and
+  `clear_staged(slot)` give each preview its own id (`custom:_staged` for
+  the install view, `custom:_staged_kit`, `_staged_frames`,
+  `_staged_studio`), and `ids()` leaves out every one (`is_staged()`), so
+  the Studio's preview and an importer's can be live together. **Joints
+  (C4):** the art in its main pose (kit_data.gd `_placed()`, so exactly
+  where the rig draws it) with pins_panel.gd's joints as dots, beside the
+  critter walking with Walk, Sit, Nap, Blink and Look around; faces-you and
+  upright critters switch Walking and Sitting, since some joints only show
+  in one. The canvas and pins panel are bound to the Studio window, so the
+  kit page has a small drawing of its own and borrows only pins_panel.gd's
+  names. A dragged pin keeps D6's limits (60 units from the file's or the
+  template's pin, in the frame, hips below the neck; the neck takes the
+  head's pivot), is stored in the file's frame in the staged kit
+  (`kit_import.gd move_pin()`, laid over the file again by `with_moved()` on
+  Reload) and in kit.json `moved`, so Bring in a new version keeps it.
+  Found on the way: `write()` grounded the staged pins in place, so a second
+  write (Keep after the preview) moved them twice for a drawing off the
+  line; it now grounds a copy. **Where's its head? (F1):** the measured
+  ellipse on the head drawing with the beanie, bow or glasses on it, moved
+  by dragging inside and sized by a handle on its right and bottom; kept as
+  a nudge from the measure (`adjusted_head()`: within 60 units, 0.5 to 2
+  times; the eyes stay as measured), so a redrawn head keeps it, and Fit
+  again drops it. Keep writes it to kit.json `head`, and `kit_data.gd
+  build()` now reads kit.json `head` over its own measure, so the rig
+  dresses what the player set (before, the stored head wasn't read). **Head
+  marks (F3):** a panel on the frames page per move (picked from a list),
+  a frame stepper, the frame with the circle (solid where marked, dashed
+  where it follows along), drag to move, a handle to size; letting go,
+  or Mark this frame, marks it; Unmark and Clear marks. Marks go into
+  clips.json as F3 defined and are kept on Reload and Change frames; each
+  move says head marked or shows no clothes. Both head screens show only
+  with the share way on (R4 ships clothes for homemade critters).
+  **Sprite sheets (E3):** Cut a sprite sheet on the Choose step picks a PNG;
+  columns and rows are guessed (a strip of square frames) and set with
+  steppers, Frames counts how many cells are used, and each sheet is one
+  move named from a list (the eight moves, then six of its own: wave,
+  dance, spin, stretch, wiggle, hop; no typed names yet). Add another sheet,
+  Remove; `frames_import.gd stage_sheets()` fits and grounds them together.
+  A grid that doesn't divide says so and keeps the sheets on the page.
+  Sheets are watched and remembered in source.json. Admin: Drag the test
+  template's joints, Adjust the test template's head, Mark the pixel cat's
+  head, Cut the test sprite sheet, and an audit row for each. Tests:
+  `my_critters_test.gd` (two slots, a dragged pin through Reload and Keep,
+  the head stored and dressed, marks per frame and joined, a sheet cut into
+  7 of 8 cells, two sheets, Change frames), `kit_import_test.gd` (the
+  limits, the head into kit.json and the rig, pins left in the file's
+  frame) and `frames_import_test.gd` (two sheets, one move twice refused).
+  Left for the VM: dragging the dots and the ellipse by hand, the hat
+  sitting on the ellipse, the frame stepper and circle, the Kit and Frames
+  pages' layout at 100% and 150%, and C4's and E3's done-whens.

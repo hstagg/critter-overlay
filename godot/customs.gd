@@ -76,7 +76,10 @@ const MAX_SOUND_S := 2.0
 const SOUNDS := ["kitten", "rabbit", "duck", "hedgehog", "turtle", "squirrel", "otter", "panda"]
 const IDLES := ["sit_and_look", "nap", "wake_up", "look_at_cursor", "shake_off"]
 const PREVIEW := "custom:_preview"   # the importer's picture before it is kept; never arrives
-const STAGED := "custom:_staged"     # a critter from someone, shown before it is installed; never arrives
+const STAGED := "custom:_staged"     # a staged critter, shown before it is kept; never arrives
+# Each staged preview has its own slot ("" is STAGED itself, "studio" is
+# custom:_staged_studio), so the importers' previews, the Studio's and the
+# install view's can be live at once.
 
 static var dir := "user://custom"
 static var all := {}             # "custom:<id>" -> its custom.json, plus "_dir"
@@ -247,7 +250,15 @@ static func is_custom(id: String) -> bool:
 
 
 static func ids(enabled_only := false) -> Array:
-	return all.keys().filter(func(id): return id != PREVIEW and id != STAGED and (not enabled_only or bool(all[id].get("enabled", true))))
+	return all.keys().filter(func(id): return id != PREVIEW and not is_staged(id) and (not enabled_only or bool(all[id].get("enabled", true))))
+
+
+static func staged_id(slot := "") -> String:
+	return STAGED if slot == "" else "%s_%s" % [STAGED, slot]
+
+
+static func is_staged(id: String) -> bool:
+	return id == STAGED or id.begins_with(STAGED + "_")
 
 
 static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
@@ -261,10 +272,12 @@ static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
 	Species.custom[PREVIEW] = _row(all[PREVIEW])
 
 
-static func show_staged(folder: String) -> String:
-	# A staged critter (share.gd stage_install) drawn like a kept one, so the
-	# install dialog can show it walking. Returns STAGED, or "" if it can't.
-	clear_staged()
+static func show_staged(folder: String, slot := "") -> String:
+	# A staged critter (share.gd stage_install, an importer's or the Studio's
+	# staging folder) drawn like a kept one, so it can be shown walking.
+	# Returns its id (staged_id(slot)), or "" if it can't.
+	clear_staged(slot)
+	var sid := staged_id(slot)
 	var d = JSON.parse_string(_read(folder.path_join("custom.json"))) if FileAccess.file_exists(folder.path_join("custom.json")) else null
 	if typeof(d) != TYPE_DICTIONARY:
 		return ""
@@ -273,15 +286,16 @@ static func show_staged(folder: String) -> String:
 	_read_extras(d)
 	if _unusable(d) != "":
 		return ""
-	all[STAGED] = d
-	Species.custom[STAGED] = _row(d)
-	return STAGED
+	all[sid] = d
+	Species.custom[sid] = _row(d)
+	return sid
 
 
-static func clear_staged() -> void:
-	_forget(STAGED)
-	all.erase(STAGED)
-	Species.custom.erase(STAGED)
+static func clear_staged(slot := "") -> void:
+	var sid := staged_id(slot)
+	_forget(sid)
+	all.erase(sid)
+	Species.custom.erase(sid)
 
 
 static func clear_preview() -> void:

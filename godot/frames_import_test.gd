@@ -259,6 +259,12 @@ func _init() -> void:
 	var ss := Import.stage_sheet(ase.path_join("cat.png"), "walk", 6, 1, 4)
 	check(ss.error == "" and ss.clips.get("walk", []).size() == 4, "a sheet cuts on its grid (%s)" % ss.error)
 	check(Import.stage_sheet(ase.path_join("cat.png"), "walk", 7, 1).error.contains("evenly"), "a grid that doesn't divide is refused")
+	var two := Import.stage_sheets([{"path": ase.path_join("cat.png"), "clip": "walk", "cols": 6, "rows": 1, "count": 4},
+		{"path": ase.path_join("cat.png"), "clip": "idle", "cols": 6, "rows": 1}])
+	check(two.error == "" and two.clips.walk.size() == 4 and two.clips.get("sit", []).size() == 6, "two sheets are two moves (%s)" % two.error)
+	check(two.clips.walk[0].get_size() == two.clips.sit[0].get_size(), "sized together")
+	check(Import.stage_sheets([{"path": ase.path_join("cat.png"), "clip": "walk", "cols": 6, "rows": 1},
+		{"path": ase.path_join("cat.png"), "clip": "walking", "cols": 6, "rows": 1}]).error.contains("both"), "two sheets can't be the same move")
 	var zp := root.path_join("clips.zip")
 	var zw := ZIPPacker.new()
 	zw.open(zp)

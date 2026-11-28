@@ -332,6 +332,14 @@ func run(action: String, chosen := "kitten") -> void:
 			studio_save()
 		"studio_edit":
 			studio_edit()
+		"imp_joints":
+			kit_joints_test()
+		"imp_head":
+			kit_head_test()
+		"imp_marks":
+			frame_marks_test()
+		"imp_sheet":
+			sprite_sheet_test()
 
 
 # --- Pairs, clothes, events ----------------------------------------------------------
@@ -1020,3 +1028,77 @@ func studio_edit() -> void:
 	sp.send = false
 	sp.press_keep()
 	main.toasts.show_note(Icons.berry(40), "Admin", "Edited and saved", "The test critter is now %s: the ones on the desk should change to it." % next)
+
+
+# --- The importers' joints, heads and sheets (C4, E3, F1, F3) --------------------------
+
+func kit_joints_test() -> void:
+	# C4: the side-on template on the kit page with its back hip and tail
+	# dragged by script, as a player would: the dots move, the critter beside
+	# it walks with the new hip, and Put the joints back is offered.
+	await kit_import_test("side")
+	var ks = main.settings_win.pages.my.kit_screen
+	if ks.staged.is_empty() or ks.rig.is_empty():
+		return
+	ks.drag_pin("hip-back", ks.pin_shown_at("hip-back") + Vector2(24, 6))
+	ks.drag_pin("tail", ks.pin_shown_at("tail") + Vector2(-30, 20))
+
+
+func kit_head_test() -> void:
+	# F1: the side-on template's head ellipse moved up and made wider, with
+	# the beanie on; Keep writes it to kit.json and the kept one wears it.
+	Customs.all_ways_on()
+	await kit_import_test("side")
+	var ks = main.settings_win.pages.my.kit_screen
+	if not ks.staged.has("head_measured"):
+		return
+	var m: Dictionary = ks.staged.head_measured.duplicate()
+	m.cy = float(m.cy) - 10.0
+	m.rx = float(m.rx) * 1.2
+	ks.hat = "beanie"
+	ks.set_head(m)
+
+
+func frame_marks_test() -> void:
+	# F3: the pixel cat's frames on the frames page with its head marked on
+	# walk frames 1 and 3 and sit frame 1, Where's its head? on walk frame 2
+	# (following along between the marks).
+	Customs.all_ways_on()
+	await frames_import_test()
+	var fs = main.settings_win.pages.my.frames_screen
+	if fs.staged.is_empty():
+		return
+	fs.mark("walk", 0, Vector3(125, 150, 42))
+	fs.mark("walk", 2, Vector3(125, 154, 42))
+	fs.mark("sit", 0, Vector3(125, 150, 42))
+	fs.head_clip = "walk"
+	fs.head_frame = 1
+	fs.w.rebuild()
+
+
+static func test_sheet(path: String) -> void:
+	# The pixel cat's four walk frames twice over, seven of them, on a 4 x 2 grid.
+	var Fixtures = load("res://critters/kit/fixtures.gd")
+	var sheet := Image.create(1200, 560, false, Image.FORMAT_RGBA8)
+	for i in 7:
+		var cell: Image = Fixtures._cat_frame(i % 4)
+		sheet.blit_rect(cell, Rect2i(Vector2i.ZERO, cell.get_size()), Vector2i((i % 4) * 300, int(i / 4.0) * 280))
+	sheet.save_png(path)
+
+
+func sprite_sheet_test() -> void:
+	# E3: a 4 x 2 sprite sheet of seven frames cut into the walk, and the
+	# same sheet again as a wave: the critter walks with seven frames and
+	# waves with its own move.
+	var path := ProjectSettings.globalize_path("user://admin_sheet/cat-sheet.png")
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	test_sheet(path)
+	var my = await _my_critters()
+	Customs.all_ways_on()
+	var fs = my.frames_screen
+	fs.start()
+	fs.add_sheet(path)
+	fs.set_sheet(0, "cols", 4)
+	fs.set_sheet(0, "rows", 2)
+	fs.set_sheet(0, "count", 7)
+	fs.add_sheet(path, "act-wave")

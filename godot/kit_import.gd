@@ -12,6 +12,12 @@ extends RefCounted
 ## write(staged, name, dest): a kit folder (custom.json, kit.json, parts/),
 ## moved so its main pose stands on the ground line (4.7 grounding), ready
 ## for customs.gd add_folder().
+##
+## The kit page's own changes go on the staged kit and so survive Reload:
+## joints the player dragged (move_pin(), within 4.7's box, kept in
+## staged.moved and laid over the file's pins by with_moved()), and Where's
+## its head? (staged.head_adj: a move and a stretch of the measured ellipse,
+## so a redrawn head keeps the player's nudge; adjusted_head()).
 
 const Clean := preload("res://svg_clean.gd")
 const Raster := preload("res://raster_kit.gd")
@@ -38,7 +44,9 @@ static func guess_plan(parts: Array) -> String:
 	return "side"
 
 
-static func stage(path: String, plan_hint := "") -> Dictionary:
+static func stage(path: String, plan_hint := "", assign := {}) -> Dictionary:
+	# assign: {layer name: part} for layers the player has named on the kit
+	# page (C4); a layer given a part the file already has replaces it.
 	var out := {"plan": "", "gait": "", "parts": {}, "pins": {}, "unmatched": [], "missing": [],
 		"dropped": [], "warnings": [], "error": "", "template": "", "made_with": ""}
 	var found := {}
@@ -83,6 +91,11 @@ static func stage(path: String, plan_hint := "") -> Dictionary:
 		plan = guess_plan(found.keys())
 	out.plan = plan
 	var pl: Dictionary = KitData.PLANS[plan]
+	for layer in assign:
+		var to := str(assign[layer])
+		if found.has(layer) and (to in pl.required or to in pl.optional):
+			found[to] = found[layer]
+			found.erase(layer)
 	for p in found:
 		if p in pl.required or p in pl.optional:
 			out.parts[p] = found[p]
@@ -99,6 +112,114 @@ static func stage(path: String, plan_hint := "") -> Dictionary:
 	return out
 
 
+# --- Joints and the head, from the kit page (C4, F1) ---------------------------------
+
+const HIPS := ["hip-front", "hip-back", "hip"]
+const HEAD_ADJ_MOVE := 60.0         # units the head's ellipse may move from its measure
+const HEAD_ADJ_K := Vector2(0.5, 2.0)
+
+
+static func neck_of(plan: String) -> String:
+	return "neck-sit" if plan == "upright" else "neck-walk"
+
+
+static func carries_head(plan: String, pin: String) -> bool:
+	# The neck the head is drawn on (pins_panel.gd's rule): dragging it moves
+	# the head's own pivot too, so the head stays where it was drawn.
+	return pin == ("neck-walk" if plan == "side" else "neck-sit")
+
+
+static func base_pins(staged: Dictionary) -> Dictionary:
+	# Where each joint was before any drag: the file's or the template's,
+	# with kit_data.gd's defaults for the rest. Vector2s.
+	var p := KitData.pins({"plan": staged.plan, "pins": staged.get("file_pins", staged.pins)})
+	p.erase("warnings")
+	return p
+
+
+static func pin_box(staged: Dictionary, pin: String) -> Rect2:
+	# 4.7: within PIN_SLACK of where it was, inside the frame.
+	var c: Vector2 = base_pins(staged).get(pin, Vector2(150, 150))
+	var r := Rect2(c - Vector2.ONE * KitData.PIN_SLACK, Vector2.ONE * KitData.PIN_SLACK * 2.0)
+	return r.intersection(Rect2(Vector2.ZERO, KitData.FRAME))
+
+
+static func pin_now(staged: Dictionary, pin: String) -> Vector2:
+	var v = staged.pins.get(pin)
+	if typeof(v) == TYPE_ARRAY and v.size() >= 2:
+		return Vector2(float(v[0]), float(v[1]))
+	return base_pins(staged).get(pin, Vector2(150, 150))
+
+
+static func clamp_pin(staged: Dictionary, pin: String, p: Vector2) -> Vector2:
+	# Where a joint dragged to p may go: inside its box, a hip below the neck.
+	var r := pin_box(staged, pin)
+	var q := p.clamp(r.position, r.end)
+	if pin in HIPS:
+		var neck := pin_now(staged, neck_of(staged.plan))
+		q.y = maxf(q.y, minf(neck.y + 1.0, r.end.y))
+	return q.round()
+
+
+static func move_pin(staged: Dictionary, pin: String, p: Vector2) -> Vector2:
+	# A dragged joint, in the file's frame, kept inside its box (and a hip
+	# below the neck). Recorded in staged.moved. Returns where it went.
+	if not staged.has("file_pins"):
+		staged["file_pins"] = staged.pins.duplicate(true)
+	var q := clamp_pin(staged, pin, p)
+	if not staged.has("moved"):
+		staged["moved"] = {}
+	staged.moved[pin] = [q.x, q.y]
+	if carries_head(staged.plan, pin):
+		staged.moved["head"] = [q.x, q.y]
+	staged.pins.merge(staged.moved, true)
+	return q
+
+
+static func with_moved(staged: Dictionary, moved: Dictionary) -> void:
+	# After a (re)stage: the joints the player dragged, over the file's.
+	staged["file_pins"] = staged.pins.duplicate(true)
+	staged["moved"] = {}
+	for k in moved:
+		if k != "head":
+			move_pin(staged, k, Vector2(moved[k][0], moved[k][1]))
+	if moved.has("head") and not staged.moved.has("head"):
+		staged.moved["head"] = moved["head"]
+		staged.pins["head"] = moved["head"]
+
+
+static func adjusted_head(m: Dictionary, adj: Dictionary) -> Dictionary:
+	# The measured head ellipse moved by (dx, dy) and stretched by (kx, ky)
+	# about its centre; the eyes stay where they were measured.
+	var out := m.duplicate()
+	if adj.is_empty():
+		return out
+	var dx := clampf(float(adj.get("dx", 0.0)), -HEAD_ADJ_MOVE, HEAD_ADJ_MOVE)
+	var dy := clampf(float(adj.get("dy", 0.0)), -HEAD_ADJ_MOVE, HEAD_ADJ_MOVE)
+	var kx := clampf(float(adj.get("kx", 1.0)), HEAD_ADJ_K.x, HEAD_ADJ_K.y)
+	var ky := clampf(float(adj.get("ky", 1.0)), HEAD_ADJ_K.x, HEAD_ADJ_K.y)
+	var cy := float(m.cy)
+	out.cx = float(m.cx) + dx
+	out.cy = cy + dy
+	out.rx = float(m.rx) * kx
+	out.ry = float(m.ry) * ky
+	out.top = out.cy + (float(m.top) - cy) * ky
+	out.chin = out.cy + (float(m.chin) - cy) * ky
+	out.side = clampf(0.5 + 0.5 * out.rx / 92.0, 0.8, 1.0)
+	return out
+
+
+static func head_adj_between(measured: Dictionary, wanted: Dictionary) -> Dictionary:
+	# The adjustment that takes one head to another (a kept critter's head,
+	# laid over a new version of its drawing).
+	if measured.is_empty() or wanted.is_empty():
+		return {}
+	return {"dx": float(wanted.cx) - float(measured.cx), "dy": float(wanted.cy) - float(measured.cy),
+		"kx": float(wanted.rx) / maxf(1.0, float(measured.rx)), "ky": float(wanted.ry) / maxf(1.0, float(measured.ry))}
+
+
+# --- Writing ---------------------------------------------------------------------------
+
 static func write(staged: Dictionary, name: String, dest: String, extra := {}) -> String:
 	# The kit folder at dest. Returns "" if the kit can't be made (missing
 	# parts), else dest.
@@ -114,7 +235,9 @@ static func write(staged: Dictionary, name: String, dest: String, extra := {}) -
 		else:
 			part.png.save_png(dest.path_join("parts/%s.png" % p))
 	var kit := {"schema": 1, "plan": staged.plan, "gait": staged.gait, "faces": "left",
-		"pins": staged.pins, "made_with": staged.made_with, "template": staged.template}
+		"pins": staged.pins.duplicate(true), "made_with": staged.made_with, "template": staged.template}
+	if not staged.get("moved", {}).is_empty():
+		kit["moved"] = staged.moved.duplicate(true)   # the joints dragged on the kit page, in the file's frame
 	_json(dest.path_join("kit.json"), kit)
 	var d := {"schema": 2, "kind": "kit", "rev": 1, "name": name.strip_edges().left(40),
 		"made": int(Time.get_unix_time_from_system()), "from": "import", "size": 1.0, "speed": 1.0,
@@ -122,11 +245,13 @@ static func write(staged: Dictionary, name: String, dest: String, extra := {}) -
 	d.merge(extra, true)
 	_json(dest.path_join("custom.json"), d)
 	ground(dest, kit)
-	# F1: the head's metrics, for clothes; the importer's "Where's its
-	# head?" step (with C0's screens) lets the player adjust them.
+	# F1: the head's metrics, for clothes, with the player's adjustment from
+	# Where's its head? (staged.head_adj). staged.head_measured keeps the
+	# measure, for the kit page to draw and adjust from.
 	kit = JSON.parse_string(FileAccess.get_file_as_string(dest.path_join("kit.json")))
 	var r := KitData.build(dest, kit)
-	kit["head"] = r.head
+	staged["head_measured"] = r.head.duplicate()
+	kit["head"] = adjusted_head(r.head, staged.get("head_adj", {}))
 	_json(dest.path_join("kit.json"), kit)
 	return dest
 

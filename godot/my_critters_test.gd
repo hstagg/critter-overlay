@@ -13,6 +13,9 @@ const MyCritters := preload("res://gui/my_critters.gd")
 const Picker := preload("res://gui/colour_picker.gd")
 const Pages := preload("res://gui/settings_pages.gd")
 const Share := preload("res://share.gd")
+const KitImport := preload("res://kit_import.gd")
+const KitData := preload("res://critters/kit/kit_data.gd")
+const FrameData := preload("res://critters/kit/frame_data.gd")
 
 var fails := 0
 var checks := 0
@@ -206,7 +209,7 @@ func _init() -> void:
 	check(ks.active and "Draw in your own app" in t and "Get the templates" in t and "Pick a file" in t, "Draw in your own app opens the choose page")
 	ks.name = ""
 	ks.open_file("res://templates/side-1.svg")
-	check(ks.step == "kit" and ks.preview == Customs.STAGED, "a template comes in and walks before it is kept")
+	check(ks.step == "kit" and ks.preview == Customs.staged_id(ks.SLOT), "a template comes in and walks before it is kept")
 	t = page(my)
 	check("What it can do" in t and "Keep" in t and t.any(func(x): return x.begins_with("Found ")), "the kit page lists what it found")
 	check(ks.name == "Side 1", "named after the file (%s)" % ks.name)
@@ -216,14 +219,80 @@ func _init() -> void:
 	check(lines.any(func(l): return "a script" in l[1]) and lines.any(func(l): return "doodle" in l[1]), "what was taken out and not recognised is said")
 	var need: Array = ks.check_lines({"plan": "side", "parts": {"head": 1}, "missing": ["walk-body"], "dropped": [], "unmatched": []})
 	check(need.any(func(l): return l[0] == "need" and "walking body" in l[1]), "a needed part is said")
+	# A layer it didn't recognise, named as a part.
+	var odd := FileAccess.get_file_as_string("res://templates/side-1.svg").replace('inkscape:label="tail (optional)"', 'inkscape:label="swishy"').replace('id="tail"', 'id="swishy"')
+	var odd_path := root.path_join("odd-side.svg")
+	var of := FileAccess.open(odd_path, FileAccess.WRITE)
+	of.store_string(odd)
+	of.close()
+	ks.open_file(odd_path)
+	check("swishy" in ks.staged.unmatched and not ks.staged.parts.has("tail"), "a layer named oddly isn't recognised (%s)" % str(ks.staged.unmatched))
+	check(ks.name_rows().size() == ks.staged.unmatched.size(), "each gets a which-part drop-down")
+	ks.assign["swishy"] = "tail"
+	ks.reload()
+	check(ks.staged.parts.has("tail") and not "swishy" in ks.staged.unmatched, "named as the tail, it is the tail")
+	ks.assign = {}
+	ks.open_file("res://templates/side-1.svg")
+
+	# --- Two staged slots live at once: the kit page's and another's.
+	var other := Customs.show_staged(ks.STAGING, "studio")
+	check(other != "" and other != ks.preview and Customs.all.has(other) and Customs.all.has(ks.preview), "two staged previews can be live at once (%s, %s)" % [ks.preview, other])
+	check(not other in Customs.ids() and not ks.preview in Customs.ids() and Customs.is_staged(other), "neither is listed as a critter")
+	Customs.clear_staged("studio")
+	check(not Customs.all.has(other) and Customs.all.has(ks.preview), "clearing one leaves the other")
+
+	# --- Joints (C4): dragged on the art, kept in the staged kit and on Reload.
+	t = page(my)
+	check("Joints" in t and "How it moves" in t, "the kit page shows the joints beside the critter walking")
+	check(ks.shown_pins().has("hip-back") and ks.shown_pins().has("neck-walk") and ks.shown_pins().has("tail"), "the side-on joints it has parts for (%s)" % str(ks.shown_pins()))
+	var base: Vector2 = KitImport.base_pins(ks.staged)["hip-back"]
+	ks.drag_pin("hip-back", ks.pin_shown_at("hip-back") + Vector2(20, 10))
+	check(KitImport.pin_now(ks.staged, "hip-back") == base + Vector2(20, 10) and ks.moved.has("hip-back"), "a dragged joint is kept in the staged kit")
+	var sk = JSON.parse_string(FileAccess.get_file_as_string(ks.STAGING.path_join("kit.json")))
+	check(Vector2(sk.pins["hip-back"][0], sk.pins["hip-back"][1]) == base + Vector2(20, 10 + ks.dy), "and the critter beside it walks with it")
+	ks.drag_pin("hip-back", ks.pin_shown_at("hip-back") + Vector2(300, 0))
+	check(absf(KitImport.pin_now(ks.staged, "hip-back").x - base.x) <= 60.0, "a joint stops at its box, 60 units from where it was drawn")
+	ks.drag_pin("hip-back", base + Vector2(-12, 8) + Vector2(0, ks.dy))
+	var neck_was: Vector2 = KitImport.pin_now(ks.staged, "neck-walk")
+	ks.drag_pin("hip-front", Vector2(KitImport.pin_now(ks.staged, "hip-front").x, neck_was.y - 40.0 + ks.dy))
+	check(KitImport.pin_now(ks.staged, "hip-front").y > neck_was.y, "a hip stays below the neck")
+	ks.reload()
+	check(KitImport.pin_now(ks.staged, "hip-back") == base + Vector2(-12, 8), "a dragged joint survives Reload")
+	sk = JSON.parse_string(FileAccess.get_file_as_string(ks.STAGING.path_join("kit.json")))
+	check(Vector2(sk.pins["hip-back"][0], sk.pins["hip-back"][1]) == base + Vector2(-12, 8 + ks.dy), "and is written again with it")
+
+	# --- Where's its head? (F1), shown once clothes for homemade critters are on.
+	check("Where's its head?" in page(my), "with clothes on, the kit page asks where its head is")
+	Customs.ways.erase("share")
+	check(not "Where's its head?" in page(my), "and not while they're off")
+	Customs.all_ways_on()
+	var meas: Dictionary = ks.staged.head_measured
+	var want: Dictionary = meas.duplicate()
+	want.cx = float(meas.cx) + 10.0
+	want.cy = float(meas.cy) - 6.0
+	want.rx = float(meas.rx) * 1.2
+	ks.set_head(want)
+	check(absf(float(ks.head_now().cx) - want.cx) < 0.01 and absf(float(ks.head_now().rx) - want.rx) < 0.01, "the head can be moved and sized")
+	ks.hat = "glasses"
+	check("Try on" in page(my), "with a hat to try on")
+	ks.reload()
+	check(absf(float(ks.head_now().cx) - want.cx) < 0.01, "the head's adjustment survives Reload")
 	ks.name = "Biscuit"
 	var kid: String = ks.keep()
+	var kept = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[kid]["_dir"]).path_join("kit.json")))
+	check(absf(float(kept.head.cx) - want.cx) < 0.01 and absf(float(kept.head.cy) - want.cy) < 0.01 and absf(float(kept.head.rx) - want.rx) < 0.01,
+		"Keep stores the adjusted head in kit.json (%s)" % str(kept.head))
+	check(kept.has("moved") and Vector2(kept.pins["hip-back"][0], kept.pins["hip-back"][1]) == base + Vector2(-12, 8 + ks.dy), "and its dragged joints")
+	var built_r := KitData.build(str(Customs.all[kid]["_dir"]), kept)
+	check(absf(float(built_r.head.cx) - want.cx) < 0.01 and absf(float(built_r.head.rx) - want.rx) < 0.01, "and the rig dresses that head")
 	check(kid != "" and Customs.all[kid]["name"] == "Biscuit" and Customs.badge(Customs.all[kid]) == "Drawn", "Keep adds it as Drawn")
-	check(FileAccess.file_exists(str(Customs.all[kid]["_dir"]).path_join("source.json")) and not Customs.all.has(Customs.STAGED), "remembering its file, with the preview gone")
+	check(FileAccess.file_exists(str(Customs.all[kid]["_dir"]).path_join("source.json")) and not Customs.all.has(Customs.staged_id(ks.SLOT)), "remembering its file, with the preview gone")
 	check(not ks.active and my.view == "detail" and my.selected == kid, "and opens its page")
 	var rev := int(Customs.all[kid].get("rev", 0))
 	my._edit(kid)
 	check(ks.active and ks.step == "kit" and ks.replacing == kid, "Bring in a new version opens its file again")
+	check(KitImport.pin_now(ks.staged, "hip-back") == base + Vector2(-12, 8) and absf(float(ks.head_now().cx) - want.cx) < 0.01,
+		"with its dragged joints and its head")
 	ks.reload()
 	check(ks.changed_note != "", "Reload brings it in again and says so")
 	check(ks.keep() == kid and int(Customs.all[kid].get("rev", 0)) > rev and Customs.all[kid]["name"] == "Biscuit", "and Save replaces its drawing, name kept")
@@ -238,7 +307,7 @@ func _init() -> void:
 	check(fs.active and "Bring an animation" in t and "Pick a folder" in t, "Bring an animation opens its choose page")
 	var cat_src: String = Fixtures.pixel_cat(root.path_join("src/cat"))
 	fs.open_file(ProjectSettings.globalize_path(cat_src.path_join("clips")))
-	check(fs.error == "" and fs.staged.clips.has("walk") and fs.preview == Customs.STAGED, "a folder of frames comes in and walks (%s)" % fs.error)
+	check(fs.error == "" and fs.staged.clips.has("walk") and fs.preview == Customs.staged_id(fs.SLOT), "a folder of frames comes in and walks (%s)" % fs.error)
 	t = page(my)
 	check("ITS MOVES" in t and "Walk" in t and "Sit" in t and "Wave" in t, "its moves are listed, its own wave too")
 	check(t.any(func(x): return x.begins_with("Nap: borrows")), "and a missing move says what it borrows")
@@ -247,13 +316,74 @@ func _init() -> void:
 	fs.apply()
 	var cj = JSON.parse_string(FileAccess.get_file_as_string(fs.STAGING.path_join("clips.json")))
 	check(int(cj.clips.walk.fps) == 12 and cj.faces == "right", "settings go into its clips.json")
+	# --- Where's its head? (F3): marks per move, joined in between.
+	t = page(my)
+	check("Where's its head?" in t and t.any(func(x): return x.begins_with("Frame 1 of 4")), "with clothes on, a head panel with a frame stepper")
+	check(t.any(func(x): return "shows no clothes" in x), "a move with no marks says it shows no clothes")
+	fs.step_frame(1)
+	check(fs.head_frame == 1, "the stepper steps through the frames")
+	fs.mark("walk", 0, Vector3(120, 140, 30))
+	fs.mark("walk", 3, Vector3(126, 146, 34))
+	fs.head_clip = "sit"
+	fs.mark("sit", 0, fs.suggest_head("sit", 0))
+	fs.unmark("sit", 0)
+	cj = JSON.parse_string(FileAccess.get_file_as_string(fs.STAGING.path_join("clips.json")))
+	check(cj.clips.walk.has("head") and cj.clips.walk.head.size() == 2 and Array(cj.clips.walk.head["3"]) == [126.0, 146.0, 34.0],
+		"marks are written per frame to clips.json (%s)" % str(cj.clips.walk.get("head")))
+	check(not cj.clips.sit.has("head"), "an unmarked move has none")
+	var mid = FrameData.head_at(cj, "walk", 1)
+	check(mid is Vector3 and absf(mid.x - 122.0) < 0.01 and absf(mid.z - 31.333) < 0.01, "the frames between follow along (%s)" % str(mid))
+	check(fs.head_shown("walk", 2) != null and not fs.marked("walk", 2) and fs.marked("walk", 3), "shown on every frame, marked on two")
+	fs.reload()
+	cj = JSON.parse_string(FileAccess.get_file_as_string(fs.STAGING.path_join("clips.json")))
+	check(cj.clips.walk.head.size() == 2, "the marks survive Reload")
 	fs.name = "Pixel"
 	var fid: String = fs.keep()
 	check(fid != "" and Customs.badge(Customs.all[fid]) == "Animated" and Customs.all[fid]["name"] == "Pixel", "Keep adds it as Animated")
+	check(FrameData.has_head(Customs.all[fid]["_clips"]), "with its head marked, so it can wear clothes")
 	my._edit(fid)
 	check(fs.active and fs.replacing == fid and not fs.staged.is_empty(), "Change frames opens its frames again")
+	check(fs.marks.get("walk", {}).size() == 2, "with its head marks")
 	check(fs.keep() == fid, "and Save keeps the same critter")
 	Customs.remove(fid)
+
+	# --- A sprite sheet (E3): cut on a grid into one move, more sheets for more moves.
+	var sheet_path := ProjectSettings.globalize_path(root.path_join("cat-sheet.png"))
+	var cells := []
+	for i in 4:
+		cells.append(Fixtures._cat_frame(i))
+	var cw: int = cells[0].get_width()
+	var ch: int = cells[0].get_height()
+	var sheet := Image.create(cw * 4, ch * 2, false, Image.FORMAT_RGBA8)
+	for i in 7:
+		sheet.blit_rect(cells[i % 4], Rect2i(Vector2i.ZERO, Vector2i(cw, ch)), Vector2i(i % 4 * cw, int(i / 4.0) * ch))
+	sheet.save_png(sheet_path)
+	fs.start()
+	fs.add_sheet(sheet_path)
+	check(fs.sheets.size() == 1 and fs.sheets[0].clip == "walk", "the first sheet is the walk")
+	fs.set_sheet(0, "cols", 4)
+	fs.set_sheet(0, "rows", 2)
+	check(fs.error == "" and fs.staged.clips.walk.size() == 8, "cut on its grid: every cell (%s)" % fs.error)
+	fs.set_sheet(0, "count", 7)
+	check(fs.staged.clips.walk.size() == 7 and FrameData.frame_files(fs.STAGING, "walk").size() == 7, "or as many frames as it has")
+	t = page(my)
+	check("SPRITE SHEETS" in t and "Add another sheet" in t and "Walk" in t, "the sheet's settings are on the page")
+	fs.add_sheet(sheet_path)
+	check(fs.sheets[1].clip == "sit" and fs.staged.clips.has("sit") and fs.staged.clips.has("walk"), "another sheet is another move")
+	fs.set_sheet(1, "clip", "act-wave")
+	check(fs.staged.clips.has("act-wave") and not fs.staged.clips.has("sit"), "named from the list")
+	fs.set_sheet(0, "cols", 7)
+	check(fs.staged.is_empty() and fs.error.contains("evenly") and "Cut a sprite sheet" in page(my), "a grid that doesn't divide says so and keeps the sheets")
+	fs.set_sheet(0, "cols", 4)
+	fs.name = "Sheet cat"
+	var sid: String = fs.keep()
+	check(sid != "" and FrameData.frame_files(str(Customs.all[sid]["_dir"]), "walk").size() == 8, "Keep keeps the sheet's frames")
+	var src = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[sid]["_dir"]).path_join("source.json")))
+	check(typeof(src) == TYPE_DICTIONARY and src.get("sheets", []).size() == 2, "and remembers its sheets")
+	my._edit(sid)
+	check(fs.active and fs.sheets.size() == 2 and fs.staged.clips.has("act-wave"), "Change frames opens the sheets again")
+	fs.close()
+	Customs.remove(sid)
 	Customs.ways = {}
 
 	# --- Dropping a file (C5): each kind to its importer, behind its way.
