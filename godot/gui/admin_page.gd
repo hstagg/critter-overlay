@@ -97,10 +97,12 @@ func checks() -> Array:
 		["The app", "size", "Changing the size", "With a Legendary out wearing something, drag Critters > Size: it keeps its colour and outfit, nothing redraws until let go, and the showpieces resize.", "open:critters"],
 		["The app", "v2custom", "v2.0 custom critters", "Upgrade from v2.0 with custom critters: one note says they are back, and they show in System and the Collection. It never shows again.", ""],
 		["Homemade critters", "homemade", "Homemade critters walk, sit and nap", "Each switched-on homemade critter walks in (a test one is made if there are none), and one sits. A bob, a lean and a swing of its lower half; breathing when sitting; drag, throw, climb. No aura and no sighting note.", "homemade"],
-		["Homemade critters", "import", "Import a critter", "System opens with a made-up photo in the importer: the grey goes at Normal, Gentle and Strong change it, Faces and Size change the walking preview, Keep adds it to the list, Cancel leaves nothing behind.", "import_test"],
-		["Homemade critters", "carry", "v2.0 custom critters come back", "A made-up v2.0 still and animation are carried over: both appear in System and the Collection. Run again: nothing more comes.", "carry_test"],
-		["Homemade critters", "shelf", "The Homemade shelf", "The Collection shows each homemade critter idling, with its name and visits, below the Legendary visitors.", "open:collection"],
-		["Homemade critters", "manage", "On, off, how often, edit, delete", "In System: switched off, it stops arriving; Constant brings it often; Edit renames and resizes it; Delete asks first and removes it.", "open:system"],
+		["Homemade critters", "my_critters", "My critters lists every homemade critter and imports a picture", "Every homemade critter is a card in one grid, with its badge (Shapes, Drawn, Animated, Picture) and chips to filter by them; Make a critter offers Use a picture, which imports one. The sidebar shows the count. In the player build the chooser shows Use a picture alone; here every way shows, and the unbuilt ones open a placeholder. Critters > Your own and System's pointer open this page.", "open:my_critters"],
+		["Homemade critters", "import", "Import a critter", "My critters opens with a made-up photo in the importer: the grey goes at Normal, Gentle and Strong change it, Faces and Size change the walking preview, Keep adds it to the grid, Cancel leaves nothing behind.", "import_test"],
+		["Homemade critters", "carry", "v2.0 custom critters come back", "A made-up v2.0 still and animation are carried over: both appear in My critters and the Collection. Run again: nothing more comes.", "carry_test"],
+		["Homemade critters", "shelf", "The Homemade shelf", "The Collection shows each homemade critter idling, with its name, visits and badge, below the Legendary visitors; Open My critters links across.", "open:collection"],
+		["Homemade critters", "manage", "On, off, how often, size, speed, sound, copy, delete", "Click a card in My critters: switched off, it stops arriving; Constant brings it often; Size and Speed change the next one out; Spawn one now brings one, free; Pop sound borrows a cast sound or adds your own; Change picture renames and resizes it; Make a copy adds \"<name> copy\"; Delete asks first and removes it.", "open:my_critters"],
+		["The app", "colour_picker", "Colour picker returns the colour picked", "The picker opens over Settings: a swatch, the square, the hue strip and typing a hex all change the colour; Use this colour shows a note with the same hex as the field, and the colour heads Used lately next time.", "colour_picker"],
 		["Homemade critters", "kit:kitten", "Kitten kit walks, sits, naps and blinks like the kitten", "The kitten rebuilt as a side-on kit walks in beside a real kitten, and another sits. Same size, same walk, same face; it naps in the kitten's loaf and blinks. Throw it, let it climb.", "kit:kitten"],
 		["Homemade critters", "kit:bare", "Bare kit naps with a body and blinks", "A kit with only a body, head, eyes and two legs: far legs darker behind, sits on its walking body, naps as a melted loaf on the ground (not a floating head), blinks by squashing its eyes. Never swishes a tail or flicks an ear.", "kit:bare"],
 		["Homemade critters", "kit:hop", "A hopping kit", "The bare kit with the hop gait: hops like the rabbit, never stops or turns in mid-air.", "kit:hop"],
@@ -291,6 +293,7 @@ func _events_card() -> Control:
 			["Welcome screens", func(): A().welcome()], ["+10,000 berries", _berries],
 			["Dress the kitten kit in everything", func(): A().dress_kit_all()],
 			["Make the clothes contact sheet", func(): A().wear_sheet()],
+			["Open My critters", func(): A().run("open:my_critters")], ["Colour picker test", func(): A().colour_picker_test()],
 			["Infinite berries: " + ("on" if w.main.economy.infinite else "off"), _infinite]]:
 		r3.add_child(K.button(e[0], "bs", "", true, e[1]))
 	v.add_child(r3)

@@ -284,6 +284,8 @@ func run(action: String, chosen := "kitten") -> void:
 			kit_test(arg)
 		"own_sound":
 			own_sound()
+		"colour_picker":
+			colour_picker_test()
 		"kit_pair":
 			kit_pair(arg)
 		"dress_kit":
@@ -470,11 +472,11 @@ func import_test() -> void:
 	# The importer with a made-up photo: a critter on a plain grey background.
 	var path := "user://admin_test_picture.png"
 	test_picture(true).save_png(path)
-	main.open_settings("system")
+	main.open_settings("my_critters")
 	await get_tree().process_frame
 	var pages = main.settings_win.pages if main.settings_win != null else null
-	if pages != null and pages.get("importer") != null:
-		pages.importer.open_file(ProjectSettings.globalize_path(path))
+	if pages != null and pages.get("my") != null:
+		pages.my.importer.open_file(ProjectSettings.globalize_path(path))
 
 
 func carry_test() -> void:
@@ -495,8 +497,8 @@ func carry_test() -> void:
 			"import_method": "static_png" if spec[2] else "animated_gif", "procedural_animation": spec[2]}))
 		f.close()
 	var n := Customs.carry_over(root, {})
-	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in System and the Collection." % n)
-	main.open_settings("system")
+	main.toasts.show_note(Icons.berry(40), "Admin", "v2.0 carry-over", "%d came over. Look in My critters and the Collection." % n)
+	main.open_settings("my_critters")
 
 
 func _kitten_kit() -> String:
@@ -640,6 +642,14 @@ func own_sound() -> void:
 		return
 	main._play(id)
 	spawn(id, "common")
+
+
+func colour_picker_test() -> void:
+	# The picker (gui/colour_picker.gd) in a dialog over Settings; the colour
+	# used comes back in a note, which should match the hex field.
+	main.open_settings("my_critters")
+	load("res://gui/colour_picker.gd").open(main.settings_win, "#F6C28F", func(hex):
+		main.toasts.show_note(Icons.berry(40), "Admin", "Colour picker", "It returned %s." % hex))
 
 
 func kit_test(which: String) -> void:

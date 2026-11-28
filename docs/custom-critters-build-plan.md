@@ -483,7 +483,7 @@ user://custom/<id>/
 
 ```json
 {
-  "schema": 1, "plan": "side", "gait": "trot", "app": "3.2.0",
+  "schema": 1, "plan": "side", "gait": "trot", "app": "3.3.0",
   "faces": "left",
   "parts": ["walk-body", "head", "eyes", "leg-front", "leg-back", "tail", "ear-l"],
   "auto": {"leg-front-far": true, "leg-back-far": true, "body": true, "loaf-body": true,
@@ -903,8 +903,8 @@ Each step lists:
 
 Phase order: **A** groundwork → **B** kit rigs → **C** Part kit → **D** Shape
 Builder → **E** frame critters → **F** clothes → **G** sharing → **H**
-release. Milestone releases go live through the updater after C (R1, 3.2.0),
-D (R2, 3.3.0) and E (R3, 3.4.0); H4 is the last (R4, 3.5.0).
+release. Milestone releases go live through the updater after C (R1, 3.3.0),
+D (R2, 3.4.0) and E (R3, 3.5.0); H4 is the last (R4, 3.6.0).
 
 ### Phase A: groundwork
 
@@ -1263,7 +1263,7 @@ developer.*
   "Dropping a file opens the right importer".
 - **Done when:** a drop onto a critter on the VM opens the kit importer.
 
-**R1. Release 3.2.0: "Draw your own critters".** Turns on the `kit` way:
+**R1. Release 3.3.0: "Draw your own critters".** Turns on the `kit` way:
 - the four plans;
 - the Part kit with its templates, and drop-to-import;
 - custom sounds;
@@ -1407,12 +1407,12 @@ Follow the milestone release steps in section 9.
 - Fix what is confusing: tooltips on every tool, an empty-state hint on each
   layer ("Add a shape to draw the tail"), and keyboard shortcuts listed in a
   `?` panel.
-- Any feedback from the tester's use of 3.2.0 that touches the shared
+- Any feedback from the tester's use of 3.3.0 that touches the shared
   screens is worked in here too.
 - **Done when:** the developer has walked through the flows and signed them
   off, and every issue found is fixed or logged.
 
-**R2. Release 3.3.0: "Build a critter from shapes".** Turns on the
+**R2. Release 3.4.0: "Build a critter from shapes".** Turns on the
 `shapes` way. Follow the milestone release steps in section 9.
 
 ### Phase E: frame critters
@@ -1485,7 +1485,7 @@ Follow the milestone release steps in section 9.
   warns about a loop that doesn't close".
 - **Done when:** on the VM, the fixtures for every format import and walk.
 
-**R3. Release 3.4.0: "Animated critters".** Turns on the `frames` way.
+**R3. Release 3.5.0: "Animated critters".** Turns on the `frames` way.
 Follow the milestone release steps in section 9.
 
 ### Phase F: clothes on homemade critters
@@ -1617,7 +1617,7 @@ can carry clothes earlier if the tester wants to try them.
   - what each missing part costs;
   - the frame clips and their fallbacks;
   - sharing, and installing safely.
-- **`README.md`** for 3.5, `release-notes-v3.5.md`, and
+- **`README.md`** for 3.6, `release-notes-v3.6.md`, and
   `docs/TROUBLESHOOTING.md` entries for import errors.
 
 **H3. Performance and soak.**
@@ -1629,15 +1629,14 @@ can carry clothes earlier if the tester wants to try them.
     texture release works).
 - The results go in `docs/v3-soak-report.md`.
 
-**H4. R4: release 3.5.0, "Critter Studio".** Turns on the `share` way and
+**H4. R4: release 3.6.0, "Critter Studio".** Turns on the `share` way and
 ships clothes, sharing, the Collection badges and the docs.
 - **The gate:** with every way now on for players, `main.studio_on()` and
   its checks are deleted.
 - Follow the milestone release steps in section 9, plus the downgrade check
   from P21.
-- **Release:** `.
-elease.ps1 -Version 3.5.0 -Title "Critter Studio"
-  -NotesFile release-notes-v3.5.md`.
+- **Release:** `.\release.ps1 -Version 3.6.0 -Title "Critter Studio"
+  -NotesFile release-notes-v3.6.md`.
 
 ---
 
@@ -1675,10 +1674,10 @@ elease.ps1 -Version 3.5.0 -Title "Critter Studio"
 
   | Release | After | Version | Turns on |
   |---|---|---|---|
-  | R1 | C5 | 3.2.0 | `kit`: four plans, Part kit, sounds, pairs |
-  | R2 | D7 | 3.3.0 | `shapes`: the Shape Builder |
-  | R3 | E3 | 3.4.0 | `frames`: animated critters |
-  | R4 | H3 | 3.5.0 | `share`, clothes, Collection, docs; the gate is removed |
+  | R1 | C5 | 3.3.0 | `kit`: four plans, Part kit, sounds, pairs |
+  | R2 | D7 | 3.4.0 | `shapes`: the Shape Builder |
+  | R3 | E3 | 3.5.0 | `frames`: animated critters |
+  | R4 | H3 | 3.6.0 | `share`, clothes, Collection, docs; the gate is removed |
 
 - **The milestone release steps** (R1–R4):
   1. Turn the way's switch on in the player build and delete its gate
@@ -1689,11 +1688,10 @@ elease.ps1 -Version 3.5.0 -Title "Critter Studio"
      with a few homemade critters, let its updater offer the new version,
      install it from there, and check the critters are all still there.
   4. `README.md` and `release-notes-vX.Y.md` (a minor release needs notes).
-  5. `.
-elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
+  5. `.\release.ps1 -Version X.Y.0 -Title "..." -NotesFile
      release-notes-vX.Y.md`.
   6. Tell the developer it is live, so the tester can be told to update.
-- **Smaller updates in between** are patch releases from `main` (3.2.1 and
+- **Smaller updates in between** are patch releases from `main` (3.3.1 and
   so on), whenever something is ready to try or a fix is due. A way that
   isn't finished stays gated in them.
 - **The CLAUDE.md "discuss first" list:**
@@ -1714,7 +1712,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | 4 | Storage (CLAUDE.md: discuss first) | Extend `user://custom/<id>/` as in 5.1; kits never write `image.png`; settings and economy save untouched | **As written** | **decided 2026-11-23** |
 | 5 | Can stickers be exported in `.critter` files? | (a) Yes, with a line in the dialog: "Made from a picture: only share pictures you're happy for others to have". (b) No (they're your own pet). | **(a)**: v2.0 allowed it | **decided 2026-11-23** |
 | 6 | Hosted gallery | (a) None in this plan; files and codes travel however players like. (b) A pinned GitHub Discussion. | **(a)**: nothing to moderate | **decided 2026-11-23** |
-| 7 | How it reaches the tester | Milestone releases 3.2.0–3.5.0 through the updater, smaller patch updates in between; nothing sent as a file (section 9) | n/a | **decided 2026-11-23** (replaces file-sent betas) |
+| 7 | How it reaches the tester | Milestone releases 3.3.0–3.6.0 through the updater, smaller patch updates in between; nothing sent as a file (section 9) | n/a | **decided 2026-11-23** (replaces file-sent betas) |
 | 8 | The tester's drawing app | Ask them | n/a. It sets which fixture is made first in C2 or C3 (both ship) | open |
 | 9 | Coat Studio | Dropped in favour of the Shape Builder | n/a | **decided 2026-11-19** |
 | 10 | Scope | Everything in section 1; the cut-out and AI splitting out | n/a | **decided 2026-11-19** |
@@ -1728,7 +1726,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 |---|---|---|
 | A0 | Design: My critters and Make a critter | done 2026-11-24 (`design/studio/my-critters/`) |
 | A1 | Rasteriser spike | done 2026-11-24 |
-| A2 | Studio gate, My critters page, widgets | not started |
+| A2 | Studio gate, My critters page, widgets | code done 2026-11-26; the VM tour (player and admin builds) is still to do |
 | A3 | Store schema 2 | done 2026-11-24 |
 | A4 | Gaits | done 2026-11-24 |
 | B1 | Side-on plan + kit data layer | done 2026-11-24 |
@@ -1743,7 +1741,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | C3 | Raster imports | done 2026-11-24 |
 | C4 | Kit importer | engine done 2026-11-24; screens wait for C0 |
 | C5 | Drop a file to import | not started |
-| R1 | **Release 3.2.0** | not started |
+| R1 | **Release 3.3.0** | not started |
 | D0 | Design: the Studio window | not started |
 | D1 | Shape model and SVG writer | done 2026-11-24 |
 | D2 | Studio window shell | not started |
@@ -1752,11 +1750,11 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | D5 | Starters | not started |
 | D6 | Preview, pins and save | not started |
 | D7 | Usability pass | not started |
-| R2 | **Release 3.3.0** | not started |
+| R2 | **Release 3.4.0** | not started |
 | E1 | Clip player | done 2026-11-24 |
 | E2 | Frame formats | done 2026-11-24 |
 | E3 | Frame importer | not started |
-| R3 | **Release 3.4.0** | not started |
+| R3 | **Release 3.5.0** | not started |
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
 | F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
 | F3 | Clothes on frame critters | not started |
@@ -1766,7 +1764,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 | H1 | Collection | not started |
 | H2 | Docs | not started |
 | H3 | Performance and soak | not started |
-| H4 | **R4: release 3.5.0** | not started |
+| H4 | **R4: release 3.6.0** | not started |
 
 ### Log
 
@@ -1926,7 +1924,7 @@ elease.ps1 -Version X.Y.0 -Title "..." -NotesFile
 
 **Where it stands (2026-11-24, end of the first overnight run).** Done:
 A1, A3, A4, B1-B6, C1-C3, D1, E1, E2, G3, and the engines of C4, G1 and G2.
-Each step is its own PR, stacked in order (#39 to #57), none merged. Every
+Each step is its own PR (#39 to #57), all merged into `main` since. Every
 step left needs the developer, or a design that needs them:
 - **A0** (design session: My critters), then **A2** (the page, the colour
   picker, the sound card from B5, the Copy and Paste code buttons from G1).
@@ -2001,3 +1999,30 @@ step left needs the developer, or a design that needs them:
     critter and the count and opens the page; the Collection's Homemade shelf
     uses the same badges and links across; the System page keeps a pointer
     row for one release, then it goes.
+- 2026-11-25: the code system (the Supporter Pack and creator codes,
+  `docs/codes-plan.md`) ships first as 3.2.0, so the Studio milestones each
+  move up one: R1 3.3.0, R2 3.4.0, R3 3.5.0, R4 3.6.0. Nothing in the code
+  was keyed to 3.2.0 (`app_min` comes from the running app's `VERSION`), and
+  every Studio way stays off in the player build until its milestone.
+- 2026-11-26: A2's code done (the VM tour in both builds, its Done-when
+  check, is still to do). Changes from the plan:
+  - **The gate** is A3's `Customs.ways` / `way_on()` / `all_ways_on()`, used
+    as it is; there is no `main.studio_on()`. `export_presets.cfg` and
+    `build-v3.ps1` needed nothing: the player build never calls
+    `all_ways_on()`.
+  - **The page** is its own file, `gui/my_critters.gd` (settings_pages.gd
+    keeps one as `pages.my`); it holds the importer, which now only draws
+    the editor card. The badge words are `Customs.badge()`, shared with the
+    Collection's shelf. The sidebar has nine pages (ten with Admin), so the
+    buttons are 41 px (37 with Admin).
+  - **Decided with the developer:** Spawn one now on a homemade critter is
+    free (`main.spawn_homemade()`), since they sit outside rarity and the
+    economy; Make a copy is in (`Customs.make_copy()`, "<name> copy", met
+    afresh); the picker's 12 recent colours last for the session only, and
+    where they are kept for good is settled in D4.
+  - The design's "drop a file anywhere" hint waits for C5, which makes it
+    true. Speed for homemade critters is five stops (0.5x to 2x, snail to
+    rapid), not the cast's six.
+  - `my_critters_test.gd`: the chooser with ways off and on, a picture
+    imported through the page, the grid and its chips, each kind's Edit
+    words, Share hidden while its way is off, Make a copy, and the picker.

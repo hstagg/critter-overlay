@@ -1425,12 +1425,28 @@ func _tour() -> void:
 	# --settings-tour: every page, top to bottom, saved for checking by eye.
 	await get_tree().create_timer(1.5).timeout
 	var tour_pages: Array = SettingsWindow.NAV + ([["admin"]] if admin_on() else [])
+	# My critters' other views (A2): Make a critter, then one critter of each kind.
+	var at := tour_pages.find(SettingsWindow.NAV.filter(func(x): return x[0] == "my_critters")[0]) + 1
+	var mine := ["my_critters:make"]
+	var kinds := {}
+	for id in Customs.ids():
+		if not kinds.has(Customs.badge(Customs.all[id])):
+			kinds[Customs.badge(Customs.all[id])] = true
+			mine.append("my_critters:detail:" + id)
+	for x in mine:
+		tour_pages.insert(at, [x])
+		at += 1
 	for n in tour_pages:
 		if n[0] == "shop" and shop_try_flag != "" and settings_win != null:
 			var prop := shop_try_flag.begins_with("prop:")
 			settings_win.pages.shop_try = shop_try_flag if prop else shop_try_flag.get_slice(":", 0)
 			settings_win.pages.shop_dye = shop_try_flag.get_slice(":", 1) if ":" in shop_try_flag and not prop else ""
-		open_settings(n[0])
+		var page_key: String = n[0]
+		if page_key.begins_with("my_critters"):
+			var view := page_key.get_slice(":", 1)
+			settings_win_view(view if view != "" else "list", page_key.substr(("my_critters:%s:" % view).length()) if view == "detail" else "")
+			page_key = page_key.replace(":", "-").replace("custom-", "")
+		open_settings(n[0].get_slice(":", 0))
 		await get_tree().create_timer(1.2).timeout
 		var y := 0
 		var i := 0
@@ -1438,7 +1454,7 @@ func _tour() -> void:
 			settings_win._scroll.scroll_vertical = y
 			await get_tree().create_timer(0.4).timeout
 			var sc: ScrollContainer = settings_win._scroll
-			settings_win.get_texture().get_image().save_png(tour_dir.path_join("%s-%d.png" % [n[0], i]))
+			settings_win.get_texture().get_image().save_png(tour_dir.path_join("%s-%d.png" % [page_key, i]))
 			var max_y := int(sc.get_v_scroll_bar().max_value - sc.size.y)
 			if y >= max_y or i >= (14 if n[0] == "admin" else 5):
 				break
@@ -1448,16 +1464,25 @@ func _tour() -> void:
 	_quit(0)
 
 
+func settings_win_view(view: String, id := "") -> void:
+	# The tour's way to a My critters view before the page is built.
+	if settings_win == null:
+		open_settings("my_critters")
+	settings_win.pages.my.view = view
+	settings_win.pages.my.selected = id
+
+
 func admin_on() -> bool:
 	# The admin build always shows the Admin page; running from source, --admin.
 	return admin != null and (OS.has_feature("admin") or admin_flag)
 
 
 func _start_import() -> void:
-	# --import=PATH: the picture into the importer, once System is built.
+	# --import=PATH: the picture into the importer, on My critters.
+	open_settings("my_critters")
 	await get_tree().process_frame
-	if settings_win != null and settings_win.pages != null and settings_win.pages.get("importer") != null:
-		settings_win.pages.importer.open_file(import_on_start)
+	if settings_win != null and settings_win.pages != null:
+		settings_win.pages.my.importer.open_file(import_on_start)
 
 
 func open_settings(page := "", sp := "") -> void:
@@ -1633,6 +1658,18 @@ func spawn_now() -> bool:
 	_paid_spawn = false
 	_update_tray()
 	return true
+
+
+func spawn_homemade(id: String) -> bool:
+	# My critters' Spawn one now: free, since a homemade critter sits outside
+	# rarity and the economy and never rolls (decision 2026-11-26).
+	if not Customs.all.has(id) or hosts.size() >= HARD_MAX:
+		return false
+	if paused:
+		_set_paused(false)
+	var h = _spawn("roam", "walk", Vector2(-1, -1), id)
+	_update_tray()
+	return h != null
 
 
 func toggle_pause() -> void:

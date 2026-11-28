@@ -1,5 +1,5 @@
 extends RefCounted
-## The seven pages of the Settings window, built to the design canvas
+## The pages of the Settings window (My critters is in my_critters.gd), built to the design canvas
 ## (design/gui/pages1.py and pages2.py). Each control writes to settings.gd
 ## through set(); main.gd applies the change.
 
@@ -14,8 +14,8 @@ const CritterView := preload("res://gui/critter_view.gd")
 const Collection := preload("res://gui/collection.gd")
 const Wear := preload("res://wear.gd")
 const Prop := preload("res://prop.gd")
+const MyCritters := preload("res://gui/my_critters.gd")
 const Codes := preload("res://codes.gd")
-const Importer := preload("res://gui/importer.gd")
 
 const REPO := "https://github.com/hstagg/critter-overlay"   # the update pages (updater.gd); moves with the repo
 const HOME := "https://critteroverlay.itch.io/critter-overlay"   # the public page: Help
@@ -24,11 +24,12 @@ const TIER_NAMES := ["Common", "Rare", "Epic", "Legendary"]
 var w: Window                      # settings_window.gd
 var shortcut_note := ""
 var admin_page: RefCounted
-var importer: RefCounted           # importer.gd, kept so a half-made critter survives a rebuild
+var my: RefCounted                 # my_critters.gd, kept so its view and a half-made critter survive a rebuild
 
 
 func _init(win: Window) -> void:
 	w = win
+	my = MyCritters.new(win)
 
 
 func S():
@@ -45,6 +46,7 @@ func build(page: String, body: VBoxContainer) -> void:
 	match page:
 		"home": _home(body)
 		"critters": _critters(body)
+		"my_critters": my.build(body, header)
 		"focus": _focus(body)
 		"world": _world(body)
 		"sound": _sound(body)
@@ -499,24 +501,56 @@ func _tile(sp: String) -> Control:
 
 
 func _your_own_tile() -> Control:
+	# Your own (A0, Entrances): the newest homemade critter and how many there
+	# are, or a plus with none yet. It opens My critters.
 	var c := K.c
+	var n := MyCritters.count()
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_ALL
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.custom_minimum_size = Vector2(76, 96)
+	b.tooltip_text = "Your own critters" if n > 0 else "Make a critter of your own"
+	b.add_theme_stylebox_override("focus", K.box(Color.TRANSPARENT, 12, c.acc_ink, 2))
+	for k in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(k, StyleBoxEmpty.new())
 	var v := K.vbox(6)
-	v.custom_minimum_size.x = 76
-	v.tooltip_text = "Your own critters, coming soon"
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var well := PanelContainer.new()
 	well.custom_minimum_size = Vector2(58, 58)
 	well.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	well.add_theme_stylebox_override("panel", K.box(c.ph_bg, 29, c.dash, 2))
-	var plus := UI.icon(Icons.line("plus", 24, c.ph_ink))
-	well.add_child(plus)
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex: Texture2D = MyCritters.thumb_texture(MyCritters.newest()) if n > 0 else null
+	if tex != null:
+		well.add_theme_stylebox_override("panel", K.box(c.track, 29, c.chip_line, 2))
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(40, 40)
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(K.margins(pic, 9, 9, 9, 9))
+	elif n > 0:
+		well.add_theme_stylebox_override("panel", K.box(c.track, 29, c.chip_line, 2))
+		var view := CritterView.make(MyCritters.newest(), 54, 54, 0.3)
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(view)
+	else:
+		well.add_theme_stylebox_override("panel", K.box(c.ph_bg, 29, c.dash, 2))
+		well.add_child(UI.icon(Icons.line("plus", 24, c.ph_ink)))
 	v.add_child(well)
-	var name := UI.label("Your own", 12, c.ink3, 800)
+	var name := UI.label("Your own", 12, c.ink if n > 0 else c.ink3, 800)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(name)
-	var p := K.pill("Soon", c.track, c.acc_ink)
-	p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	v.add_child(p)
-	return v
+	if n > 0:
+		var p := K.pill("%d" % n, c.track, c.acc_ink)
+		p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(p)
+	b.add_child(v)
+	b.pressed.connect(func(): my.open())
+	return b
 
 
 func _species_detail(sp: String) -> Control:
@@ -967,6 +1001,7 @@ func _collection(body: VBoxContainer) -> void:
 	var page = Collection.new()
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.focus = w.focus_species
+	page.open_my = func(): my.open()
 	body.add_child(page)
 	page.setup(w.main.economy)
 	if page.cards.has(w.focus_species):
@@ -1546,11 +1581,11 @@ func _system(body: VBoxContainer) -> void:
 		K.row("Copy diagnostics", "Your version, screens, settings and recent log, to paste into a bug report. Nothing is sent anywhere.", copy),
 	])))
 
-	# Custom critters: the homemade ones and the importer (importer.gd).
-	if importer == null:
-		importer = Importer.new()
-	importer.w = w
-	body.add_child(importer.section())
+	# Custom critters moved to My critters (A2): a pointer for one release.
+	body.add_child(K.section("Custom critters", K.card([
+		K.row("Custom critters", "Making, importing and sharing critters now lives in My critters.",
+			K.button("Open My critters", "bs", "arrow", true, func(): my.open())),
+	])))
 
 	body.add_child(K.section("Updates", K.card(_update_rows())))
 
