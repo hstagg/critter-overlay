@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Bring an animation</title>
+<link rel="stylesheet" href="../my-critters/critter.css">
+<link rel="stylesheet" href="./import.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="win th-light" style="width: 1100px; height: 1080px; display: flex; overflow: hidden">
+
+<aside style="width: 232px; flex-shrink: 0; background: var(--side); display: flex; flex-direction: column; gap: 18px; padding: 18px 14px; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 10px; padding: 2px 6px">
+<div style="width: 46px; height: 46px; border-radius: 15px; background: var(--surface); border: 2px solid var(--outline); box-shadow: 0 2px 0 var(--lip); overflow: hidden; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center"><img src="../my-critters/art/cast-kitten.svg" width="44" height="46" alt=""></div>
+<div><div class="disp" style="font-weight: 600; font-size: 18px; line-height: 1.1">Critter Overlay</div><div style="font-size: 12px; color: var(--ink3); margin-top: 2px">Version 3.2</div></div>
+</div>
+<nav aria-label="Settings sections" style="display: flex; flex-direction: column; gap: 4px">
+<a href="#home" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
+<a href="../my-critters/Entrances.html" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14.5" cy="6" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M7.5 17.5c0-3 2.2-5.5 4.5-5.5s4.5 2.5 4.5 5.5c0 1.8-1.5 2.3-2.8 2-1.1-.3-2.3-.3-3.4 0-1.3.3-2.8-.2-2.8-2z"/></svg><span>Critters</span></a>
+<a href="../my-critters/Main.html" class="nav act" aria-current="page"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5c0-7.5 3-13.5 7-13.5s7 6 7 13.5z"/><path d="M9.5 12.5h.01M14.5 12.5h.01"/></svg><span>My critters</span><span style="margin-left: auto; font-size: 12px; font-weight: 800; color: var(--ink2); background: var(--track); border-radius: 10px; padding: 2px 8px">6</span></a>
+<a href="#focus" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Focus</span></a>
+<a href="#world" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19 13 11"/></svg><span>World</span></a>
+<a href="#sound" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3l5 4V6L7 10z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/></svg><span>Sound</span></a>
+<a href="../my-critters/Entrances.html" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.5l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z"/></svg><span>Collection</span></a>
+<a href="#shop" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19s-7-4.4-7-9.5A3.8 3.8 0 0 1 12 7.5a3.8 3.8 0 0 1 7 2C19 14.6 12 19 12 19z"/></svg><span>Shop</span></a>
+<a href="#system" class="nav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>System</span></a>
+</nav>
+</aside>
+
+<main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<div style="height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px">
+<button class="wb" aria-label="Minimise"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+<button class="wb" aria-label="Close to tray"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+</div>
+<svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false"><defs>
+<g id="pc-top">
+<rect x="16" y="1" width="3" height="6" fill="#5B3A29"/><rect x="17" y="2" width="1" height="4" fill="#F2A65A"/>
+<rect x="8" y="6" width="10" height="6" fill="#5B3A29"/><rect x="9" y="7" width="8" height="4" fill="#F2A65A"/><rect x="10" y="9" width="6" height="2" fill="#FFD9A8"/>
+<rect x="2" y="1" width="2" height="2" fill="#5B3A29"/><rect x="7" y="1" width="2" height="2" fill="#5B3A29"/>
+<rect x="1" y="3" width="9" height="7" fill="#5B3A29"/><rect x="2" y="4" width="7" height="5" fill="#F2A65A"/><rect x="3" y="2" width="1" height="2" fill="#F2A65A"/><rect x="7" y="2" width="1" height="2" fill="#F2A65A"/>
+<rect x="3" y="5" width="1" height="2" fill="#3A2A22"/><rect x="6" y="5" width="1" height="2" fill="#3A2A22"/>
+<rect x="2" y="7" width="1" height="1" fill="#F29C9C"/><rect x="7" y="7" width="1" height="1" fill="#F29C9C"/>
+</g>
+<symbol id="pc-a" viewBox="0 0 20 16"><use href="#pc-top"/><rect x="9" y="12" width="2" height="3" fill="#5B3A29"/><rect x="15" y="12" width="2" height="3" fill="#5B3A29"/></symbol>
+<symbol id="pc-b" viewBox="0 0 20 16"><use href="#pc-top"/><rect x="10" y="12" width="2" height="3" fill="#5B3A29"/><rect x="14" y="12" width="2" height="3" fill="#5B3A29"/></symbol>
+<symbol id="pc-w" viewBox="0 0 20 16"><g transform="translate(0 1)"><use href="#pc-top"/></g><rect x="9" y="13" width="2" height="2" fill="#5B3A29"/><rect x="15" y="13" width="2" height="2" fill="#5B3A29"/><rect x="0" y="1" width="2" height="4" fill="#5B3A29"/><rect x="0" y="1" width="1" height="1" fill="#F2A65A"/></symbol>
+<symbol id="pc-sit" viewBox="0 0 20 16"><g transform="translate(1 2)"><use href="#pc-top"/></g><rect x="10" y="13" width="7" height="2" fill="#5B3A29"/></symbol>
+</defs></svg>
+<style>
+@media (prefers-reduced-motion:no-preference){
+.fa{animation:fa .5s steps(1) infinite}.fb{animation:fa .5s steps(1) infinite reverse}
+.cat-walk{animation:pacepx 8s linear infinite}
+}
+@keyframes fa{0%{opacity:1}50%{opacity:0}}
+@keyframes pacepx{0%{transform:translateX(-12px) scaleX(1)}46%{transform:translateX(12px) scaleX(1)}50%{transform:translateX(12px) scaleX(-1)}96%{transform:translateX(-12px) scaleX(-1)}100%{transform:translateX(-12px) scaleX(1)}}
+.step span{white-space:nowrap;padding:0 4px}
+.clip{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;border:2px solid transparent;background:transparent;cursor:pointer;text-align:left;font-family:'Nunito',sans-serif;color:var(--ink);width:100%}
+.clip:hover{background:var(--ground)}
+.clip[aria-checked=true]{background:var(--raised);border-color:var(--outline);box-shadow:0 2px 0 var(--lip)}
+.clip .th{width:40px;height:34px;border-radius:10px;background:var(--ph-bg);display:flex;align-items:flex-end;justify-content:center;flex-shrink:0;overflow:hidden}
+.clip .nm{font-weight:800;font-size:14px}
+.clip .sb{font-size:12px;color:var(--ink3);font-weight:700}
+.clip.fallback .th{opacity:.45}
+.clip.fallback .nm{color:var(--ink2)}
+.fr{width:52px;height:48px;border-radius:10px;background:var(--ph-bg);border:2px solid var(--div);display:flex;align-items:flex-end;justify-content:center;position:relative;flex-shrink:0;box-sizing:border-box}
+.fr.cur{border-color:var(--outline);box-shadow:0 2px 0 var(--lip)}
+.fr .n{position:absolute;left:5px;top:3px;font-size:10.5px;font-weight:800;color:var(--ink3)}
+.fr .mk{position:absolute;right:-5px;top:-7px;width:18px;height:18px;border-radius:9px;background:var(--btn);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center}
+.track{position:relative;height:14px;margin:6px 28px 0}
+.track .ln{position:absolute;left:0;right:0;top:6px;height:2px;background:var(--dash)}
+</style>
+
+<div class="scroll">
+<a href="../my-critters/Make.html" class="back"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Make a critter</a>
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px">
+<div><h1 class="h1">Bring an animation</h1><p class="sub">Check each move plays well, mark its head if you want clothes, then give it a name.</p></div>
+<span class="how" style="margin-bottom: 4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M8 5v14M16 5v14M3.5 9.5h4.5M3.5 14.5h4.5M16 9.5h4.5M16 14.5h4.5"/></svg>Animated</span>
+</header>
+
+<div class="src">
+<span class="wayic" style="width: 40px; height: 40px; border-radius: 13px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4"/></svg></span>
+<div style="flex: 1; min-width: 0"><div class="fn">pip.aseprite <span style="font-weight: 700; color: var(--ink3); font-size: 12.5px">5 tags, 30 frames</span></div>
+<div class="fd"><span class="live" role="img" aria-label="Watching"></span>Watching the file. Save in Aseprite and Pip updates here.</div></div>
+<button class="btn bs sm"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5V9h-4.5"/></svg>Reload from file</button>
+<button class="btn bq sm" style="color: var(--acc-ink)">Add files</button>
+</div>
+
+<div class="banner err" data-when="nowalk" role="alert"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg><span><b>It needs a walk</b>No tag or file is called walk. Pick which one is its walk below, or add a walk file.</span></div>
+
+<div class="card" style="padding: 16px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px">
+
+<div role="radiogroup" aria-label="Moves" style="display: flex; flex-direction: column; gap: 2px">
+<div class="grp" style="margin: 2px 0 6px 10px">Its moves</div>
+<button class="clip" role="radio" aria-checked="true" data-when="walk"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-a"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Walk</span><span class="sb">8 frames</span></span><svg viewBox="0 0 24 24" width="16" height="16" aria-label="Head marked" style="color: var(--acc-ink)"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="currentColor"/></svg></button>
+<button class="clip" role="radio" aria-checked="false" data-when="act"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-a"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Walk</span><span class="sb">8 frames</span></span><svg viewBox="0 0 24 24" width="16" height="16" aria-label="Head marked" style="color: var(--acc-ink)"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="currentColor"/></svg></button>
+<button class="clip" role="radio" aria-checked="true" data-when="nowalk" style="border-color: var(--dng-line); background: var(--dng-bg)"><span class="th"></span><span style="flex: 1"><span class="nm" style="display: block; color: var(--dng-ink)">Walk</span><span class="sb" style="color: var(--dng-ink)">Needed</span></span></button>
+<button class="clip" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-sit"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Sit</span><span class="sb">4 frames</span></span><svg viewBox="0 0 24 24" width="16" height="16" aria-label="Head marked" style="color: var(--acc-ink)"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="currentColor"/></svg></button>
+<button class="clip" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-sit"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Nap</span><span class="sb">6 frames</span></span></button>
+<button class="clip" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-sit"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Blink</span><span class="sb">3 frames</span></span></button>
+<button class="clip" role="radio" aria-checked="false" data-when="walk nowalk" style="order: 0"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-w"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Wave</span><span class="sb">8 frames, extra move</span></span></button>
+<button class="clip" role="radio" aria-checked="true" data-when="act"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-w"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Wave</span><span class="sb">8 frames, extra move</span></span><svg viewBox="0 0 24 24" width="16" height="16" aria-label="Head marked" style="color: var(--acc-ink)"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="currentColor"/></svg></button>
+<div class="grp" style="margin: 10px 0 4px 10px">Borrowed from others</div>
+<button class="clip fallback" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-sit"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Held</span><span class="sb">Uses sit</span></span></button>
+<button class="clip fallback" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-sit"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Thrown</span><span class="sb">Uses held</span></span></button>
+<button class="clip fallback" role="radio" aria-checked="false"><span class="th"></span><span style="flex: 1"><span class="nm" style="display: block">Land</span><span class="sb">A squash</span></span></button>
+<button class="clip fallback" role="radio" aria-checked="false"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-a"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">Climb</span><span class="sb">Uses walk</span></span></button>
+<div class="grp" style="margin: 10px 0 4px 10px" data-when="nowalk">Not used yet</div>
+<div class="clip" data-when="nowalk" style="cursor: default"><span class="th"><svg class="px" viewBox="0 0 20 16" width="36" height="29" aria-hidden="true"><use href="#pc-a"/></svg></span><span style="flex: 1"><span class="nm" style="display: block">trot</span><span class="sb">8 frames</span></span></div>
+<div data-when="nowalk" style="padding: 0 10px"><button class="dd" style="width: 100%; border-color: var(--outline)"><span>Use as walk</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+</div>
+
+<div data-when="nowalk" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; border-radius: 18px; border: 2px dashed var(--dash); text-align: center">
+<div class="wt">No walk yet</div>
+<div class="wd" style="max-width: 360px">Every critter needs a walk, since that's how it gets around your desk. Pick trot as its walk, or add a file called walk.</div>
+<button class="btn bs sm">Add a walk file</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; min-width: 0" data-when="walk act">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div><h2 class="ct" data-when="walk nowalk">Walk</h2><h2 class="ct" data-when="act">Wave</h2><p class="cd" data-when="walk nowalk">From the Aseprite tag walk</p><p class="cd" data-when="act">An extra move. It waves now and then, like a cast critter's idle.</p></div>
+<button class="dd" style="min-width: 160px"><span data-when="walk nowalk">Tag: walk</span><span data-when="act">Tag: wave</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 14px">
+<div class="wellbox" style="height: 200px; background: var(--w-orange)">
+<svg viewBox="-16 -6 52 23" width="100%" height="100%" class="px" role="img" aria-label="Pip playing this move">
+<g data-when="walk nowalk"><g class="cat-walk" style="transform-box: fill-box; transform-origin: 50% 50%"><use class="fa" href="#pc-a" width="20" height="16"/><use class="fb" href="#pc-b" width="20" height="16"/></g></g>
+<g data-when="act"><use class="fa" href="#pc-w" width="20" height="16"/><use class="fb" href="#pc-a" width="20" height="16"/></g>
+</svg>
+<span class="ground-line" style="bottom: 12px"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div><div class="rtt" style="margin-bottom: 6px">Frames a second</div><div class="step"><button aria-label="Slower">-</button><span data-when="walk nowalk">10</span><span data-when="act">12</span><button aria-label="Faster">+</button></div></div>
+<div data-when="walk nowalk"><div class="rtt">Loops</div><div class="rtd">A walk always loops.</div></div>
+<div data-when="act"><div class="rtt" style="margin-bottom: 6px">Plays it</div><div class="step"><button aria-label="Fewer times">-</button><span>2 times</span><button aria-label="More times">+</button></div></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--ground)">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px"><span class="rtt">Where's its head?</span><span class="pill" style="background: var(--track); color: var(--acc-ink)">For clothes</span></div>
+<span style="font-size: 12.5px; color: var(--ink3); font-weight: 700">Frame 1 of 8</span>
+</div>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center">
+<div class="wellbox" style="height: 130px; background: var(--ph-bg); border: 2px solid var(--div)">
+<svg viewBox="-2 -2 24 19" width="100%" height="100%" class="px" role="img" aria-label="Frame 1 with the head circle">
+<use href="#pc-a" width="20" height="16" data-when="walk nowalk"/><use href="#pc-w" width="20" height="16" data-when="act"/>
+<circle cx="5.5" cy="6.5" r="4.6" fill="var(--btn)" fill-opacity=".14" stroke="var(--btn)" stroke-width=".45" stroke-dasharray="1 .6" data-when="walk nowalk" style="shape-rendering: auto"/>
+<circle cx="5.5" cy="7.5" r="4.6" fill="var(--btn)" fill-opacity=".14" stroke="var(--btn)" stroke-width=".45" stroke-dasharray="1 .6" data-when="act" style="shape-rendering: auto"/>
+</svg>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p class="cd" style="margin: 0">Put the circle on its head in the first frame, then on any frame where the head moves. The frames in between follow along. A move with no marks shows no clothes.</p>
+<div style="display: flex; gap: 8px"><button class="btn bs sm">Mark this frame</button><button class="btn bq sm" style="color: var(--acc-ink)">Clear marks</button></div>
+</div>
+</div>
+<div style="display: flex; gap: 6px; overflow: hidden; padding-top: 8px" data-when="walk nowalk">
+<div class="fr cur"><span class="n">1</span><span class="mk"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="#FFFFFF"/></svg></span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">2</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-b"/></svg></div>
+<div class="fr"><span class="n">3</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">4</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-b"/></svg></div>
+<div class="fr"><span class="n">5</span><span class="mk"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="#FFFFFF"/></svg></span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">6</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-b"/></svg></div>
+<div class="fr"><span class="n">7</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">8</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-b"/></svg></div>
+</div>
+<div style="display: flex; gap: 6px; overflow: hidden; padding-top: 8px" data-when="act">
+<div class="fr cur"><span class="n">1</span><span class="mk"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="#FFFFFF"/></svg></span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">2</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">3</span><span class="mk"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="#FFFFFF"/></svg></span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-w"/></svg></div>
+<div class="fr"><span class="n">4</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-w"/></svg></div>
+<div class="fr"><span class="n">5</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-w"/></svg></div>
+<div class="fr"><span class="n">6</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-w"/></svg></div>
+<div class="fr"><span class="n">7</span><span class="mk"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M5 15c0-5 3-8 7-8s7 3 7 8z M3.5 15h17v3h-17z" fill="#FFFFFF"/></svg></span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+<div class="fr"><span class="n">8</span><svg class="px" viewBox="0 0 20 16" width="40" height="32" aria-hidden="true"><use href="#pc-a"/></svg></div>
+</div>
+<div style="font-size: 12px; color: var(--ink3); font-weight: 700; display: flex; align-items: center; gap: 6px"><span class="mk" style="position: static; width: 16px; height: 16px; border-radius: 8px; background: var(--btn); display: inline-block"></span>Marked. The others follow along.</div>
+</div>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start">
+
+<div class="card" style="padding: 8px 20px 10px">
+<div class="blk"><div class="hd"><div><div class="rtt">Faces</div><div class="rtd">Which way it looks in your frames.</div></div><div class="seg" role="radiogroup" aria-label="Faces"><button class="sel" role="radio" aria-checked="true">Left</button><button role="radio" aria-checked="false">Right</button></div></div></div>
+<div class="blk"><div class="hd"><div><div class="rtt">Standing on the ground</div><div class="rtd">Found from its feet. Nudge it if it floats or sinks.</div></div><div class="step"><button aria-label="Down">-</button><span>2 px up</span><button aria-label="Up">+</button></div></div></div>
+<div class="blk"><div class="hd"><span class="rtt">Step length</span><span class="val" style="font-size: 15px">38 px</span></div><div class="rtd" style="margin-top: -4px">Slide it until the feet stop skating in the preview.</div><div><input type="range" class="rng" min="10" max="80" value="38" aria-label="Step length" style="background: linear-gradient(to right, var(--accent) 0 40%, var(--line) 40% 100%)"><div class="ticks"><span>short</span><span>long</span></div></div></div>
+<div class="blk"><span class="rtt">Size</span><div class="seg" role="radiogroup" aria-label="Size" style="align-self: flex-start"><button role="radio" aria-checked="false">Small</button><button class="sel" role="radio" aria-checked="true">Normal</button><button role="radio" aria-checked="false">Big</button></div></div>
+<div class="blk"><span class="rtt">Pop sound</span><div style="display: flex; gap: 8px; align-items: center"><button class="ib" aria-label="Play the sound"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></svg></button><button class="dd" style="flex: 1"><span>Kitten</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
+</div>
+
+<div class="card" style="padding: 18px 20px">
+<h2 class="ct">Worth a look</h2>
+<p class="cd">None of these stop it working. They're things you may want to fix in your app.</p>
+<div class="chunk" style="margin-top: 12px">
+<div class="ck warn"><span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 16.5h.01"/></svg></span><div><div class="t">The walk doesn't loop smoothly</div><div class="d">Frame 8 looks quite different from frame 1, so it may jump once a step.</div></div></div>
+<div class="ck warn"><span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 16.5h.01"/></svg></span><div><div class="t">Its feet bob up and down</div><div class="d">The feet in the walk frames sit up to 9 px apart. Line them up in your app.</div></div></div>
+<div class="ck warn"><span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 16.5h.01"/></svg></span><div><div class="t">Touches the edge</div><div class="d">Frame 3 of Sit reaches the edge of the canvas, so it may look cut off.</div></div></div>
+</div>
+<div class="chunk">
+<div class="ck info"><span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 8h.01M12 11.5v5"/></svg></span><div><div class="t">No clothes while it naps or blinks</div><div class="d">Mark the head in Nap and Blink to keep them on.</div></div></div>
+<div class="ck ok"><span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><div class="t">30 of 64 frames used</div><div class="d">Room for more moves.</div></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="keepbar">
+<label for="nm" style="font-weight: 800; font-size: 13px; color: var(--ink2)">Name</label>
+<input id="nm" class="field" value="Pip" style="width: 240px">
+<span style="flex: 1"></span>
+<span class="why" data-when="walk act">3 things worth a look</span>
+<span class="why" data-when="nowalk" style="color: var(--dng-ink)">Needs a walk first</span>
+<a href="../my-critters/Main.html" class="btn bq">Cancel</a>
+<button class="btn bp" data-when="walk act"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Keep</button>
+<button class="btn bp" data-when="nowalk" disabled aria-disabled="true">Keep</button>
+</div>
+</main>
+</div>
+</x-dc>
+<script src="./mock.js"></script>
+<script>mock([["walk","Walk"],["act","Wave"],["nowalk","No walk"]]);</script>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1100,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themeClass: this.props.dark ? 'th-dark' : 'th-light' };
+}
+}
+</script>
+</body>
+</html>

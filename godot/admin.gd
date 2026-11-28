@@ -284,6 +284,10 @@ func run(action: String, chosen := "kitten") -> void:
 			kit_test(arg)
 		"dress_pixelcat":
 			dress_pixel_cat()
+		"share_code":
+			share_code_test()
+		"share_file":
+			share_file_test(arg if arg != "" else "kit")
 		"own_sound":
 			own_sound()
 		"colour_picker":
@@ -679,6 +683,45 @@ func kit_test(which: String) -> void:
 	spawn(id, "common", "", "", 1, "sit")
 	if which in ["kitten", "otter", "duckling"]:
 		spawn(which, "common")
+
+
+func _my_critters():
+	main.open_settings("my_critters")
+	await get_tree().process_frame
+	return main.settings_win.pages.my
+
+
+func share_code_test() -> void:
+	# G1: a test builder critter's code, pasted: the install view shows it
+	# walking, with Add. The code is also on the clipboard to paste by hand.
+	var code: String = load("res://share.gd").encode_code(load("res://critters/kit/fixtures.gd").LILAC, "Lilac")
+	DisplayServer.clipboard_set(code)
+	var my = await _my_critters()
+	my.add_code(code)
+
+
+func share_file_test(kind: String) -> void:
+	# G2: a test critter of each kind (kit, frames, sticker) saved as a
+	# .critter file and opened again: the install view, nothing written yet.
+	var Fixtures = load("res://critters/kit/fixtures.gd")
+	var src := "user://admin_share/" + kind
+	var id := ""
+	if kind == "sticker":
+		id = Customs.add("Share test", [test_picture(false)])
+	else:
+		if kind == "frames":
+			Fixtures.pixel_cat(src)
+		else:
+			Fixtures.kitten_kit(src)
+		id = Customs.add_folder(src)
+	var file := ProjectSettings.globalize_path("user://admin_share/%s.critter" % kind)
+	var why: String = load("res://share.gd").export_critter(id, file, main.VERSION)
+	Customs.remove(id)
+	if why != "":
+		main.toasts.show_note(Icons.berry(40), "Admin", "Share test", why)
+		return
+	var my = await _my_critters()
+	my.install_file(file)
 
 
 func dress_pixel_cat() -> void:

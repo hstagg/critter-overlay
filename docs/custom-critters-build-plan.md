@@ -1735,14 +1735,14 @@ ships clothes, sharing, the Collection badges and the docs.
 | B4 | Blob plan | done 2026-11-24 |
 | B5 | Custom sounds | done 2026-11-24 (the card waits for A2) |
 | B6 | Pairs and host numbers | done 2026-11-24 |
-| C0 | Design: importing | not started |
+| C0 | Design: importing | drafted 2026-11-27 (`design/studio/import/`), waiting for the developer's review; C4, E3 and G2 are being built to it meanwhile |
 | C1 | Templates | done 2026-11-24 |
 | C2 | SVG sanitiser and splitter | done 2026-11-24 |
 | C3 | Raster imports | done 2026-11-24 |
 | C4 | Kit importer | engine done 2026-11-24; screens wait for C0 |
 | C5 | Drop a file to import | not started |
 | R1 | **Release 3.3.0** | not started |
-| D0 | Design: the Studio window | not started |
+| D0 | Design: the Studio window | drafted 2026-11-27 (`design/studio/builder/`), waiting for the developer's review |
 | D1 | Shape model and SVG writer | done 2026-11-24 |
 | D2 | Studio window shell | not started |
 | D3 | Shape tools | not started |
@@ -1758,8 +1758,8 @@ ships clothes, sharing, the Collection badges and the docs.
 | F1 | Head metrics | done 2026-11-24 (the importer step waits for C0) |
 | F2 | Clothes drawn at runtime | done 2026-11-24; contact sheet reviewed 2026-11-25: on heads smaller than the kitten's, clothes are drawn for a kitten-sized head and scaled down whole (`wear.gd _drawn_to_size()`), checked in `wear_draw_test.gd` |
 | F3 | Clothes on frame critters | engine done 2026-11-27; the *Where's its head?* marking screen comes with E3's importer (after C0) |
-| G1 | Builder codes | engine done 2026-11-24; screens wait for A2/D0 |
-| G2 | `.critter` v3 files | engine done 2026-11-24; screens wait for A2/C0 |
+| G1 | Builder codes | done 2026-11-27: Copy code on a builder critter's page, a pasted code opens the install view |
+| G2 | `.critter` v3 files | screens done 2026-11-27 (Save as a file, Open a .critter file, the install view); dropping a file waits for C5 |
 | G3 | Hostile-file pass | done 2026-11-24 |
 | H1 | Collection | not started |
 | H2 | Docs | not started |
@@ -2036,3 +2036,20 @@ step left needs the developer, or a design that needs them:
   anywhere). `Wear.fits()` lets a frame critter wear kit items only once its
   head is marked; the Shop says why when nothing fits a homemade critter, and
   My critters shows Clothes for it. The marking screen goes in E3's importer.
+- 2026-11-27: the developer asked for the build to go ahead without waiting
+  on them, coming back only for hands or eyes. So C0 and D0 were drafted
+  (in the A0 style, by design agents working from the plan) and committed
+  for review, and the screens are being built to them; anything the review
+  changes is reworked then. Defaults taken for C0's open questions until
+  then: a .psd says to export PNG layers; the templates save all four
+  bodies; Install for files and Add for codes; "Made with AI help" shown
+  when set; step length a plain slider; no file watching for pictures.
+- 2026-11-27: G1 and G2's screens done. Share on a critter's page (Copy
+  code for builder critters, Save as a file for every kind, decision 5's
+  note on pictures). Make a critter's code box and Open a .critter file
+  lead to an install view, a card on My critters rather than the design's
+  dialog (it survives rebuilds, and C5's drops will land there):
+  `Customs.show_staged()` shows the staged critter walking, nothing is in
+  the store until Install or Add, a taken name becomes "<name> 2". A code's
+  critter stays from "shapes" with `"friend": true`, so its badge is Shapes
+  and its card says From a friend.

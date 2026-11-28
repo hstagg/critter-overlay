@@ -20,6 +20,7 @@ const UI := preload("res://gui/ui.gd")
 const CritterView := preload("res://gui/critter_view.gd")
 const Importer := preload("res://gui/importer.gd")
 const FrameData := preload("res://critters/kit/frame_data.gd")
+const Share := preload("res://share.gd")
 
 # Each kind's words, everywhere (A0): badge, Edit button, the detail's line.
 const WORDS := {
@@ -39,6 +40,10 @@ var w: Window                      # settings_window.gd
 var view := "list"                 # list | make | detail
 var filter := "All"                # All or a badge
 var selected := ""                 # the critter the detail view shows
+var sharing := false               # the detail view's Share card is open
+var share_note := ""               # what the last Copy code or Save as a file did
+var staged := {}                   # a critter from someone, before Install (share.gd stage_install)
+const STAGING := "user://custom_staging"
 var importer: RefCounted           # importer.gd
 
 
@@ -77,6 +82,8 @@ func open(which := "list", id := "") -> void:
 func _go(which: String, id := "") -> void:
 	view = which
 	selected = id
+	sharing = false
+	share_note = ""
 	w.rebuild(false)
 
 
@@ -88,7 +95,9 @@ func build(body: VBoxContainer, header: Callable) -> void:
 			"Take the background out, give it a name and pick which way it faces. Nothing is kept until you press %s." % ("Keep" if editing_new else "Save"))
 		body.add_child(importer.editor())
 		return
-	if view == "detail" and Customs.all.has(selected):
+	if view == "install" and not staged.is_empty():
+		_install(body)
+	elif view == "detail" and Customs.all.has(selected):
 		_detail(body)
 	elif view == "make" or count() == 0:
 		_make(body, header, count() == 0)
@@ -192,7 +201,7 @@ func _card(id: String) -> Control:
 	elif _is_new(d):
 		tags.add_child(K.new_pill())
 	v.add_child(tags)
-	if str(d.get("from", "")) == "file":
+	if str(d.get("from", "")) == "file" or bool(d.get("friend", false)):
 		v.add_child(UI.label("From a friend", 12, c.ink3, 700))
 	b.add_child(K.margins(v, 10, 10, 10, 10))
 	return b
@@ -290,7 +299,10 @@ func _detail(body: VBoxContainer) -> void:
 	var actions := K.hbox(10)
 	actions.add_child(K.button(WORDS[b][0], "bp", "", true, func(): _edit(id)))
 	if Customs.way_on("share"):
-		actions.add_child(K.button("Share", "bs", "", true, func(): _later("Share")))
+		actions.add_child(K.button("Share", "bs", "", true, func():
+			sharing = not sharing
+			share_note = ""
+			w.rebuild()))
 	actions.add_child(K.button("Make a copy", "bs", "", true, func():
 		var nid := Customs.make_copy(id)
 		if nid != "":
@@ -303,6 +315,8 @@ func _detail(body: VBoxContainer) -> void:
 			Customs.remove(id)
 			_go("list"))))
 	body.add_child(actions)
+	if sharing and Customs.way_on("share"):
+		body.add_child(_share_card(id))
 
 
 static func _made_line(d: Dictionary) -> String:
@@ -314,7 +328,7 @@ static func _made_line(d: Dictionary) -> String:
 	if made > 0:
 		var t := Time.get_date_dict_from_unix_time(made)
 		when = " on %d %s" % [t.day, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][t.month - 1]]
-	if from == "file":
+	if from == "file" or bool(d.get("friend", false)):
 		return "From a friend, added" + when
 	return WORDS[badge(d)][1] + when
 
@@ -381,6 +395,241 @@ func _later(what: String) -> void:
 	w.confirm(what, "%s comes in a later step of the Studio build. It shows here because every way is on in this build." % what, "OK", func(): pass)
 
 
+# --- Sharing (G1, G2) -----------------------------------------------------------
+
+func _share_card(id: String) -> Control:
+	var c := K.c
+	var d: Dictionary = Customs.all[id]
+	var name := str(d.get("name", "it"))
+	var rows := []
+	var shapes_path := str(d["_dir"]).path_join("shapes.json")
+	if FileAccess.file_exists(shapes_path):
+		rows.append(K.row("Copy its code", "A short CRIT1- code anyone can paste into Make a critter. Send it however you like.",
+			K.button("Copy code", "bs", "check", true, func(): _copy_code(id))))
+	var desc := "A .critter file with everything %s is made of, to send to a friend." % name
+	if Customs.kind(d) == "sticker":
+		desc += " Made from a picture: only share pictures you're happy for others to have."   # decision 5
+	rows.append(K.row("Save as a file", desc, K.button("Save as a file", "bs", "box", true, func(): _save_file(id))))
+	if share_note != "":
+		rows.append(K.margins(UI.label(share_note, 13, c.acc_ink, 700), 20, 10, 20, 14))
+	return K.section("Share %s" % name, K.card(rows))
+
+
+func _copy_code(id: String) -> void:
+	var j = JSON.parse_string(FileAccess.get_file_as_string(str(Customs.all[id]["_dir"]).path_join("shapes.json")))
+	if typeof(j) != TYPE_DICTIONARY:
+		share_note = "Its shapes can't be read, so there's no code for it."
+	else:
+		DisplayServer.clipboard_set(Share.encode_code(j, str(Customs.all[id].get("name", ""))))
+		share_note = "Copied. Paste it anywhere to send it."
+	w.rebuild()
+
+
+func _save_file(id: String) -> void:
+	var fd := FileDialog.new()
+	fd.use_native_dialog = true
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	fd.filters = PackedStringArray(["*.critter ; Critter files"])
+	fd.current_file = str(Customs.all[id].get("name", "critter")).strip_edges().replace("/", "-").replace("\\", "-") + ".critter"
+	fd.title = "Save as a file"
+	fd.file_selected.connect(func(path):
+		fd.queue_free()
+		var why := Share.export_critter(id, path, str(w.main.VERSION))
+		share_note = why if why != "" else "Saved as %s." % path.get_file()
+		w.rebuild())
+	fd.canceled.connect(fd.queue_free)
+	w.add_child(fd)
+	fd.popup_centered_ratio(0.6)
+
+
+# --- A critter from someone (G1, G2; design/studio/import/Install.html) -----------
+
+func install_file(path: String) -> void:
+	# A .critter file into the install view; nothing is written to the store yet.
+	staged = Share.stage_install(path, str(w.main.VERSION) if w.main != null else "0.0.0", STAGING)
+	staged["file"] = path.get_file()
+	staged["code"] = false
+	_stage_preview()
+
+
+func add_code(code: String) -> void:
+	var back := Share.decode_code(code)
+	staged = {"name": back.name, "meta": {}, "kind": "kit", "error": back.error, "warnings": back.warnings,
+		"folder": "", "v2": false, "code": true, "file": ""}
+	if back.error == "":
+		Share.clear_dir(STAGING)
+		staged.folder = Share.write_builder_kit(back.shapes, back.name if back.name != "" else "Shared critter", STAGING)
+		if staged.folder == "":
+			staged.error = "That code doesn't make a critter this app can draw."
+	_stage_preview()
+
+
+func _stage_preview() -> void:
+	staged["preview"] = Customs.show_staged(staged.folder) if staged.error == "" and staged.folder != "" and not staged.v2 else ""
+	view = "install"
+	w.rebuild(false)
+
+
+func _pick_critter_file() -> void:
+	var fd := FileDialog.new()
+	fd.use_native_dialog = true
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.filters = PackedStringArray(["*.critter ; Critter files"])
+	fd.title = "Open a .critter file"
+	fd.file_selected.connect(func(path):
+		fd.queue_free()
+		install_file(path))
+	fd.canceled.connect(fd.queue_free)
+	w.add_child(fd)
+	fd.popup_centered_ratio(0.6)
+
+
+static func taken_name(name: String) -> String:
+	# "Noodle" if no critter has that name, else "Noodle 2", "Noodle 3"...
+	var names := Customs.ids().map(func(i): return str(Customs.all[i].get("name", "")).to_lower())
+	if not name.to_lower() in names:
+		return name
+	var n := 2
+	while ("%s %d" % [name, n]).to_lower() in names:
+		n += 1
+	return "%s %d" % [name, n]
+
+
+func _install(body: VBoxContainer) -> void:
+	# The install view, drawn as a card on My critters (the design shows a
+	# dialog; a view survives the page being rebuilt and works with drops).
+	var c := K.c
+	var st := staged
+	var err := str(st.error)
+	var name := str(st.name if st.name != "" else "Shared critter")
+	var newer := err.contains("newer")
+	var title := ""
+	if newer:
+		title = "%s needs a newer version" % name
+	elif err != "":
+		title = "This file can't be opened" if not st.code else "That code can't be used"
+	else:
+		title = ("Add %s?" if st.code else "Install %s?") % name
+	var sub := ""
+	if err != "":
+		sub = err
+	elif st.code:
+		sub = "Someone sent you a critter code. Here's the critter it makes. Nothing is added until you press Add."
+	elif st.kind == "sticker" or st.v2:
+		sub = "Someone sent you a critter made from a picture. Nothing is added until you press Install."
+	else:
+		sub = "Someone sent you a critter. Here it is walking. Nothing is added until you press Install."
+	var card := K.vbox(16)
+	var t := UI.label(title, 24, c.ink, 600, true)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card.add_child(t)
+	var sl := UI.label(sub, 14, c.ink2, 400)
+	sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sl.custom_minimum_size.x = 420
+	card.add_child(sl)
+	if err != "":
+		var after := "Nothing was added. Updates come through the System page, and your critters all stay." if newer \
+			else "Nothing was added. If a code came with it, you can paste that into Make a critter instead."
+		card.add_child(UI.label(after, 13, c.ink2, 700))
+		var row := K.hbox(10)
+		if newer:
+			row.add_child(K.button("Check for updates", "bp", "update", true, func():
+				_end_install()
+				w.go("system")))
+		row.add_child(K.button("OK", "bs", "", true, _end_install))
+		card.add_child(row)
+		body.add_child(K.card([K.margins(card, 28, 24, 28, 24)]))
+		return
+	var h := K.hbox(24)
+	var well := PanelContainer.new()
+	well.custom_minimum_size = Vector2(240, 200)
+	well.add_theme_stylebox_override("panel", K.box(c.track, 18))
+	if str(st.get("preview", "")) != "":
+		well.add_child(CritterView.make(st.preview, 240, 196, 1.0, "walk"))
+	h.add_child(well)
+	var info := K.vbox(8)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_child(UI.label(name, 20, c.ink, 600, true))
+	var word := "Picture" if st.v2 or st.kind == "sticker" else ("Shapes" if st.code else ("Animated" if st.kind == "frames" else "Drawn"))
+	var bp := K.pill(word, c.track, c.acc_ink)
+	bp.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	info.add_child(bp)
+	if st.code:
+		info.add_child(UI.label("Codes don't say who made them.", 13, c.ink2, 400))
+	else:
+		var author := str(st.meta.get("author", ""))
+		info.add_child(UI.label("Made by " + author if author != "" else "Who made it isn't said.", 13, c.ink2, 400))
+		var lic := str(st.meta.get("licence", ""))
+		info.add_child(UI.label(lic if lic != "" else "No licence given", 13, c.ink2, 400))
+		if bool(st.meta.get("ai_made", false)):
+			info.add_child(UI.label("Made with AI help", 13, c.ink2, 400))
+	var moves := "Slides along" if word == "Picture" else ("Plays its own frames" if st.kind == "frames" else "Walks, sits and naps")
+	info.add_child(UI.label(moves, 13, c.ink2, 700))
+	h.add_child(info)
+	card.add_child(h)
+	var final_name := taken_name(name)
+	if final_name != name:
+		card.add_child(_note("You already have a %s" % name, "This one will be added next to it as %s. Yours stays as it is." % final_name))
+	if word == "Picture":
+		card.add_child(_note("Made from a picture", "It's someone's own picture, so only pass it on if they're happy for others to have it."))
+	card.add_child(UI.label("Only install critters from people you trust.", 13, c.ink2, 700))
+	var buttons := K.hbox(10)
+	if st.code and Customs.way_on("shapes"):
+		buttons.add_child(K.button("Edit in the Studio first", "bq", "", true, func(): _later("Edit in the Studio")))
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buttons.add_child(gap)
+	buttons.add_child(K.button("Cancel", "bs", "", true, _end_install))
+	buttons.add_child(K.button("Add" if st.code else "Install", "bp", "check", true, func(): confirm_install()))
+	card.add_child(buttons)
+	body.add_child(K.card([K.margins(card, 28, 24, 28, 24)]))
+
+
+func _note(title: String, text: String) -> Control:
+	var c := K.c
+	var v := K.vbox(4)
+	v.add_child(UI.label(title, 14, c.ink, 800))
+	var l := UI.label(text, 13, c.ink2, 400)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = 400
+	v.add_child(l)
+	var p := PanelContainer.new()
+	var s := K.box(c.ground, 14)
+	s.set_content_margin_all(12)
+	p.add_theme_stylebox_override("panel", s)
+	p.add_child(v)
+	return p
+
+
+func confirm_install() -> String:
+	# Writes the staged critter to the store under a free name. Returns its id.
+	Customs.clear_staged()
+	var name := taken_name(str(staged.name if staged.name != "" else "Shared critter"))
+	if not staged.v2 and staged.folder != "":
+		var cj: String = staged.folder.path_join("custom.json")
+		var d = JSON.parse_string(FileAccess.get_file_as_string(cj))
+		if typeof(d) == TYPE_DICTIONARY:
+			d["name"] = name
+			if staged.code:
+				d["friend"] = true   # still from "shapes": a code is a builder critter
+			var f := FileAccess.open(cj, FileAccess.WRITE)
+			f.store_string(JSON.stringify(d, "\t"))
+			f.close()
+	var id := Share.install(staged)
+	staged = {}
+	_go("detail" if id != "" else "list", id)
+	return id
+
+
+func _end_install() -> void:
+	Customs.clear_staged()
+	Share.clear_dir(STAGING)
+	staged = {}
+	_go("list")
+
+
 # --- Make a critter -------------------------------------------------------------
 
 func _make(body: VBoxContainer, header: Callable, first: bool) -> void:
@@ -417,10 +666,10 @@ func _make(body: VBoxContainer, header: Callable, first: bool) -> void:
 		var field := K.text_field("", "CRIT1-…", 4000, func(t): code[0] = t)
 		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(field)
-		row.add_child(K.button("Add", "bs", "", true, func(): _later("Adding a code")))
+		row.add_child(K.button("Add", "bs", "", true, func(): add_code(code[0])))
 		body.add_child(K.section("Got one from someone?", K.card([
 			K.row("Got a code?", "Paste a CRIT1- code someone sent you.", row),
-			K.row("Got a file?", "A .critter file someone shared.", K.button("Open a .critter file", "bs", "box", true, func(): _later("Opening a .critter file"))),
+			K.row("Got a file?", "A .critter file someone shared.", K.button("Open a .critter file", "bs", "box", true, _pick_critter_file)),
 		])))
 
 

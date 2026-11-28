@@ -76,6 +76,7 @@ const MAX_SOUND_S := 2.0
 const SOUNDS := ["kitten", "rabbit", "duck", "hedgehog", "turtle", "squirrel", "otter", "panda"]
 const IDLES := ["sit_and_look", "nap", "wake_up", "look_at_cursor", "shake_off"]
 const PREVIEW := "custom:_preview"   # the importer's picture before it is kept; never arrives
+const STAGED := "custom:_staged"     # a critter from someone, shown before it is installed; never arrives
 
 static var dir := "user://custom"
 static var all := {}             # "custom:<id>" -> its custom.json, plus "_dir"
@@ -246,7 +247,7 @@ static func is_custom(id: String) -> bool:
 
 
 static func ids(enabled_only := false) -> Array:
-	return all.keys().filter(func(id): return id != PREVIEW and (not enabled_only or bool(all[id].get("enabled", true))))
+	return all.keys().filter(func(id): return id != PREVIEW and id != STAGED and (not enabled_only or bool(all[id].get("enabled", true))))
 
 
 static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
@@ -258,6 +259,29 @@ static func set_preview(img: Image, faces := "right", size := 1.0) -> void:
 	all[PREVIEW] = {"name": "Preview", "faces": faces, "size": size, "frames": 0, "_dir": "", "rev": rev}
 	_frames[tex_key(PREVIEW)] = [tex]
 	Species.custom[PREVIEW] = _row(all[PREVIEW])
+
+
+static func show_staged(folder: String) -> String:
+	# A staged critter (share.gd stage_install) drawn like a kept one, so the
+	# install dialog can show it walking. Returns STAGED, or "" if it can't.
+	clear_staged()
+	var d = JSON.parse_string(_read(folder.path_join("custom.json"))) if FileAccess.file_exists(folder.path_join("custom.json")) else null
+	if typeof(d) != TYPE_DICTIONARY:
+		return ""
+	d["_dir"] = folder
+	d["rev"] = int(Time.get_ticks_msec())   # a new texture key each time
+	_read_extras(d)
+	if _unusable(d) != "":
+		return ""
+	all[STAGED] = d
+	Species.custom[STAGED] = _row(d)
+	return STAGED
+
+
+static func clear_staged() -> void:
+	_forget(STAGED)
+	all.erase(STAGED)
+	Species.custom.erase(STAGED)
 
 
 static func clear_preview() -> void:

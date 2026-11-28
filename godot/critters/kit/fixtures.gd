@@ -31,6 +31,20 @@ const KITTEN_PARTS := {
 const BARE := ["walk-body", "head", "eyes", "leg-front", "leg-back"]
 
 
+# A builder critter (shapes.json), for the share tests and the Admin page.
+const LILAC := {
+	"schema": 1, "plan": "side", "style": {"outline": "#5B3A29", "width": 5, "blush": true},
+	"layers": {
+		"walk-body": [{"t": "ellipse", "x": 160, "y": 200, "w": 140, "h": 70, "fill": "#C9A0E8"}],
+		"head": [{"t": "ellipse", "x": 100, "y": 150, "w": 110, "h": 96, "fill": "#C9A0E8"}],
+		"eyes": [{"t": "eye", "preset": "big", "x": 84, "y": 148, "w": 18, "h": 22, "fill": "#3A2A22"},
+			{"t": "eye", "preset": "big", "x": 118, "y": 148, "w": 18, "h": 22, "fill": "#3A2A22"}],
+		"leg-front": [{"t": "rect", "x": 116, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#C9A0E8"}],
+		"leg-back": [{"t": "rect", "x": 204, "y": 240, "w": 22, "h": 44, "r": 9, "fill": "#C9A0E8"}],
+		"tail": [{"t": "stroke", "pts": [[226, 196], [252, 176], [262, 150]], "width": 12, "fill": "#C9A0E8"}],
+	},
+}
+
 static func kitten_kit(dest: String, bare := false, gait := "trot") -> String:
 	# Writes the kitten (or the bare kit) as a kit folder at dest. Returns dest.
 	DirAccess.make_dir_recursive_absolute(dest.path_join("parts"))
