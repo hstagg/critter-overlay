@@ -14,6 +14,7 @@ signal pause_pressed
 signal collection_pressed
 signal settings_pressed
 signal desktop_pressed
+signal call_pressed          # creator mode: System > Creator
 signal quit_pressed
 
 const UI := preload("res://gui/ui.gd")
@@ -218,6 +219,8 @@ func _build() -> void:
 	else:
 		items.add_child(_item("sparkle", "Spawn a critter", c, spawn_pressed, price))
 		items.add_child(_item("pause", "Pause critters", c, pause_pressed, hint))
+	if info.get("creator", false):
+		items.add_child(_item("paw", "Call a critter", c, call_pressed))
 	items.add_child(_item("star", "Collection", c, collection_pressed, count))
 	if info.get("desktop_ok", false):
 		# Always here, so critters kept behind your windows can be brought back.

@@ -153,7 +153,7 @@ func parity() -> void:
 	for what in drifting:
 		print("DRIFT: ", what)
 	check(drifting.is_empty(), "every item draws as build.py's (%d drift)" % drifting.size())
-	check(tried == 624, "624 item files checked (%d)" % tried)
+	check(tried == 664, "664 item files checked (%d)" % tried)   # 624, and the four pack items (items_pack.py) on 10 species
 	print("PARITY: %d item files, %d match when rasterised, %d drift, %d the same text" % [tried, passed, drifting.size(), same_text])
 
 

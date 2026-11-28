@@ -20,6 +20,8 @@ const PROPS := {
 	"basket": ["Basket bed", 0.5, [Vector2(118, 124), Vector2(182, 124)], false],
 	"tent": ["Pillow tent", 0.55, [Vector2(150, 186), Vector2(84, 186)], false],
 	"cottage": ["Little cottage", 0.62, [Vector2(150, 188), Vector2(150, 188), Vector2(150, 188)], true],
+	# The Supporter Pack's (codes.gd): never sold, owned through a code.
+	"moon_cradle": ["Moon cradle", 0.5, [Vector2(118, 128), Vector2(182, 128)], false],
 }
 const PRICE: int = preload("res://wear.gd").PRICES["showpiece"]   # one price table (wear.gd)
 
