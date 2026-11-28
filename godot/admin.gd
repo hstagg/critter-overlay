@@ -286,6 +286,8 @@ func run(action: String, chosen := "kitten") -> void:
 			dress_pixel_cat()
 		"share_code":
 			share_code_test()
+		"kit_import":
+			kit_import_test(arg if arg != "" else "side")
 		"share_file":
 			share_file_test(arg if arg != "" else "kit")
 		"own_sound":
@@ -689,6 +691,29 @@ func _my_critters():
 	main.open_settings("my_critters")
 	await get_tree().process_frame
 	return main.settings_win.pages.my
+
+
+func kit_import_test(plan: String) -> void:
+	# C4: a body's template (a copy in user://) through Draw in your own app.
+	# Four seconds later the copy is saved again, as a drawing app would:
+	# the page brings it in again and says so (Reload).
+	var dir := "user://admin_kit_import"
+	DirAccess.make_dir_recursive_absolute(dir)
+	var file := ProjectSettings.globalize_path(dir.path_join("%s-1.svg" % plan))
+	var text := FileAccess.get_file_as_string("res://templates/%s-1.svg" % plan)
+	var f := FileAccess.open(file, FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+	var my = await _my_critters()
+	Customs.all_ways_on()
+	my.kit_screen.start()
+	my.kit_screen.open_file(file)
+	await get_tree().create_timer(4.0).timeout
+	f = FileAccess.open(file, FileAccess.WRITE)
+	f.store_string(text + "
+<!-- saved again -->
+")
+	f.close()
 
 
 func share_code_test() -> void:

@@ -198,6 +198,38 @@ func _init() -> void:
 	Customs.remove(copy)
 	check(not Customs.all.has(copy), "and deletes like any other")
 
+	# --- Draw in your own app (C4): the kit screens.
+	Customs.all_ways_on()
+	var ks: RefCounted = my.kit_screen
+	ks.start()
+	t = page(my)
+	check(ks.active and "Draw in your own app" in t and "Get the templates" in t and "Pick a file" in t, "Draw in your own app opens the choose page")
+	ks.name = ""
+	ks.open_file("res://templates/side-1.svg")
+	check(ks.step == "kit" and ks.preview == Customs.STAGED, "a template comes in and walks before it is kept")
+	t = page(my)
+	check("What it can do" in t and "Keep" in t and t.any(func(x): return x.begins_with("Found ")), "the kit page lists what it found")
+	check(ks.name == "Side 1", "named after the file (%s)" % ks.name)
+	var lines: Array = ks.check_lines({"plan": "side", "parts": {"walk-body": 1, "head": 1, "eyes": 1, "leg-front": 1, "leg-back": 1},
+		"missing": [], "dropped": ["a script"], "unmatched": ["doodle"]})
+	check(lines.any(func(l): return l[0] == "cost" and "tail" in l[1] and "swish" in l[1]), "a missing tail costs its swishes")
+	check(lines.any(func(l): return "a script" in l[1]) and lines.any(func(l): return "doodle" in l[1]), "what was taken out and not recognised is said")
+	var need: Array = ks.check_lines({"plan": "side", "parts": {"head": 1}, "missing": ["walk-body"], "dropped": [], "unmatched": []})
+	check(need.any(func(l): return l[0] == "need" and "walking body" in l[1]), "a needed part is said")
+	ks.name = "Biscuit"
+	var kid: String = ks.keep()
+	check(kid != "" and Customs.all[kid]["name"] == "Biscuit" and Customs.badge(Customs.all[kid]) == "Drawn", "Keep adds it as Drawn")
+	check(FileAccess.file_exists(str(Customs.all[kid]["_dir"]).path_join("source.json")) and not Customs.all.has(Customs.STAGED), "remembering its file, with the preview gone")
+	check(not ks.active and my.view == "detail" and my.selected == kid, "and opens its page")
+	var rev := int(Customs.all[kid].get("rev", 0))
+	my._edit(kid)
+	check(ks.active and ks.step == "kit" and ks.replacing == kid, "Bring in a new version opens its file again")
+	ks.reload()
+	check(ks.changed_note != "", "Reload brings it in again and says so")
+	check(ks.keep() == kid and int(Customs.all[kid].get("rev", 0)) > rev and Customs.all[kid]["name"] == "Biscuit", "and Save replaces its drawing, name kept")
+	Customs.remove(kid)
+	Customs.ways = {}
+
 	# --- The colour picker.
 	check(Picker.parse_hex("#abc") == "#AABBCC" and Picker.parse_hex("8cc46c") == "#8CC46C", "hex in short and long forms")
 	check(Picker.parse_hex("#12345") == "" and Picker.parse_hex("#GG0000") == "", "not a colour: nothing")
