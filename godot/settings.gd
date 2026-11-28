@@ -63,6 +63,7 @@ const DEFAULTS := {
 		"updates": "download",     # off | tell | download (and tell)
 		"update_checked": 0,       # unix time of the last automatic check
 		"update_dismissed": "",    # a version the user closed the note for
+		"creator_mode": true,      # with a creator code: System > Creator and the tray's Call a critter
 	},
 	"studio": {"tips_seen": false},   # the Critter Studio's first-time tips (gui/studio/help.gd)
 }
