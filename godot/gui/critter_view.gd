@@ -72,7 +72,9 @@ func _build(species: String, w: int, h: int, scale: float, mode: String, asleep:
 
 static func drawn_rect(c: Node2D) -> Rect2:
 	# What a critter draws this frame, in its viewport's pixels.
-	var items: Array = c._sprites.duplicate()
+	# An untyped copy: _sprites is Array[Sprite2D], which refuses the Polygon2D.
+	var items: Array = []
+	items.append_array(c._sprites)
 	if c.get("pic") is Polygon2D:
 		items.append(c.pic)   # a homemade critter's picture
 	var r := Rect2()
